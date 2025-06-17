@@ -1,0 +1,89 @@
+'use client';
+
+import { ProductFamilyBreakdown } from '@/lib/queries';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+
+interface ProductFamilyChartProps {
+  data: ProductFamilyBreakdown[];
+}
+
+const COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+];
+
+const chartConfig = {
+  productCount: {
+    label: "Products",
+  },
+} satisfies ChartConfig;
+
+export function ProductFamilyChart({ data }: ProductFamilyChartProps) {
+  const totalProducts = data.reduce((sum, item) => sum + item.productCount, 0);
+  const totalValue = data.reduce((sum, item) => sum + Number(item.totalValue), 0);
+
+  const chartData = data.map((item, index) => ({
+    ...item,
+    fill: COLORS[index % COLORS.length],
+    percentage: ((item.productCount / totalProducts) * 100).toFixed(1),
+  }));
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Product Families</CardTitle>
+        <CardDescription>
+          Distribution by product family ({totalProducts} products, ${totalValue.toFixed(2)} total value)
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ productFamily, percentage }) => `${productFamily}: ${percentage}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="productCount"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <ChartTooltip 
+                content={
+                  <ChartTooltipContent 
+                    formatter={(value, name, props) => [
+                      <>
+                        <div className="font-medium">{props.payload?.productFamily}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {value} products ({props.payload?.percentage}%)
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Avg margin: {props.payload?.averageMargin}%
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Total value: ${props.payload?.totalValue}
+                        </div>
+                      </>,
+                      name
+                    ]}
+                  />
+                }
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
