@@ -28,18 +28,25 @@ export function MarginDistributionChart({ data }: MarginDistributionChartProps) 
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="min-h-[300px]">
+        <ChartContainer config={chartConfig} className="h-[280px] min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart 
+              data={data} 
+              margin={{ top: 20, right: 10, left: 10, bottom: 60 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="marginRange" 
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11 }}
                 angle={-45}
                 textAnchor="end"
                 height={60}
+                interval={0}
               />
-              <YAxis tick={{ fontSize: 12 }} />
+              <YAxis 
+                tick={{ fontSize: 11 }}
+                width={40}
+              />
               <ChartTooltip 
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.[0]) return null;

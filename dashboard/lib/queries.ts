@@ -1,5 +1,5 @@
 import { db, fctOrdersInAnalyticsMart, fctProductsInAnalyticsMart } from '@/lib/db';
-import { desc, gte, sql, count, sum, avg, and } from 'drizzle-orm';
+import { desc, gte, sql, count, sum, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 
 export interface DashboardMetrics {
@@ -217,7 +217,10 @@ export async function getProductMetrics(): Promise<ProductMetrics> {
       averagePurchaseCost: avg(fctProductsInAnalyticsMart.purchaseCost),
     })
     .from(fctProductsInAnalyticsMart)
-    .where(sql`${fctProductsInAnalyticsMart.salesPrice} is not null`);
+    .where(and(
+      sql`${fctProductsInAnalyticsMart.salesPrice} is not null`,
+      notInArray(fctProductsInAnalyticsMart.itemType, ['NonInventory', 'OtherCharge'])
+    ));
 
   const result = metrics[0];
 
@@ -248,7 +251,10 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
       itemType: fctProductsInAnalyticsMart.itemType,
     })
     .from(fctProductsInAnalyticsMart)
-    .where(sql`${fctProductsInAnalyticsMart.salesPrice} is not null`)
+    .where(and(
+      sql`${fctProductsInAnalyticsMart.salesPrice} is not null`,
+      notInArray(fctProductsInAnalyticsMart.itemType, ['NonInventory', 'OtherCharge'])
+    ))
     .orderBy(desc(fctProductsInAnalyticsMart.marginAmount))
     .limit(limit);
 
@@ -276,7 +282,10 @@ export async function getProductFamilyBreakdown(): Promise<ProductFamilyBreakdow
       totalValue: sum(fctProductsInAnalyticsMart.salesPrice),
     })
     .from(fctProductsInAnalyticsMart)
-    .where(sql`${fctProductsInAnalyticsMart.salesPrice} is not null`)
+    .where(and(
+      sql`${fctProductsInAnalyticsMart.salesPrice} is not null`,
+      notInArray(fctProductsInAnalyticsMart.itemType, ['NonInventory', 'OtherCharge'])
+    ))
     .groupBy(fctProductsInAnalyticsMart.productFamily)
     .orderBy(desc(count()));
 
@@ -306,6 +315,7 @@ export async function getMarginDistribution(): Promise<MarginDistribution[]> {
         END as margin_range
       FROM analytics_mart.fct_products 
       WHERE margin_percentage IS NOT NULL
+        AND item_type NOT IN ('NonInventory', 'OtherCharge')
     ) ranges
     GROUP BY margin_range
     ORDER BY 

@@ -43,7 +43,7 @@ export function ProductFamilyChart({ data }: ProductFamilyChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[300px]">
+        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[280px] min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -51,8 +51,8 @@ export function ProductFamilyChart({ data }: ProductFamilyChartProps) {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ productFamily, percentage }) => `${productFamily}: ${percentage}%`}
-                outerRadius={80}
+                label={false}
+                outerRadius="70%"
                 dataKey="productCount"
               >
                 {chartData.map((entry, index) => (

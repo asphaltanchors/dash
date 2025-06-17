@@ -15,45 +15,55 @@ interface ProductsTableProps {
 
 export function ProductsTable({ products }: ProductsTableProps) {
   return (
-    <div className="rounded-md border">
+    <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Product Name</TableHead>
-            <TableHead>Family</TableHead>
-            <TableHead>Material</TableHead>
-            <TableHead className="text-right">Sales Price</TableHead>
-            <TableHead className="text-right">Cost</TableHead>
+            <TableHead className="min-w-[200px]">Product Name</TableHead>
+            <TableHead className="hidden sm:table-cell">Family</TableHead>
+            <TableHead className="hidden lg:table-cell">Material</TableHead>
+            <TableHead className="text-right">Price</TableHead>
+            <TableHead className="text-right hidden md:table-cell">Cost</TableHead>
             <TableHead className="text-right">Margin %</TableHead>
-            <TableHead className="text-right">Margin $</TableHead>
-            <TableHead>Type</TableHead>
+            <TableHead className="text-right hidden xl:table-cell">Margin $</TableHead>
+            <TableHead className="hidden lg:table-cell">Type</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.map((product) => (
             <TableRow key={product.quickBooksInternalId}>
-              <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  {product.itemName}
-                  {product.isKit && (
-                    <Badge variant="secondary" className="text-xs">
-                      Kit
+              <TableCell className="font-medium min-w-[200px]">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate">{product.itemName}</span>
+                    {product.isKit && (
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        Kit
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex gap-1 sm:hidden">
+                    <Badge variant="outline" className="text-xs">
+                      {product.productFamily}
                     </Badge>
-                  )}
+                    <Badge variant="outline" className="text-xs lg:hidden">
+                      {product.itemType}
+                    </Badge>
+                  </div>
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <Badge variant="outline" className="text-xs">
                   {product.productFamily}
                 </Badge>
               </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
+              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                 {product.materialType}
               </TableCell>
               <TableCell className="text-right font-mono">
                 ${product.salesPrice}
               </TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="text-right font-mono hidden md:table-cell">
                 ${product.purchaseCost}
               </TableCell>
               <TableCell className="text-right">
@@ -69,10 +79,10 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   {product.marginPercentage}%
                 </span>
               </TableCell>
-              <TableCell className="text-right font-mono">
+              <TableCell className="text-right font-mono hidden xl:table-cell">
                 ${product.marginAmount}
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden lg:table-cell">
                 <Badge variant="outline" className="text-xs">
                   {product.itemType}
                 </Badge>

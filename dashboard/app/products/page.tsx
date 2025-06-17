@@ -4,6 +4,16 @@ import {
   getProductFamilyBreakdown, 
   getMarginDistribution 
 } from '@/lib/queries';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
+import {
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Package, TrendingUp, DollarSign, Boxes } from 'lucide-react';
 import { ProductsTable } from '@/components/dashboard/ProductsTable';
@@ -79,14 +89,32 @@ async function ProductsList() {
 
 export default function ProductsPage() {
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Products</h2>
-      </div>
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator
+            orientation="vertical"
+            className="mr-2 data-[orientation=vertical]:h-4"
+          />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Products</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </header>
+      <div className="flex-1 space-y-4 p-4 md:p-6 pt-6 min-w-0">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Products</h2>
+        </div>
 
-      <ProductMetrics />
-      <ProductCharts />
-      <ProductsList />
-    </div>
+        <ProductMetrics />
+        <ProductCharts />
+        <ProductsList />
+      </div>
+    </>
   );
 }
