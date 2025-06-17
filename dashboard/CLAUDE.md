@@ -174,3 +174,7 @@ When working with database queries and schemas, IMMEDIATELY flag any issues in `
 3. Include the **exact issue**, **current impact**, and **proposed DBT fix**
 4. **Prioritize based on code complexity reduction and data quality, NOT performance**
 5. **Ask: "Does this simplify application code or fix data issues?" rather than "Is this faster?"**
+
+## Memories
+
+- When updating `@DBT_CANDIDATES.md` make a note of specifics that will help when coming back to resolve. e.g. if you say we should normalize a table, specify where the views are that use it so when it's done it's easy to update the code. You can use a very terse format - this is primarily going to be used for LLM communication, don't optimize for humans for that part.

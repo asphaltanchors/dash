@@ -1,5 +1,6 @@
 import { db, fctOrdersInAnalyticsMart } from '@/lib/db';
 import { desc, gte, sql, count, sum, avg, and } from 'drizzle-orm';
+import { format } from 'date-fns';
 
 export interface DashboardMetrics {
   totalRevenue: string;
@@ -31,11 +32,11 @@ export interface DailyRevenue {
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+  const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
   
   const sixtyDaysAgo = new Date();
   sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-  const sixtyDaysAgoStr = sixtyDaysAgo.toISOString().split('T')[0];
+  const sixtyDaysAgoStr = format(sixtyDaysAgo, 'yyyy-MM-dd');
 
   // Current period (last 30 days)
   const currentPeriod = await db
@@ -71,8 +72,8 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const current = currentPeriod[0];
   const previous = previousPeriod[0];
 
-  const currentRevenue = parseFloat(current.totalRevenue || '0');
-  const previousRevenue = parseFloat(previous.totalRevenue || '0');
+  const currentRevenue = Number(current.totalRevenue || 0);
+  const previousRevenue = Number(previous.totalRevenue || 0);
   const revenueGrowth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
   
   const orderGrowth = previous.totalOrders > 0 ? ((current.totalOrders - previous.totalOrders) / previous.totalOrders) * 100 : 0;
@@ -80,7 +81,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   return {
     totalRevenue: currentRevenue.toFixed(2),
     totalOrders: current.totalOrders,
-    averageOrderValue: parseFloat(current.averageOrderValue || '0').toFixed(2),
+    averageOrderValue: Number(current.averageOrderValue || 0).toFixed(2),
     uniqueCustomers: current.uniqueCustomers,
     previousPeriodRevenue: previousRevenue.toFixed(2),
     previousPeriodOrders: previous.totalOrders,
@@ -108,10 +109,10 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
   return orders.map(order => ({
     orderNumber: order.orderNumber || 'N/A',
     customer: order.customer || 'Unknown',
-    orderDate: order.orderDate || 'N/A',
-    totalAmount: parseFloat(order.totalAmount || '0').toFixed(2),
-    status: order.status || 'Unknown',
-    isPaid: order.isPaid || false,
+    orderDate: order.orderDate as string,
+    totalAmount: Number(order.totalAmount || 0).toFixed(2),
+    status: order.status!,
+    isPaid: order.isPaid!,
   }));
 }
 
@@ -119,7 +120,7 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
 export async function getDailyRevenue(): Promise<DailyRevenue[]> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+  const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
 
   const dailyData = await db
     .select({
@@ -138,8 +139,8 @@ export async function getDailyRevenue(): Promise<DailyRevenue[]> {
     .orderBy(fctOrdersInAnalyticsMart.orderDate);
 
   return dailyData.map(day => ({
-    date: day.date || 'N/A',
-    revenue: parseFloat(day.revenue || '0').toFixed(2),
+    date: day.date as string,
+    revenue: Number(day.revenue || 0).toFixed(2),
     orderCount: day.orderCount,
   }));
 }
@@ -148,7 +149,7 @@ export async function getDailyRevenue(): Promise<DailyRevenue[]> {
 export async function getOrderStatusBreakdown() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+  const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
 
   return await db
     .select({

@@ -9,28 +9,25 @@ interface RecentOrdersProps {
 }
 
 function StatusBadge({ status, isPaid }: { status: string; isPaid: boolean }) {
-  // Normalize status for consistent display
-  const normalizedStatus = status?.toLowerCase() || 'unknown'
-  
-  // Determine badge variant and icon based on status and payment
+  // Direct status matching with standardized DBT values: PAID, OPEN, PARTIALLY_PAID
   let variant: "default" | "secondary" | "destructive" | "outline" = "default"
   let icon = <Clock className="h-3 w-3" />
   
-  if (isPaid) {
+  if (status === 'PAID') {
     variant = "default"
     icon = <CheckCircle className="h-3 w-3" />
-  } else if (normalizedStatus.includes('cancel') || normalizedStatus.includes('void')) {
-    variant = "destructive"
-    icon = <XCircle className="h-3 w-3" />
-  } else if (normalizedStatus.includes('pending') || normalizedStatus.includes('draft')) {
+  } else if (status === 'OPEN') {
     variant = "secondary"
+    icon = <Clock className="h-3 w-3" />
+  } else if (status === 'PARTIALLY_PAID') {
+    variant = "outline"
     icon = <Clock className="h-3 w-3" />
   }
 
   return (
     <Badge variant={variant} className="flex items-center gap-1">
       {icon}
-      {isPaid ? 'Paid' : status || 'Unknown'}
+      {status}
     </Badge>
   )
 }
@@ -77,7 +74,7 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                   <StatusBadge status={order.status} isPaid={order.isPaid} />
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  ${parseFloat(order.totalAmount).toLocaleString()}
+                  ${Number(order.totalAmount).toLocaleString()}
                 </TableCell>
               </TableRow>
             ))}

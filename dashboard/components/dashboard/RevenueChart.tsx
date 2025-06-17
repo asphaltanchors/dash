@@ -23,11 +23,11 @@ export function RevenueChart({ data }: RevenueChartProps) {
       month: 'short', 
       day: 'numeric' 
     }),
-    revenue: parseFloat(item.revenue),
+    revenue: Number(item.revenue),
     orderCount: item.orderCount,
   }))
 
-  const totalRevenue = data.reduce((sum, item) => sum + parseFloat(item.revenue), 0)
+  const totalRevenue = data.reduce((sum, item) => sum + Number(item.revenue), 0)
   const totalOrders = data.reduce((sum, item) => sum + item.orderCount, 0)
 
   return (
@@ -60,7 +60,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
               cursor={false}
               content={<ChartTooltipContent 
                 formatter={(value) => [
-                  `$${parseFloat(value as string).toLocaleString()}`,
+                  `$${Number(value).toLocaleString()}`,
                   "Revenue"
                 ]}
                 labelFormatter={(label) => `Date: ${label}`}

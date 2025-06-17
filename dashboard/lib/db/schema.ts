@@ -1,25 +1,8 @@
-import { pgSchema, varchar, text, boolean, date, numeric, timestamp, bigint } from "drizzle-orm/pg-core"
+import { pgTable, pgSchema, varchar, text, date, boolean, numeric, timestamp, bigint } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 
 export const analyticsMart = pgSchema("analytics_mart");
 
-
-export const fctProductsInAnalyticsMart = analyticsMart.table("fct_products", {
-	quickBooksInternalId: varchar("quick_books_internal_id"),
-	itemName: varchar("item_name"),
-	salesDescription: varchar("sales_description"),
-	productFamily: text("product_family"),
-	materialType: text("material_type"),
-	isKit: boolean("is_kit"),
-	itemType: varchar("item_type"),
-	itemSubtype: varchar("item_subtype"),
-	purchaseDescription: varchar("purchase_description"),
-	salesPrice: text("sales_price"),
-	purchaseCost: text("purchase_cost"),
-	manufacturerSPartNumber: varchar("manufacturer_s_part_number"),
-	unitOfMeasure: varchar("unit_of_measure"),
-	loadDate: varchar("load_date"),
-	snapshotDate: varchar("snapshot_date"),
-});
 
 export const fctOrdersInAnalyticsMart = analyticsMart.table("fct_orders", {
 	orderNumber: varchar("order_number"),
@@ -62,4 +45,24 @@ export const fctOrdersInAnalyticsMart = analyticsMart.table("fct_orders", {
 	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 	itemCount: bigint("item_count", { mode: "number" }),
 	effectiveTaxRate: numeric("effective_tax_rate"),
+});
+
+export const fctProductsInAnalyticsMart = analyticsMart.table("fct_products", {
+	quickBooksInternalId: varchar("quick_books_internal_id"),
+	itemName: varchar("item_name"),
+	salesDescription: varchar("sales_description"),
+	productFamily: text("product_family"),
+	materialType: text("material_type"),
+	isKit: boolean("is_kit"),
+	itemType: varchar("item_type"),
+	itemSubtype: varchar("item_subtype"),
+	purchaseDescription: varchar("purchase_description"),
+	salesPrice: numeric("sales_price"),
+	purchaseCost: numeric("purchase_cost"),
+	marginPercentage: numeric("margin_percentage"),
+	marginAmount: numeric("margin_amount"),
+	manufacturerSPartNumber: varchar("manufacturer_s_part_number"),
+	unitOfMeasure: varchar("unit_of_measure"),
+	loadDate: varchar("load_date"),
+	snapshotDate: varchar("snapshot_date"),
 });
