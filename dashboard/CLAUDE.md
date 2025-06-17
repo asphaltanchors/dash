@@ -67,9 +67,9 @@ npx drizzle-kit studio      # Open Drizzle Studio
 
 ## Database Schema
 
-**IMPORTANT:** This app consumes data from a DBT pipeline. DO NOT create or modify database schema - it must follow what's provided by the DBT pipeline. The schema in `src/db/schema.ts` should reflect the existing DBT tables and views, not define new ones.
+**IMPORTANT:** This app consumes data from a DBT pipeline. DO NOT create or modify database schema - it must follow what's provided by the DBT pipeline. The schema in `lib/db/schema.ts` should reflect the existing DBT tables and views, not define new ones.
 
-- Database schema at `src/db/schema.ts` mirrors DBT pipeline output
+- Database schema at `lib/db/schema.ts` mirrors DBT pipeline output
 - Uses PostgreSQL dialect
 - Read-only access pattern - no schema modifications
 - Use Drizzle to query existing DBT tables/views
@@ -102,3 +102,75 @@ An MCP (Model Context Protocol) connector is configured for direct database quer
 - File-based routing in `app/` directory
 - Co-locate related components, actions, and types in route directories
 - Use TypeScript strictly - no `any` types
+
+## Dashboard Architecture Patterns
+
+**Established Component Structure** (follow this pattern for all dashboards):
+```
+app/[dashboard-name]/
+├── page.tsx              # Main page with async Server Components
+├── layout.tsx            # Optional layout wrapper
+components/dashboard/
+├── MetricCard.tsx        # Reusable metric display with growth indicators
+├── [FeatureName]Chart.tsx # Chart components using shadcn/ui Chart
+├── [FeatureName]Table.tsx # Table components using shadcn/ui Table
+lib/
+├── queries.ts            # Database query functions (centralized)
+├── db/
+    ├── index.ts          # Database connection and exports
+    └── schema.ts         # Generated Drizzle schema
+```
+
+**Dashboard Page Pattern:**
+- **Async Server Components**: Each major section (metrics, charts, tables) as separate async functions
+- **Suspense Boundaries**: Wrap each section with proper loading fallbacks
+- **Error Boundaries**: Handle database errors gracefully
+- **Type Safety**: Export interfaces from queries.ts, import in components
+
+**Query Function Conventions:**
+- Export TypeScript interfaces for all data shapes
+- Use string date formatting for PostgreSQL date fields (`toISOString().split('T')[0]`)
+- Include null checks and default values for all database fields
+- Centralize common filters (date ranges, status filters) as reusable functions
+
+**Component Patterns:**
+- **MetricCard**: Always include `formatValue` prop for consistent number/currency formatting
+- **Charts**: Use shadcn/ui Chart components, include total summaries in card headers
+- **Tables**: Include status badges, truncate long text, right-align monetary values
+- **Loading States**: Use skeleton loaders that match final component structure
+
+**Performance Considerations:**
+- Keep database queries in Server Components
+- Use React.cache() for expensive calculations
+- Flag complex aggregations as DBT candidates in `DBT_CANDIDATES.md`
+- Consider `unstable_cache()` for queries that don't change frequently
+
+**DBT Integration (Scale-Appropriate for Small Ecommerce):**
+- **Focus on data quality over performance** - 2K orders/year means real-time aggregation is fine
+- **Flag business logic for centralization** - status standardization, type conversions, calculated fields
+- **AVOID over-engineering** - don't create pre-aggregated tables unless there's clear complexity benefit
+- Use MCP tools to explore data before writing queries
+- Document data quality issues for DBT pipeline improvements
+
+**Data Quality Issue Detection** (REQUIRED - always do this):
+When working with database queries and schemas, IMMEDIATELY flag any issues in `DBT_CANDIDATES.md`:
+
+**Schema Issues to Watch For:**
+- Type mismatches (e.g., dates returning as strings, prices as text)
+- Missing constraints (nullable fields that shouldn't be)
+- Inconsistent naming conventions (camelCase vs snake_case)
+- Missing primary/foreign keys
+- Fields without proper indexes for query performance
+
+**Query Issues to Flag (Focus on Logic, Not Performance):**
+- Business logic that belongs in pipeline (status standardization, type conversions)
+- Data quality issues (type mismatches, missing constraints)
+- Repeated complex calculations (CLV, margin analysis)
+- **NOT performance optimizations** - real-time queries are fine at this scale
+
+**Process:**
+1. During development, note any data type surprises or workarounds
+2. Add to `DBT_CANDIDATES.md` with "Discovered: During [feature] development"  
+3. Include the **exact issue**, **current impact**, and **proposed DBT fix**
+4. **Prioritize based on code complexity reduction and data quality, NOT performance**
+5. **Ask: "Does this simplify application code or fix data issues?" rather than "Is this faster?"**
