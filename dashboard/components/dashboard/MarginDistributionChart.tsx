@@ -12,7 +12,7 @@ interface MarginDistributionChartProps {
 const chartConfig = {
   productCount: {
     label: "Product Count",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
@@ -41,19 +41,20 @@ export function MarginDistributionChart({ data }: MarginDistributionChartProps) 
               />
               <YAxis tick={{ fontSize: 12 }} />
               <ChartTooltip 
-                content={
-                  <ChartTooltipContent 
-                    formatter={(value, name, props) => [
-                      <>
-                        <div className="font-medium">{props.payload?.marginRange}</div>
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.[0]) return null;
+                  const data = payload[0].payload;
+                  return (
+                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                      <div className="grid gap-2">
+                        <div className="font-medium">{data.marginRange}</div>
                         <div className="text-sm text-muted-foreground">
-                          {value} products ({props.payload?.percentage.toFixed(1)}%)
+                          {data.productCount} products ({data.percentage.toFixed(1)}%)
                         </div>
-                      </>,
-                      "Products"
-                    ]}
-                  />
-                }
+                      </div>
+                    </div>
+                  );
+                }}
               />
               <Bar 
                 dataKey="productCount" 

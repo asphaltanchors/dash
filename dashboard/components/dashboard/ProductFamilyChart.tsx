@@ -9,27 +9,28 @@ interface ProductFamilyChartProps {
   data: ProductFamilyBreakdown[];
 }
 
-const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-];
-
 const chartConfig = {
   productCount: {
     label: "Products",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
+
+// Define colors for pie chart slices
+const pieColors = [
+  "var(--chart-1)",
+  "var(--chart-2)", 
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)"
+];
 
 export function ProductFamilyChart({ data }: ProductFamilyChartProps) {
   const totalProducts = data.reduce((sum, item) => sum + item.productCount, 0);
   const totalValue = data.reduce((sum, item) => sum + Number(item.totalValue), 0);
 
-  const chartData = data.map((item, index) => ({
+  const chartData = data.map((item) => ({
     ...item,
-    fill: COLORS[index % COLORS.length],
     percentage: ((item.productCount / totalProducts) * 100).toFixed(1),
   }));
 
@@ -52,33 +53,33 @@ export function ProductFamilyChart({ data }: ProductFamilyChartProps) {
                 labelLine={false}
                 label={({ productFamily, percentage }) => `${productFamily}: ${percentage}%`}
                 outerRadius={80}
-                fill="#8884d8"
                 dataKey="productCount"
               >
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                  <Cell key={`cell-${index}`} fill={pieColors[index % pieColors.length]} />
                 ))}
               </Pie>
               <ChartTooltip 
-                content={
-                  <ChartTooltipContent 
-                    formatter={(value, name, props) => [
-                      <>
-                        <div className="font-medium">{props.payload?.productFamily}</div>
+                content={({ active, payload }) => {
+                  if (!active || !payload?.[0]) return null;
+                  const data = payload[0].payload;
+                  return (
+                    <div className="rounded-lg border bg-background p-2 shadow-sm">
+                      <div className="grid gap-2">
+                        <div className="font-medium">{data.productFamily}</div>
                         <div className="text-sm text-muted-foreground">
-                          {value} products ({props.payload?.percentage}%)
+                          {data.productCount} products ({data.percentage}%)
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Avg margin: {props.payload?.averageMargin}%
+                          Avg margin: {data.averageMargin}%
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Total value: ${props.payload?.totalValue}
+                          Total value: ${data.totalValue}
                         </div>
-                      </>,
-                      name
-                    ]}
-                  />
-                }
+                      </div>
+                    </div>
+                  );
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
