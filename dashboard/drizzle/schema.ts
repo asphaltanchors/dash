@@ -1,0 +1,66 @@
+import { pgTable, pgSchema, varchar, text, boolean, date, numeric, timestamp, bigint } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
+
+export const analyticsMart = pgSchema("analytics_mart");
+
+
+export const fctProductsInAnalyticsMart = analyticsMart.table("fct_products", {
+	quickBooksInternalId: varchar("quick_books_internal_id"),
+	itemName: varchar("item_name"),
+	salesDescription: varchar("sales_description"),
+	productFamily: text("product_family"),
+	materialType: text("material_type"),
+	isKit: boolean("is_kit"),
+	itemType: varchar("item_type"),
+	itemSubtype: varchar("item_subtype"),
+	purchaseDescription: varchar("purchase_description"),
+	salesPrice: text("sales_price"),
+	purchaseCost: text("purchase_cost"),
+	manufacturerSPartNumber: varchar("manufacturer_s_part_number"),
+	unitOfMeasure: varchar("unit_of_measure"),
+	loadDate: varchar("load_date"),
+	snapshotDate: varchar("snapshot_date"),
+});
+
+export const fctOrdersInAnalyticsMart = analyticsMart.table("fct_orders", {
+	orderNumber: varchar("order_number"),
+	sourceType: text("source_type"),
+	orderDate: date("order_date"),
+	customer: text(),
+	paymentMethod: text("payment_method"),
+	status: text(),
+	dueDate: date("due_date"),
+	isTaxExempt: boolean("is_tax_exempt"),
+	isPaid: boolean("is_paid"),
+	isBackdated: boolean("is_backdated"),
+	billingAddress: text("billing_address"),
+	billingAddressCity: text("billing_address_city"),
+	billingAddressState: text("billing_address_state"),
+	billingAddressPostalCode: text("billing_address_postal_code"),
+	billingAddressCountry: text("billing_address_country"),
+	shippingAddress: text("shipping_address"),
+	shippingAddressCity: text("shipping_address_city"),
+	shippingAddressState: text("shipping_address_state"),
+	shippingAddressPostalCode: text("shipping_address_postal_code"),
+	shippingAddressCountry: text("shipping_address_country"),
+	shippingMethod: text("shipping_method"),
+	shipDate: date("ship_date"),
+	memo: text(),
+	messageToCustomer: text("message_to_customer"),
+	class: text(),
+	currency: text(),
+	exchangeRate: numeric("exchange_rate"),
+	terms: text(),
+	salesRep: text("sales_rep"),
+	transactionId: text("transaction_id"),
+	quickbooksInternalId: text("quickbooks_internal_id"),
+	externalId: text("external_id"),
+	createdDate: timestamp("created_date", { mode: 'string' }),
+	modifiedDate: timestamp("modified_date", { mode: 'string' }),
+	totalLineItemsAmount: numeric("total_line_items_amount"),
+	totalTax: numeric("total_tax"),
+	totalAmount: numeric("total_amount"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	itemCount: bigint("item_count", { mode: "number" }),
+	effectiveTaxRate: numeric("effective_tax_rate"),
+});
