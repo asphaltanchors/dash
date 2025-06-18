@@ -1,4 +1,5 @@
-import { pgSchema, varchar, text, date, boolean, numeric, timestamp, bigint } from "drizzle-orm/pg-core"
+import { pgTable, pgSchema, varchar, text, date, boolean, numeric, timestamp, bigint } from "drizzle-orm/pg-core"
+import { sql } from "drizzle-orm"
 
 export const analyticsMart = pgSchema("analytics_mart");
 
@@ -64,4 +65,30 @@ export const fctProductsInAnalyticsMart = analyticsMart.table("fct_products", {
 	unitOfMeasure: varchar("unit_of_measure"),
 	loadDate: varchar("load_date"),
 	snapshotDate: varchar("snapshot_date"),
+});
+
+export const fctInventoryHistoryInAnalyticsMart = analyticsMart.table("fct_inventory_history", {
+	itemName: varchar("item_name"),
+	inventoryDate: date("inventory_date"),
+	quantityOnHand: numeric("quantity_on_hand"),
+	quantityOnOrder: numeric("quantity_on_order"),
+	quantityOnSalesOrder: numeric("quantity_on_sales_order"),
+	availableQuantity: numeric("available_quantity"),
+	totalInventoryVisibility: numeric("total_inventory_visibility"),
+	previousQuantityOnHand: numeric("previous_quantity_on_hand"),
+	quantityChange: numeric("quantity_change"),
+	productDescription: varchar("product_description"),
+	productFamily: text("product_family"),
+	materialType: text("material_type"),
+	isKit: boolean("is_kit"),
+	itemType: varchar("item_type"),
+	itemSubtype: varchar("item_subtype"),
+	unitOfMeasure: varchar("unit_of_measure"),
+	salesPrice: numeric("sales_price"),
+	purchaseCost: numeric("purchase_cost"),
+	inventoryValueAtCost: numeric("inventory_value_at_cost"),
+	inventoryValueAtSalesPrice: numeric("inventory_value_at_sales_price"),
+	itemStatus: varchar("item_status"),
+	isBackup: boolean("is_backup"),
+	originalSnapshotDate: varchar("original_snapshot_date"),
 });
