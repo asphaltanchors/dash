@@ -24,18 +24,19 @@ async function DashboardMetrics() {
       <MetricCard
         title="365 Day Sales"
         value={metrics.sales365Days}
+        change={metrics.sales365DaysGrowth}
         icon={DollarSign}
         formatValue={(value) => formatCurrency(value, { showCents: false })}
       />
       <MetricCard
-        title="Total Revenue"
+        title="30d Sales"
         value={metrics.totalRevenue}
         change={metrics.revenueGrowth}
         icon={DollarSign}
         formatValue={(value) => formatCurrency(value)}
       />
       <MetricCard
-        title="Total Orders"
+        title="30d Orders"
         value={metrics.totalOrders.toString()}
         change={metrics.orderGrowth}
         icon={ShoppingCart}

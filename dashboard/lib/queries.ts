@@ -11,6 +11,7 @@ export interface DashboardMetrics {
   previousPeriodOrders: number;
   revenueGrowth: number;
   orderGrowth: number;
+  sales365DaysGrowth: number;
 }
 
 export interface RecentOrder {
@@ -104,6 +105,10 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   threeSixtyFiveDaysAgo.setDate(threeSixtyFiveDaysAgo.getDate() - 365);
   const threeSixtyFiveDaysAgoStr = format(threeSixtyFiveDaysAgo, 'yyyy-MM-dd');
   
+  const sevenThirtyDaysAgo = new Date();
+  sevenThirtyDaysAgo.setDate(sevenThirtyDaysAgo.getDate() - 730);
+  const sevenThirtyDaysAgoStr = format(sevenThirtyDaysAgo, 'yyyy-MM-dd');
+  
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd');
 
@@ -117,6 +122,21 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
       and(
         gte(fctOrdersInAnalyticsMart.orderDate, threeSixtyFiveDaysAgoStr),
         lte(fctOrdersInAnalyticsMart.orderDate, todayStr),
+        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
+        sql`${fctOrdersInAnalyticsMart.isPaid} = true`
+      )
+    );
+
+  // Previous 365 day sales - only paid orders between 730-365 days ago
+  const previousSales365 = await db
+    .select({
+      totalSales: sum(fctOrdersInAnalyticsMart.totalAmount),
+    })
+    .from(fctOrdersInAnalyticsMart)
+    .where(
+      and(
+        gte(fctOrdersInAnalyticsMart.orderDate, sevenThirtyDaysAgoStr),
+        lte(fctOrdersInAnalyticsMart.orderDate, threeSixtyFiveDaysAgoStr),
         sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
         sql`${fctOrdersInAnalyticsMart.isPaid} = true`
       )
@@ -161,8 +181,12 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   
   const orderGrowth = previous.totalOrders > 0 ? ((current.totalOrders - previous.totalOrders) / previous.totalOrders) * 100 : 0;
 
+  const current365Sales = Number(sales365[0].totalSales || 0);
+  const previous365Sales = Number(previousSales365[0].totalSales || 0);
+  const sales365Growth = previous365Sales > 0 ? ((current365Sales - previous365Sales) / previous365Sales) * 100 : 0;
+
   return {
-    sales365Days: Number(sales365[0].totalSales || 0).toFixed(2),
+    sales365Days: current365Sales.toFixed(2),
     totalRevenue: currentRevenue.toFixed(2),
     totalOrders: current.totalOrders,
     averageOrderValue: Number(current.averageOrderValue || 0).toFixed(2),
@@ -170,6 +194,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     previousPeriodOrders: previous.totalOrders,
     revenueGrowth: parseFloat(revenueGrowth.toFixed(1)),
     orderGrowth: parseFloat(orderGrowth.toFixed(1)),
+    sales365DaysGrowth: parseFloat(sales365Growth.toFixed(1)),
   };
 }
 
