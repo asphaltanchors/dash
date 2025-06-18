@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+import { DollarSign, ShoppingCart, Users, TrendingUp } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,6 +10,93 @@ import { Separator } from "@/components/ui/separator"
 import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { MetricCard } from '@/components/dashboard/MetricCard'
+import { RevenueChart } from '@/components/dashboard/RevenueChart'
+import { RecentOrders } from '@/components/dashboard/RecentOrders'
+import { getDashboardMetrics, getRecentOrders, getWeeklyRevenue } from '@/lib/queries'
+
+async function DashboardMetrics() {
+  const metrics = await getDashboardMetrics()
+  
+  const formatCurrency = (value: string) => `$${parseFloat(value).toLocaleString()}`
+  const formatNumber = (value: string) => parseInt(value).toLocaleString()
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <MetricCard
+        title="365 Day Sales"
+        value={metrics.sales365Days}
+        icon={DollarSign}
+        formatValue={formatCurrency}
+      />
+      <MetricCard
+        title="Total Revenue"
+        value={metrics.totalRevenue}
+        change={metrics.revenueGrowth}
+        icon={DollarSign}
+        formatValue={formatCurrency}
+      />
+      <MetricCard
+        title="Total Orders"
+        value={metrics.totalOrders.toString()}
+        change={metrics.orderGrowth}
+        icon={ShoppingCart}
+        formatValue={formatNumber}
+      />
+      <MetricCard
+        title="Average Order Value"
+        value={metrics.averageOrderValue}
+        icon={TrendingUp}
+        formatValue={formatCurrency}
+      />
+    </div>
+  )
+}
+
+async function DashboardChart() {
+  const weeklyRevenue = await getWeeklyRevenue()
+  return <RevenueChart data={weeklyRevenue} />
+}
+
+async function DashboardOrders() {
+  const orders = await getRecentOrders(15)
+  return <RecentOrders orders={orders} />
+}
+
+function LoadingCard() {
+  return (
+    <div className="rounded-lg border bg-card p-6 animate-pulse">
+      <div className="h-4 bg-muted rounded w-24 mb-2"></div>
+      <div className="h-8 bg-muted rounded w-32"></div>
+    </div>
+  )
+}
+
+function LoadingChart() {
+  return (
+    <div className="rounded-lg border bg-card p-6 animate-pulse">
+      <div className="h-4 bg-muted rounded w-48 mb-6"></div>
+      <div className="h-64 bg-muted rounded"></div>
+    </div>
+  )
+}
+
+function LoadingTable() {
+  return (
+    <div className="rounded-lg border bg-card p-6 animate-pulse">
+      <div className="h-4 bg-muted rounded w-32 mb-6"></div>
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex space-x-4">
+            <div className="h-4 bg-muted rounded flex-1"></div>
+            <div className="h-4 bg-muted rounded w-24"></div>
+            <div className="h-4 bg-muted rounded w-20"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function HomePage() {
   return (
@@ -22,35 +111,45 @@ export default function HomePage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>Home</BreadcrumbPage>
+                <BreadcrumbPage>Dashboard</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="flex-1 space-y-6 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Welcome to your Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
-              Choose a dashboard from the sidebar to view your analytics
+              Overview of your e-commerce performance
             </p>
           </div>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="bg-muted/50 rounded-xl p-6 flex flex-col items-center justify-center min-h-[200px]">
-            <h3 className="text-lg font-medium mb-2">Orders Dashboard</h3>
-            <p className="text-sm text-muted-foreground text-center">
-              View order metrics, revenue charts, and recent orders
-            </p>
-          </div>
-          <div className="bg-muted/50 rounded-xl p-6 flex flex-col items-center justify-center min-h-[200px]">
-            <h3 className="text-lg font-medium mb-2">Products Dashboard</h3>
-            <p className="text-sm text-muted-foreground text-center">
-              Analyze product performance and inventory metrics
-            </p>
-          </div>
-        </div>
+
+        {/* Metrics Cards */}
+        <Suspense 
+          fallback={
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <LoadingCard />
+              <LoadingCard />
+              <LoadingCard />
+              <LoadingCard />
+            </div>
+          }
+        >
+          <DashboardMetrics />
+        </Suspense>
+
+        {/* Revenue Chart - Full Width */}
+        <Suspense fallback={<LoadingChart />}>
+          <DashboardChart />
+        </Suspense>
+
+        {/* Recent Orders */}
+        <Suspense fallback={<LoadingTable />}>
+          <DashboardOrders />
+        </Suspense>
       </div>
     </>
   )

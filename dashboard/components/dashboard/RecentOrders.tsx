@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { RecentOrder } from "@/lib/queries"
 import { CheckCircle, Clock } from "lucide-react"
+import Link from "next/link"
 
 interface RecentOrdersProps {
   orders: RecentOrder[]
@@ -56,7 +57,12 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
             {orders.map((order, index) => (
               <TableRow key={`${order.orderNumber}-${index}`}>
                 <TableCell className="font-medium">
-                  {order.orderNumber}
+                  <Link 
+                    href={`/orders/${encodeURIComponent(order.orderNumber)}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {order.orderNumber}
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <div className="max-w-[200px] truncate">

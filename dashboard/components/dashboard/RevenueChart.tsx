@@ -39,7 +39,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
+        <ChartContainer config={chartConfig} className="w-full h-[300px]">
           <AreaChart
             accessibilityLayer
             data={chartData}
