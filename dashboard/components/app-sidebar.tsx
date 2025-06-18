@@ -4,9 +4,10 @@ import * as React from "react"
 import {
   Store,
   BarChart3,
+  ShoppingCart,
+  Package,
 } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
 import {
   Sidebar,
   SidebarContent,
@@ -15,25 +16,26 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarGroup,
+  SidebarGroupLabel,
 } from "@/components/ui/sidebar"
 
 const data = {
   navMain: [
     {
-      title: "Dashboards",
-      url: "#",
+      title: "Dashboard",
+      url: "/",
       icon: BarChart3,
-      isActive: true,
-      items: [
-        {
-          title: "Orders",
-          url: "/orders",
-        },
-        {
-          title: "Products",
-          url: "/products",
-        },
-      ],
+    },
+    {
+      title: "Orders", 
+      url: "/orders",
+      icon: ShoppingCart,
+    },
+    {
+      title: "Products",
+      url: "/products", 
+      icon: Package,
     },
   ],
 }
@@ -57,7 +59,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <SidebarGroup>
+          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarMenu>
+            {data.navMain.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild>
+                  <a href={item.url}>
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

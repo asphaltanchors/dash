@@ -22,16 +22,14 @@ export function ProductsTable({ products }: ProductsTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead className="min-w-[200px]">Product Name</TableHead>
+            <TableHead className="hidden lg:table-cell w-auto max-w-60">Description</TableHead>
             <TableHead className="hidden sm:table-cell">Family</TableHead>
             <TableHead className="hidden lg:table-cell">Material</TableHead>
             <TableHead className="text-right">Price</TableHead>
-            <TableHead className="text-right hidden md:table-cell">Cost</TableHead>
             <TableHead className="text-right">Margin %</TableHead>
-            <TableHead className="text-right hidden xl:table-cell">Margin $</TableHead>
             <TableHead className="text-right hidden md:table-cell">Year Sales</TableHead>
             <TableHead className="text-right hidden lg:table-cell">Units Sold</TableHead>
             <TableHead className="text-right hidden xl:table-cell">Orders</TableHead>
-            <TableHead className="hidden lg:table-cell">Type</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -52,14 +50,16 @@ export function ProductsTable({ products }: ProductsTableProps) {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex gap-1 sm:hidden">
+                  <div className="flex gap-1 sm:hidden lg:hidden">
                     <Badge variant="outline" className="text-xs">
                       {product.productFamily}
                     </Badge>
-                    <Badge variant="outline" className="text-xs lg:hidden">
-                      {product.itemType}
-                    </Badge>
                   </div>
+                </div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground max-w-60">
+                <div className="truncate">
+                  {product.salesDescription || '-'}
                 </div>
               </TableCell>
               <TableCell className="hidden sm:table-cell">
@@ -73,15 +73,12 @@ export function ProductsTable({ products }: ProductsTableProps) {
               <TableCell className="text-right font-mono">
                 {formatCurrency(product.salesPrice)}
               </TableCell>
-              <TableCell className="text-right font-mono hidden md:table-cell">
-                {formatCurrency(product.purchaseCost)}
-              </TableCell>
-              <TableCell className="text-right">
+              <TableCell className="text-right font-mono">
                 <span 
                   className={`font-medium ${
-                    Number(product.marginPercentage) >= 30 
+                    Number(product.marginPercentage) >= 70 
                       ? 'text-green-600' 
-                      : Number(product.marginPercentage) >= 15 
+                      : Number(product.marginPercentage) >= 50 
                       ? 'text-yellow-600' 
                       : 'text-red-600'
                   }`}
@@ -89,28 +86,20 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   {product.marginPercentage}%
                 </span>
               </TableCell>
-              <TableCell className="text-right font-mono hidden xl:table-cell">
-                {formatCurrency(product.marginAmount)}
-              </TableCell>
               <TableCell className="text-right font-mono hidden md:table-cell">
                 <span className={`${Number(product.trailingYearSales) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
                   {formatCurrency(product.trailingYearSales)}
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden lg:table-cell">
-                <span className={`${Number(product.trailingYearUnits) > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
-                  {formatNumber(product.trailingYearUnits, 1)}
+                <span className={`${product.trailingYearUnits > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                  {product.trailingYearUnits.toLocaleString()}
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden xl:table-cell">
                 <span className={`${product.trailingYearOrders > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
                   {product.trailingYearOrders}
                 </span>
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                <Badge variant="outline" className="text-xs">
-                  {product.itemType}
-                </Badge>
               </TableCell>
             </TableRow>
           ))}

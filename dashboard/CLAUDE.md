@@ -187,7 +187,23 @@ When working with database queries and schemas, IMMEDIATELY flag any issues in `
 
 - we are using shadcn with TAILWIND 4.0.
 
+- currencies should always be formatted with the formatcurrency function in lib/utils
+
 ## Common Issues & Solutions
+
+**Chart Color Issues (Tailwind 4.0):**
+- **CRITICAL**: Charts showing black/missing colors means wrong color format in chartConfig
+- **FIX**: Use `color: "var(--chart-1)"` NOT `color: "hsl(var(--chart-1))"`
+- **Example**: 
+  ```typescript
+  const chartConfig = {
+    revenue: {
+      label: "Revenue",
+      color: "var(--chart-1)", // ✅ Correct for Tailwind 4.0
+    },
+  } satisfies ChartConfig
+  ```
+- **DO NOT USE**: `"hsl(var(--chart-1))"` - this causes black charts in Tailwind 4.0
 
 **TypeScript/Build Errors:**
 - **Next.js 15 params**: Always use `const { param } = await params` for dynamic routes

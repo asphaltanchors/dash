@@ -4,38 +4,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
 import { WeeklyRevenue } from "@/lib/queries"
+import { formatCurrency } from "@/lib/utils"
 
-interface RevenueChartProps {
+interface ProductSalesChartProps {
   data: WeeklyRevenue[]
+  productName: string
 }
 
 const chartConfig = {
   revenue: {
-    label: "Revenue",
+    label: "Sales",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig
 
-export function RevenueChart({ data }: RevenueChartProps) {
+export function ProductSalesChart({ data, productName }: ProductSalesChartProps) {
   // Transform data for recharts
   const chartData = data.map(item => ({
     date: new Date(item.date).toLocaleDateString('en-US', { 
       month: 'short', 
-      day: 'numeric' 
+      year: '2-digit' 
     }),
     revenue: Number(item.revenue),
     orderCount: item.orderCount,
   }))
 
-  const totalRevenue = data.reduce((sum, item) => sum + Number(item.revenue), 0)
+  const totalSales = data.reduce((sum, item) => sum + Number(item.revenue), 0)
   const totalOrders = data.reduce((sum, item) => sum + Number(item.orderCount), 0)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Weekly Revenue Trend</CardTitle>
+        <CardTitle>All Time Sales Trend</CardTitle>
         <CardDescription>
-          Last 52 weeks • ${totalRevenue.toLocaleString()} total revenue • {totalOrders.toLocaleString()} orders
+          Monthly breakdown • {formatCurrency(totalSales, { showCents: false })} total sales • {totalOrders.toLocaleString()} orders
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -61,9 +63,9 @@ export function RevenueChart({ data }: RevenueChartProps) {
               content={<ChartTooltipContent 
                 formatter={(value) => [
                   `$${Number(value).toLocaleString()}`,
-                  "Revenue"
+                  ""
                 ]}
-                labelFormatter={(label) => `Date: ${label}`}
+                labelFormatter={(label) => `Month: ${label}`}
               />}
             />
             <Bar

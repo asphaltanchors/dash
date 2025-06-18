@@ -439,6 +439,9 @@ export async function getWeeklyRevenue(): Promise<WeeklyRevenue[]> {
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
   const oneYearAgoStr = format(oneYearAgo, 'yyyy-MM-dd');
+  
+  const today = new Date();
+  const todayStr = format(today, 'yyyy-MM-dd');
 
   const weeklyData = await db.execute(sql`
     SELECT 
@@ -447,6 +450,7 @@ export async function getWeeklyRevenue(): Promise<WeeklyRevenue[]> {
       COUNT(*) as order_count
     FROM analytics_mart.fct_orders
     WHERE order_date >= ${oneYearAgoStr}
+      AND order_date <= ${todayStr}
       AND total_amount IS NOT NULL
     GROUP BY DATE_TRUNC('week', order_date)
     ORDER BY week_start
@@ -459,6 +463,30 @@ export async function getWeeklyRevenue(): Promise<WeeklyRevenue[]> {
     date: week.week_start,
     revenue: Number(week.revenue || 0).toFixed(2),
     orderCount: Number(week.order_count || 0),
+  }));
+}
+
+// Get monthly revenue for a specific product (all time)
+export async function getProductMonthlyRevenue(itemName: string): Promise<WeeklyRevenue[]> {
+  const monthlyData = await db.execute(sql`
+    SELECT 
+      DATE_TRUNC('month', order_date) as month_start,
+      SUM(product_service_amount) as revenue,
+      COUNT(DISTINCT order_number) as order_count
+    FROM analytics_mart.fct_order_line_items
+    WHERE product_service_amount IS NOT NULL
+      AND product_service = ${itemName}
+    GROUP BY DATE_TRUNC('month', order_date)
+    ORDER BY month_start
+  `);
+
+  // Handle different return formats from Drizzle
+  const results = monthlyData as unknown as Array<{ month_start: string; revenue: string; order_count: number }>;
+  
+  return results.map(month => ({
+    date: month.month_start,
+    revenue: Number(month.revenue || 0).toFixed(2),
+    orderCount: Number(month.order_count || 0),
   }));
 }
 
@@ -499,6 +527,7 @@ export interface ProductMetrics {
 export interface Product {
   quickBooksInternalId: string;
   itemName: string;
+  salesDescription: string;
   productFamily: string;
   materialType: string;
   salesPrice: string;
@@ -508,7 +537,7 @@ export interface Product {
   isKit: boolean;
   itemType: string;
   trailingYearSales: string;
-  trailingYearUnits: string;
+  trailingYearUnits: number;
   trailingYearOrders: number;
 }
 
@@ -563,6 +592,7 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
     SELECT 
       p.quick_books_internal_id,
       p.item_name,
+      p.sales_description,
       p.product_family,
       p.material_type,
       p.sales_price,
@@ -598,6 +628,7 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
   const results = productsWithSales as unknown as Array<{
     quick_books_internal_id: string;
     item_name: string;
+    sales_description: string;
     product_family: string;
     material_type: string;
     sales_price: string;
@@ -614,6 +645,7 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
   return results.map(product => ({
     quickBooksInternalId: product.quick_books_internal_id || 'N/A',
     itemName: product.item_name || 'Unknown',
+    salesDescription: product.sales_description || '',
     productFamily: product.product_family || 'Other',
     materialType: product.material_type || 'Unknown',
     salesPrice: Number(product.sales_price || 0).toFixed(2),
@@ -623,7 +655,7 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
     trailingYearSales: Number(product.trailing_year_sales || 0).toFixed(2),
-    trailingYearUnits: Number(product.trailing_year_units || 0).toFixed(1),
+    trailingYearUnits: Math.floor(Number(product.trailing_year_units || 0)),
     trailingYearOrders: Number(product.trailing_year_orders || 0),
   }));
 }
@@ -638,6 +670,7 @@ export async function getProductByName(itemName: string): Promise<Product | null
     SELECT 
       p.quick_books_internal_id,
       p.item_name,
+      p.sales_description,
       p.product_family,
       p.material_type,
       p.sales_price,
@@ -671,6 +704,7 @@ export async function getProductByName(itemName: string): Promise<Product | null
   const results = productWithSales as unknown as Array<{
     quick_books_internal_id: string;
     item_name: string;
+    sales_description: string;
     product_family: string;
     material_type: string;
     sales_price: string;
@@ -692,6 +726,7 @@ export async function getProductByName(itemName: string): Promise<Product | null
   return {
     quickBooksInternalId: product.quick_books_internal_id || 'N/A',
     itemName: product.item_name || 'Unknown',
+    salesDescription: product.sales_description || '',
     productFamily: product.product_family || 'Other',
     materialType: product.material_type || 'Unknown',
     salesPrice: Number(product.sales_price || 0).toFixed(2),
@@ -701,7 +736,7 @@ export async function getProductByName(itemName: string): Promise<Product | null
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
     trailingYearSales: Number(product.trailing_year_sales || 0).toFixed(2),
-    trailingYearUnits: Number(product.trailing_year_units || 0).toFixed(1),
+    trailingYearUnits: Math.floor(Number(product.trailing_year_units || 0)),
     trailingYearOrders: Number(product.trailing_year_orders || 0),
   };
 }

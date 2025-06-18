@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getProductByName, getProductInventoryStatus, getProductInventoryTrend } from '@/lib/queries';
+import { getProductByName, getProductInventoryStatus, getProductInventoryTrend, getProductMonthlyRevenue } from '@/lib/queries';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,12 +18,19 @@ import { Package, DollarSign, Percent, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { InventoryStatus } from '@/components/inventory/inventory-status';
 import { InventoryTrendChart } from '@/components/inventory/inventory-trend-chart';
+import { ProductSalesChart } from '@/components/dashboard/ProductSalesChart';
 import { Suspense } from 'react';
 
 interface ProductDetailPageProps {
   params: Promise<{
     slug: string;
   }>;
+}
+
+// Sales trend component
+async function ProductSalesSection({ productName }: { productName: string }) {
+  const salesData = await getProductMonthlyRevenue(productName);
+  return <ProductSalesChart data={salesData} productName={productName} />;
 }
 
 // Inventory components
@@ -53,6 +60,20 @@ async function ProductInventorySection({ productName }: { productName: string })
       <InventoryStatus inventory={inventoryStatus} />
       <InventoryTrendChart data={inventoryTrend} />
     </div>
+  );
+}
+
+function SalesChartLoadingSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="h-6 bg-gray-200 rounded w-48 animate-pulse mb-2" />
+        <div className="h-4 bg-gray-200 rounded w-64 animate-pulse" />
+      </CardHeader>
+      <CardContent>
+        <div className="h-[300px] bg-gray-100 rounded animate-pulse" />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -202,6 +223,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             </div>
           </CardContent>
         </Card>
+
+        <Suspense fallback={<SalesChartLoadingSkeleton />}>
+          <ProductSalesSection productName={productName} />
+        </Suspense>
 
         <Suspense fallback={<InventoryLoadingSkeleton />}>
           <ProductInventorySection productName={productName} />
