@@ -2,8 +2,6 @@
 
 import * as React from "react"
 import {
-  ShoppingCart,
-  Package,
   Store,
   BarChart3,
 } from "lucide-react"

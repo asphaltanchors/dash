@@ -2,7 +2,7 @@
 
 import { MarginDistribution } from '@/lib/queries';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartConfig, ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 interface MarginDistributionChartProps {
@@ -48,7 +48,7 @@ export function MarginDistributionChart({ data }: MarginDistributionChartProps) 
                 width={40}
               />
               <ChartTooltip 
-                content={({ active, payload, label }) => {
+                content={({ active, payload }) => {
                   if (!active || !payload?.[0]) return null;
                   const data = payload[0].payload;
                   return (

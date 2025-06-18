@@ -1,5 +1,6 @@
 import { Product } from '@/lib/queries';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -35,7 +36,12 @@ export function ProductsTable({ products }: ProductsTableProps) {
               <TableCell className="font-medium min-w-[200px]">
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate">{product.itemName}</span>
+                    <Link 
+                      href={`/products/${encodeURIComponent(product.itemName)}`}
+                      className="truncate hover:underline text-blue-600 hover:text-blue-800"
+                    >
+                      {product.itemName}
+                    </Link>
                     {product.isKit && (
                       <Badge variant="secondary" className="text-xs shrink-0">
                         Kit

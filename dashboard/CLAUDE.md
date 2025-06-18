@@ -103,6 +103,11 @@ An MCP (Model Context Protocol) connector is configured for direct database quer
 - Co-locate related components, actions, and types in route directories
 - Use TypeScript strictly - no `any` types
 
+**Next.js 15 Specific Patterns:**
+- **Dynamic Routes**: Use `params: Promise<{param: string}>` pattern, await params in component
+- **URL Encoding**: Use `encodeURIComponent()` for special characters in URLs (spaces, symbols)
+- **Drizzle Raw Queries**: Cast complex raw SQL results with `as unknown as Type[]` for type safety
+
 ## Dashboard Architecture Patterns
 
 **Established Component Structure** (follow this pattern for all dashboards):
@@ -138,6 +143,7 @@ lib/
 - **Charts**: Use shadcn/ui Chart components, include total summaries in card headers
 - **Tables**: Include status badges, truncate long text, right-align monetary values
 - **Loading States**: Use skeleton loaders that match final component structure
+- **Clickable Links**: Use Next.js Link with `href` and hover styling for navigation (e.g., `hover:underline text-blue-600`)
 
 **Performance Considerations:**
 - Keep database queries in Server Components
@@ -180,3 +186,15 @@ When working with database queries and schemas, IMMEDIATELY flag any issues in `
 - When updating `@DBT_CANDIDATES.md` make a note of specifics that will help when coming back to resolve. e.g. if you say we should normalize a table, specify where the views are that use it so when it's done it's easy to update the code. You can use a very terse format - this is primarily going to be used for LLM communication, don't optimize for humans for that part.
 
 - we are using shadcn with TAILWIND 4.0.
+
+## Common Issues & Solutions
+
+**TypeScript/Build Errors:**
+- **Next.js 15 params**: Always use `const { param } = await params` for dynamic routes
+- **Drizzle raw SQL**: Cast results as `as unknown as Type[]` when TypeScript can't infer structure
+- **ESLint unused imports**: Always clean up unused imports before committing
+- **Product names as URLs**: Use `encodeURIComponent(product.itemName)` for URL-safe routing
+
+**Database Patterns:**
+- **Product identification**: Use `item_name` for URLs since `manufacturer_s_part_number` is sparsely populated
+- **Single record queries**: Always check for null/empty results and handle with `notFound()` or defaults

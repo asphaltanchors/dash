@@ -272,6 +272,44 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
   }));
 }
 
+// Get single product by name
+export async function getProductByName(itemName: string): Promise<Product | null> {
+  const products = await db
+    .select({
+      quickBooksInternalId: fctProductsInAnalyticsMart.quickBooksInternalId,
+      itemName: fctProductsInAnalyticsMart.itemName,
+      productFamily: fctProductsInAnalyticsMart.productFamily,
+      materialType: fctProductsInAnalyticsMart.materialType,
+      salesPrice: fctProductsInAnalyticsMart.salesPrice,
+      purchaseCost: fctProductsInAnalyticsMart.purchaseCost,
+      marginPercentage: fctProductsInAnalyticsMart.marginPercentage,
+      marginAmount: fctProductsInAnalyticsMart.marginAmount,
+      isKit: fctProductsInAnalyticsMart.isKit,
+      itemType: fctProductsInAnalyticsMart.itemType,
+    })
+    .from(fctProductsInAnalyticsMart)
+    .where(sql`${fctProductsInAnalyticsMart.itemName} = ${itemName}`)
+    .limit(1);
+
+  if (products.length === 0) {
+    return null;
+  }
+
+  const product = products[0];
+  return {
+    quickBooksInternalId: product.quickBooksInternalId || 'N/A',
+    itemName: product.itemName || 'Unknown',
+    productFamily: product.productFamily || 'Other',
+    materialType: product.materialType || 'Unknown',
+    salesPrice: Number(product.salesPrice || 0).toFixed(2),
+    purchaseCost: Number(product.purchaseCost || 0).toFixed(2),
+    marginPercentage: Number(product.marginPercentage || 0).toFixed(1),
+    marginAmount: Number(product.marginAmount || 0).toFixed(2),
+    isKit: product.isKit || false,
+    itemType: product.itemType || 'Unknown',
+  };
+}
+
 // Get product family breakdown
 export async function getProductFamilyBreakdown(): Promise<ProductFamilyBreakdown[]> {
   const breakdown = await db
@@ -330,7 +368,7 @@ export async function getMarginDistribution(): Promise<MarginDistribution[]> {
   `);
 
   // Handle different return formats from Drizzle
-  const results = (distribution.rows || distribution) as Array<{ margin_range: string; product_count: number }>;
+  const results = distribution as unknown as Array<{ margin_range: string; product_count: number }>;
   const totalProducts = results.reduce((sum, item) => sum + item.product_count, 0);
 
   return results.map(item => ({

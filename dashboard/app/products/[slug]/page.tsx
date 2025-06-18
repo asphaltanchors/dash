@@ -1,0 +1,140 @@
+import { notFound } from 'next/navigation';
+import { getProductByName } from '@/lib/queries';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb"
+import { Separator } from "@/components/ui/separator"
+import {
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Package, DollarSign, Percent, TrendingUp } from 'lucide-react';
+
+interface ProductDetailPageProps {
+  params: Promise<{
+    slug: string;
+  }>;
+}
+
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const { slug } = await params;
+  const productName = decodeURIComponent(slug);
+  const product = await getProductByName(productName);
+  
+  if (!product) {
+    notFound();
+  }
+
+  return (
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+        <div className="flex items-center gap-2 px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator
+            orientation="vertical"
+            className="mr-2 data-[orientation=vertical]:h-4"
+          />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/products">Products</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{product.itemName}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+      </header>
+      <div className="flex-1 space-y-4 p-4 md:p-6 pt-6 min-w-0">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{product.itemName}</h2>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{product.productFamily}</Badge>
+              <Badge variant="outline">{product.itemType}</Badge>
+              {product.isKit && (
+                <Badge variant="secondary">Kit</Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Sales Price</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${product.salesPrice}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Purchase Cost</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${product.purchaseCost}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Margin %</CardTitle>
+              <Percent className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${
+                Number(product.marginPercentage) >= 30 
+                  ? 'text-green-600' 
+                  : Number(product.marginPercentage) >= 15 
+                  ? 'text-yellow-600' 
+                  : 'text-red-600'
+              }`}>
+                {product.marginPercentage}%
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Margin Amount</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${product.marginAmount}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <h4 className="font-medium">QuickBooks ID</h4>
+                <p className="text-sm text-muted-foreground font-mono">{product.quickBooksInternalId}</p>
+              </div>
+              <div>
+                <h4 className="font-medium">Material Type</h4>
+                <p className="text-sm text-muted-foreground">{product.materialType}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}

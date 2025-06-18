@@ -2,13 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { RecentOrder } from "@/lib/queries"
-import { CheckCircle, Clock, XCircle } from "lucide-react"
+import { CheckCircle, Clock } from "lucide-react"
 
 interface RecentOrdersProps {
   orders: RecentOrder[]
 }
 
-function StatusBadge({ status, isPaid }: { status: string; isPaid: boolean }) {
+function StatusBadge({ status }: { status: string; isPaid: boolean }) {
   // Direct status matching with standardized DBT values: PAID, OPEN, PARTIALLY_PAID
   let variant: "default" | "secondary" | "destructive" | "outline" = "default"
   let icon = <Clock className="h-3 w-3" />
