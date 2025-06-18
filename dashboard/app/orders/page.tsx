@@ -13,7 +13,7 @@ import {
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { RecentOrders } from '@/components/dashboard/RecentOrders'
-import { getDashboardMetrics, getRecentOrders, getDailyRevenue } from '@/lib/queries'
+import { getDashboardMetrics, getRecentOrders, getWeeklyRevenue } from '@/lib/queries'
 
 async function DashboardMetrics() {
   const metrics = await getDashboardMetrics()
@@ -54,8 +54,8 @@ async function DashboardMetrics() {
 }
 
 async function DashboardChart() {
-  const dailyRevenue = await getDailyRevenue()
-  return <RevenueChart data={dailyRevenue} />
+  const weeklyRevenue = await getWeeklyRevenue()
+  return <RevenueChart data={weeklyRevenue} />
 }
 
 async function DashboardOrders() {

@@ -22,7 +22,7 @@ export interface RecentOrder {
   isPaid: boolean;
 }
 
-export interface DailyRevenue {
+export interface WeeklyRevenue {
   date: string;
   revenue: string;
   orderCount: number;
@@ -132,32 +132,31 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
   }));
 }
 
-// Get daily revenue for the last 30 days
-export async function getDailyRevenue(): Promise<DailyRevenue[]> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
+// Get weekly revenue for the last year
+export async function getWeeklyRevenue(): Promise<WeeklyRevenue[]> {
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const oneYearAgoStr = format(oneYearAgo, 'yyyy-MM-dd');
 
-  const dailyData = await db
-    .select({
-      date: fctOrdersInAnalyticsMart.orderDate,
-      revenue: sum(fctOrdersInAnalyticsMart.totalAmount),
-      orderCount: count(),
-    })
-    .from(fctOrdersInAnalyticsMart)
-    .where(
-      and(
-        gte(fctOrdersInAnalyticsMart.orderDate, thirtyDaysAgoStr),
-        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
-      )
-    )
-    .groupBy(fctOrdersInAnalyticsMart.orderDate)
-    .orderBy(fctOrdersInAnalyticsMart.orderDate);
+  const weeklyData = await db.execute(sql`
+    SELECT 
+      DATE_TRUNC('week', order_date) as week_start,
+      SUM(total_amount) as revenue,
+      COUNT(*) as order_count
+    FROM analytics_mart.fct_orders
+    WHERE order_date >= ${oneYearAgoStr}
+      AND total_amount IS NOT NULL
+    GROUP BY DATE_TRUNC('week', order_date)
+    ORDER BY week_start
+  `);
 
-  return dailyData.map(day => ({
-    date: day.date as string,
-    revenue: Number(day.revenue || 0).toFixed(2),
-    orderCount: day.orderCount,
+  // Handle different return formats from Drizzle
+  const results = weeklyData as unknown as Array<{ week_start: string; revenue: string; order_count: number }>;
+  
+  return results.map(week => ({
+    date: week.week_start,
+    revenue: Number(week.revenue || 0).toFixed(2),
+    orderCount: Number(week.order_count || 0),
   }));
 }
 

@@ -3,10 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
-import { DailyRevenue } from "@/lib/queries"
+import { WeeklyRevenue } from "@/lib/queries"
 
 interface RevenueChartProps {
-  data: DailyRevenue[]
+  data: WeeklyRevenue[]
 }
 
 const chartConfig = {
@@ -28,14 +28,14 @@ export function RevenueChart({ data }: RevenueChartProps) {
   }))
 
   const totalRevenue = data.reduce((sum, item) => sum + Number(item.revenue), 0)
-  const totalOrders = data.reduce((sum, item) => sum + item.orderCount, 0)
+  const totalOrders = data.reduce((sum, item) => sum + Number(item.orderCount), 0)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Daily Revenue Trend</CardTitle>
+        <CardTitle>Weekly Revenue Trend</CardTitle>
         <CardDescription>
-          Last 30 days • ${totalRevenue.toLocaleString()} total revenue • {totalOrders} orders
+          Last 52 weeks • ${totalRevenue.toLocaleString()} total revenue • {totalOrders.toLocaleString()} orders
         </CardDescription>
       </CardHeader>
       <CardContent>
