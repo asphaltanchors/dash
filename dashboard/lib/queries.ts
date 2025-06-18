@@ -3,10 +3,10 @@ import { desc, gte, sql, count, sum, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 
 export interface DashboardMetrics {
+  sales365Days: string;
   totalRevenue: string;
   totalOrders: number;
   averageOrderValue: string;
-  uniqueCustomers: number;
   previousPeriodRevenue: string;
   previousPeriodOrders: number;
   revenueGrowth: number;
@@ -38,13 +38,29 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
   const sixtyDaysAgoStr = format(sixtyDaysAgo, 'yyyy-MM-dd');
 
+  const threeSixtyFiveDaysAgo = new Date();
+  threeSixtyFiveDaysAgo.setDate(threeSixtyFiveDaysAgo.getDate() - 365);
+  const threeSixtyFiveDaysAgoStr = format(threeSixtyFiveDaysAgo, 'yyyy-MM-dd');
+
+  // 365 day sales
+  const sales365 = await db
+    .select({
+      totalSales: sum(fctOrdersInAnalyticsMart.totalAmount),
+    })
+    .from(fctOrdersInAnalyticsMart)
+    .where(
+      and(
+        gte(fctOrdersInAnalyticsMart.orderDate, threeSixtyFiveDaysAgoStr),
+        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
+      )
+    );
+
   // Current period (last 30 days)
   const currentPeriod = await db
     .select({
       totalRevenue: sum(fctOrdersInAnalyticsMart.totalAmount),
       totalOrders: count(),
       averageOrderValue: avg(fctOrdersInAnalyticsMart.totalAmount),
-      uniqueCustomers: sql<number>`count(distinct ${fctOrdersInAnalyticsMart.customer})`,
     })
     .from(fctOrdersInAnalyticsMart)
     .where(
@@ -79,10 +95,10 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const orderGrowth = previous.totalOrders > 0 ? ((current.totalOrders - previous.totalOrders) / previous.totalOrders) * 100 : 0;
 
   return {
+    sales365Days: Number(sales365[0].totalSales || 0).toFixed(2),
     totalRevenue: currentRevenue.toFixed(2),
     totalOrders: current.totalOrders,
     averageOrderValue: Number(current.averageOrderValue || 0).toFixed(2),
-    uniqueCustomers: current.uniqueCustomers,
     previousPeriodRevenue: previousRevenue.toFixed(2),
     previousPeriodOrders: previous.totalOrders,
     revenueGrowth: parseFloat(revenueGrowth.toFixed(1)),

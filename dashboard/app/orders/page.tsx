@@ -24,6 +24,12 @@ async function DashboardMetrics() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <MetricCard
+        title="365 Day Sales"
+        value={metrics.sales365Days}
+        icon={DollarSign}
+        formatValue={formatCurrency}
+      />
+      <MetricCard
         title="Total Revenue"
         value={metrics.totalRevenue}
         change={metrics.revenueGrowth}
@@ -42,12 +48,6 @@ async function DashboardMetrics() {
         value={metrics.averageOrderValue}
         icon={TrendingUp}
         formatValue={formatCurrency}
-      />
-      <MetricCard
-        title="Unique Customers"
-        value={metrics.uniqueCustomers.toString()}
-        icon={Users}
-        formatValue={formatNumber}
       />
     </div>
   )
