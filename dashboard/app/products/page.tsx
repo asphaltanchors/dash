@@ -1,8 +1,6 @@
 import { 
   getProductMetrics, 
-  getProducts, 
-  getProductFamilyBreakdown, 
-  getMarginDistribution 
+  getProducts
 } from '@/lib/queries';
 import {
   Breadcrumb,
@@ -16,9 +14,8 @@ import {
 } from "@/components/ui/sidebar"
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { Package, TrendingUp, DollarSign, Boxes } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 import { ProductsTable } from '@/components/dashboard/ProductsTable';
-import { ProductFamilyChart } from '@/components/dashboard/ProductFamilyChart';
-import { MarginDistributionChart } from '@/components/dashboard/MarginDistributionChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 async function ProductMetrics() {
@@ -42,7 +39,7 @@ async function ProductMetrics() {
         title="Inventory Value"
         value={metrics.totalInventoryValue}
         icon={DollarSign}
-        formatValue={(value) => `$${value}`}
+        formatValue={(value) => formatCurrency(value, { showCents: false })}
       />
       <MetricCard
         title="Kit Products"
@@ -54,19 +51,6 @@ async function ProductMetrics() {
   );
 }
 
-async function ProductCharts() {
-  const [familyBreakdown, marginDistribution] = await Promise.all([
-    getProductFamilyBreakdown(),
-    getMarginDistribution()
-  ]);
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <ProductFamilyChart data={familyBreakdown} />
-      <MarginDistributionChart data={marginDistribution} />
-    </div>
-  );
-}
 
 async function ProductsList() {
   const products = await getProducts(50);
@@ -112,7 +96,6 @@ export default function ProductsPage() {
         </div>
 
         <ProductMetrics />
-        <ProductCharts />
         <ProductsList />
       </div>
     </>

@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ArrowDown, ArrowUp } from "lucide-react"
 import { SalesChannelMetric, SalesPeriodMetric } from "@/lib/queries"
+import { formatCurrency, formatNumber } from "@/lib/utils"
 
 interface Props {
   metrics: SalesChannelMetric[]
@@ -58,11 +59,7 @@ function MiniSparkline({ values, periods }: SparklineProps) {
   const tooltipContent = periods
     .filter(period => period.period_start && period.period_end)
     .map((period) => {
-      const formattedRevenue = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0
-      }).format(Number(period.total_revenue))
+      const formattedRevenue = formatCurrency(period.total_revenue, { showCents: false })
 
       return `${formatDate(period.period_start)} - ${formatDate(period.period_end)}: ${formattedRevenue}`
     })
@@ -135,17 +132,6 @@ export default function ChannelBreakdown({ metrics }: Props) {
     a.sales_channel.localeCompare(b.sales_channel)
   )
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(value)
-  }
-
-  const formatNumber = (value: number) => {
-    return new Intl.NumberFormat("en-US").format(value)
-  }
 
   const getPercentageChange = (current: string | undefined, previous: string | undefined) => {
     if (current === undefined || previous === undefined) return 0;
@@ -200,7 +186,7 @@ export default function ChannelBreakdown({ metrics }: Props) {
                   {channelName}
                 </TableCell>
                 <TableCell className="text-right font-semibold">
-                  {formatCurrency(currentRevenue)}
+                  {formatCurrency(currentRevenue, { showCents: false })}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
@@ -238,7 +224,7 @@ export default function ChannelBreakdown({ metrics }: Props) {
           <TableRow className="border-t-2 bg-gray-50/50 font-bold">
             <TableCell>Total</TableCell>
             <TableCell className="text-right">
-              {formatCurrency(totals.revenue)}
+              {formatCurrency(totals.revenue, { showCents: false })}
             </TableCell>
             <TableCell className="text-right">
               {/* Share column - intentionally empty */}
@@ -253,7 +239,7 @@ export default function ChannelBreakdown({ metrics }: Props) {
               {/* Share column - intentionally empty */}
             </TableCell>
             <TableCell className="text-right">
-              {formatCurrency(totals.orders === 0 ? 0 : totals.revenue / totals.orders)}
+              {formatCurrency(totals.orders === 0 ? 0 : totals.revenue / totals.orders, { showCents: false })}
             </TableCell>
           </TableRow>
         </TableBody>

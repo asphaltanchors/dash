@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { RecentOrder } from "@/lib/queries"
 import { CheckCircle, Clock } from "lucide-react"
 import Link from "next/link"
+import { formatCurrency } from "@/lib/utils"
 
 interface RecentOrdersProps {
   orders: RecentOrder[]
@@ -80,7 +81,7 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                   <StatusBadge status={order.status} isPaid={order.isPaid} />
                 </TableCell>
                 <TableCell className="text-right font-medium">
-                  ${Number(order.totalAmount).toLocaleString()}
+                  {formatCurrency(order.totalAmount)}
                 </TableCell>
               </TableRow>
             ))}

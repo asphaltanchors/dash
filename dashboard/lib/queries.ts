@@ -507,20 +507,11 @@ export interface Product {
   marginAmount: string;
   isKit: boolean;
   itemType: string;
+  trailingYearSales: string;
+  trailingYearUnits: string;
+  trailingYearOrders: number;
 }
 
-export interface ProductFamilyBreakdown {
-  productFamily: string;
-  productCount: number;
-  averageMargin: string;
-  totalValue: string;
-}
-
-export interface MarginDistribution {
-  marginRange: string;
-  productCount: number;
-  percentage: number;
-}
 
 // Get product metrics
 export async function getProductMetrics(): Promise<ProductMetrics> {
@@ -552,148 +543,159 @@ export async function getProductMetrics(): Promise<ProductMetrics> {
   };
 }
 
-// Get product list
+// Get product list with trailing year sales data
 export async function getProducts(limit: number = 50): Promise<Product[]> {
-  const products = await db
-    .select({
-      quickBooksInternalId: fctProductsInAnalyticsMart.quickBooksInternalId,
-      itemName: fctProductsInAnalyticsMart.itemName,
-      productFamily: fctProductsInAnalyticsMart.productFamily,
-      materialType: fctProductsInAnalyticsMart.materialType,
-      salesPrice: fctProductsInAnalyticsMart.salesPrice,
-      purchaseCost: fctProductsInAnalyticsMart.purchaseCost,
-      marginPercentage: fctProductsInAnalyticsMart.marginPercentage,
-      marginAmount: fctProductsInAnalyticsMart.marginAmount,
-      isKit: fctProductsInAnalyticsMart.isKit,
-      itemType: fctProductsInAnalyticsMart.itemType,
-    })
-    .from(fctProductsInAnalyticsMart)
-    .where(and(
-      sql`${fctProductsInAnalyticsMart.salesPrice} is not null`,
-      notInArray(fctProductsInAnalyticsMart.itemType, ['NonInventory', 'OtherCharge'])
-    ))
-    .orderBy(desc(fctProductsInAnalyticsMart.marginAmount))
-    .limit(limit);
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const oneYearAgoStr = format(oneYearAgo, 'yyyy-MM-dd');
 
-  return products.map(product => ({
-    quickBooksInternalId: product.quickBooksInternalId || 'N/A',
-    itemName: product.itemName || 'Unknown',
-    productFamily: product.productFamily || 'Other',
-    materialType: product.materialType || 'Unknown',
-    salesPrice: Number(product.salesPrice || 0).toFixed(2),
-    purchaseCost: Number(product.purchaseCost || 0).toFixed(2),
-    marginPercentage: Number(product.marginPercentage || 0).toFixed(1),
-    marginAmount: Number(product.marginAmount || 0).toFixed(2),
-    isKit: product.isKit || false,
-    itemType: product.itemType || 'Unknown',
-  }));
-}
-
-// Get single product by name
-export async function getProductByName(itemName: string): Promise<Product | null> {
-  const products = await db
-    .select({
-      quickBooksInternalId: fctProductsInAnalyticsMart.quickBooksInternalId,
-      itemName: fctProductsInAnalyticsMart.itemName,
-      productFamily: fctProductsInAnalyticsMart.productFamily,
-      materialType: fctProductsInAnalyticsMart.materialType,
-      salesPrice: fctProductsInAnalyticsMart.salesPrice,
-      purchaseCost: fctProductsInAnalyticsMart.purchaseCost,
-      marginPercentage: fctProductsInAnalyticsMart.marginPercentage,
-      marginAmount: fctProductsInAnalyticsMart.marginAmount,
-      isKit: fctProductsInAnalyticsMart.isKit,
-      itemType: fctProductsInAnalyticsMart.itemType,
-    })
-    .from(fctProductsInAnalyticsMart)
-    .where(sql`${fctProductsInAnalyticsMart.itemName} = ${itemName}`)
-    .limit(1);
-
-  if (products.length === 0) {
-    return null;
-  }
-
-  const product = products[0];
-  return {
-    quickBooksInternalId: product.quickBooksInternalId || 'N/A',
-    itemName: product.itemName || 'Unknown',
-    productFamily: product.productFamily || 'Other',
-    materialType: product.materialType || 'Unknown',
-    salesPrice: Number(product.salesPrice || 0).toFixed(2),
-    purchaseCost: Number(product.purchaseCost || 0).toFixed(2),
-    marginPercentage: Number(product.marginPercentage || 0).toFixed(1),
-    marginAmount: Number(product.marginAmount || 0).toFixed(2),
-    isKit: product.isKit || false,
-    itemType: product.itemType || 'Unknown',
-  };
-}
-
-// Get product family breakdown
-export async function getProductFamilyBreakdown(): Promise<ProductFamilyBreakdown[]> {
-  const breakdown = await db
-    .select({
-      productFamily: fctProductsInAnalyticsMart.productFamily,
-      productCount: count(),
-      averageMargin: avg(fctProductsInAnalyticsMart.marginPercentage),
-      totalValue: sum(fctProductsInAnalyticsMart.salesPrice),
-    })
-    .from(fctProductsInAnalyticsMart)
-    .where(and(
-      sql`${fctProductsInAnalyticsMart.salesPrice} is not null`,
-      notInArray(fctProductsInAnalyticsMart.itemType, ['NonInventory', 'OtherCharge'])
-    ))
-    .groupBy(fctProductsInAnalyticsMart.productFamily)
-    .orderBy(desc(count()));
-
-  return breakdown.map(item => ({
-    productFamily: item.productFamily || 'Other',
-    productCount: item.productCount,
-    averageMargin: Number(item.averageMargin || 0).toFixed(1),
-    totalValue: Number(item.totalValue || 0).toFixed(2),
-  }));
-}
-
-// Get margin distribution
-export async function getMarginDistribution(): Promise<MarginDistribution[]> {
-  const distribution = await db.execute(sql`
+  const productsWithSales = await db.execute(sql`
     SELECT 
-      margin_range,
-      COUNT(*) as product_count
-    FROM (
+      p.quick_books_internal_id,
+      p.item_name,
+      p.product_family,
+      p.material_type,
+      p.sales_price,
+      p.purchase_cost,
+      p.margin_percentage,
+      p.margin_amount,
+      p.is_kit,
+      p.item_type,
+      COALESCE(sales.total_sales, 0) as trailing_year_sales,
+      COALESCE(sales.total_units, 0) as trailing_year_units,
+      COALESCE(sales.order_count, 0) as trailing_year_orders
+    FROM analytics_mart.fct_products p
+    LEFT JOIN (
       SELECT 
-        CASE 
-          WHEN margin_percentage < 10 THEN '0-10%'
-          WHEN margin_percentage < 20 THEN '10-20%'
-          WHEN margin_percentage < 30 THEN '20-30%'
-          WHEN margin_percentage < 40 THEN '30-40%'
-          WHEN margin_percentage < 50 THEN '40-50%'
-          ELSE '50%+'
-        END as margin_range
-      FROM analytics_mart.fct_products 
-      WHERE margin_percentage IS NOT NULL
-        AND item_type NOT IN ('NonInventory', 'OtherCharge')
-    ) ranges
-    GROUP BY margin_range
-    ORDER BY 
-      CASE margin_range
-        WHEN '0-10%' THEN 1
-        WHEN '10-20%' THEN 2
-        WHEN '20-30%' THEN 3
-        WHEN '30-40%' THEN 4
-        WHEN '40-50%' THEN 5
-        ELSE 6
-      END
+        product_service,
+        SUM(product_service_amount) as total_sales,
+        SUM(product_service_quantity) as total_units,
+        COUNT(DISTINCT order_number) as order_count
+      FROM analytics_mart.fct_order_line_items 
+      WHERE order_date >= ${oneYearAgoStr}
+        AND product_service_amount IS NOT NULL
+        AND product_service IS NOT NULL
+        AND product_service != 'Shipping'
+      GROUP BY product_service
+    ) sales ON p.item_name = sales.product_service
+    WHERE p.sales_price IS NOT NULL
+      AND p.item_type NOT IN ('NonInventory', 'OtherCharge')
+    ORDER BY trailing_year_sales DESC NULLS LAST
+    LIMIT ${limit}
   `);
 
   // Handle different return formats from Drizzle
-  const results = distribution as unknown as Array<{ margin_range: string; product_count: number }>;
-  const totalProducts = results.reduce((sum, item) => sum + item.product_count, 0);
+  const results = productsWithSales as unknown as Array<{
+    quick_books_internal_id: string;
+    item_name: string;
+    product_family: string;
+    material_type: string;
+    sales_price: string;
+    purchase_cost: string;
+    margin_percentage: string;
+    margin_amount: string;
+    is_kit: boolean;
+    item_type: string;
+    trailing_year_sales: string;
+    trailing_year_units: string;
+    trailing_year_orders: number;
+  }>;
 
-  return results.map(item => ({
-    marginRange: item.margin_range,
-    productCount: item.product_count,
-    percentage: totalProducts > 0 ? (item.product_count / totalProducts) * 100 : 0,
+  return results.map(product => ({
+    quickBooksInternalId: product.quick_books_internal_id || 'N/A',
+    itemName: product.item_name || 'Unknown',
+    productFamily: product.product_family || 'Other',
+    materialType: product.material_type || 'Unknown',
+    salesPrice: Number(product.sales_price || 0).toFixed(2),
+    purchaseCost: Number(product.purchase_cost || 0).toFixed(2),
+    marginPercentage: Number(product.margin_percentage || 0).toFixed(1),
+    marginAmount: Number(product.margin_amount || 0).toFixed(2),
+    isKit: product.is_kit || false,
+    itemType: product.item_type || 'Unknown',
+    trailingYearSales: Number(product.trailing_year_sales || 0).toFixed(2),
+    trailingYearUnits: Number(product.trailing_year_units || 0).toFixed(1),
+    trailingYearOrders: Number(product.trailing_year_orders || 0),
   }));
 }
+
+// Get single product by name with trailing year sales data
+export async function getProductByName(itemName: string): Promise<Product | null> {
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const oneYearAgoStr = format(oneYearAgo, 'yyyy-MM-dd');
+
+  const productWithSales = await db.execute(sql`
+    SELECT 
+      p.quick_books_internal_id,
+      p.item_name,
+      p.product_family,
+      p.material_type,
+      p.sales_price,
+      p.purchase_cost,
+      p.margin_percentage,
+      p.margin_amount,
+      p.is_kit,
+      p.item_type,
+      COALESCE(sales.total_sales, 0) as trailing_year_sales,
+      COALESCE(sales.total_units, 0) as trailing_year_units,
+      COALESCE(sales.order_count, 0) as trailing_year_orders
+    FROM analytics_mart.fct_products p
+    LEFT JOIN (
+      SELECT 
+        product_service,
+        SUM(product_service_amount) as total_sales,
+        SUM(product_service_quantity) as total_units,
+        COUNT(DISTINCT order_number) as order_count
+      FROM analytics_mart.fct_order_line_items 
+      WHERE order_date >= ${oneYearAgoStr}
+        AND product_service_amount IS NOT NULL
+        AND product_service IS NOT NULL
+        AND product_service != 'Shipping'
+      GROUP BY product_service
+    ) sales ON p.item_name = sales.product_service
+    WHERE p.item_name = ${itemName}
+    LIMIT 1
+  `);
+
+  // Handle different return formats from Drizzle
+  const results = productWithSales as unknown as Array<{
+    quick_books_internal_id: string;
+    item_name: string;
+    product_family: string;
+    material_type: string;
+    sales_price: string;
+    purchase_cost: string;
+    margin_percentage: string;
+    margin_amount: string;
+    is_kit: boolean;
+    item_type: string;
+    trailing_year_sales: string;
+    trailing_year_units: string;
+    trailing_year_orders: number;
+  }>;
+
+  if (results.length === 0) {
+    return null;
+  }
+
+  const product = results[0];
+  return {
+    quickBooksInternalId: product.quick_books_internal_id || 'N/A',
+    itemName: product.item_name || 'Unknown',
+    productFamily: product.product_family || 'Other',
+    materialType: product.material_type || 'Unknown',
+    salesPrice: Number(product.sales_price || 0).toFixed(2),
+    purchaseCost: Number(product.purchase_cost || 0).toFixed(2),
+    marginPercentage: Number(product.margin_percentage || 0).toFixed(1),
+    marginAmount: Number(product.margin_amount || 0).toFixed(2),
+    isKit: product.is_kit || false,
+    itemType: product.item_type || 'Unknown',
+    trailingYearSales: Number(product.trailing_year_sales || 0).toFixed(2),
+    trailingYearUnits: Number(product.trailing_year_units || 0).toFixed(1),
+    trailingYearOrders: Number(product.trailing_year_orders || 0),
+  };
+}
+
 
 // Inventory interfaces and queries
 export interface InventorySnapshot {

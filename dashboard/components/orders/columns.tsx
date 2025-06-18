@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock } from "lucide-react"
 import { ServerSortButton } from "./server-sort-button"
+import { formatCurrency } from "@/lib/utils"
 
 // This type should match your order data structure
 export type OrderTableItem = {
@@ -155,12 +156,7 @@ export const createColumns = (
     ),
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("totalAmount"))
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount)
-
-      return <div className="text-right font-medium">{formatted}</div>
+      return <div className="text-right font-medium">{formatCurrency(amount)}</div>
     },
   },
   {

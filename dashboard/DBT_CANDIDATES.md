@@ -16,6 +16,42 @@ This file tracks opportunities to move logic from the dashboard app into the DBT
 
 ## Future Discoveries
 
+### Product Sales Metrics View
+**Discovered**: During products table enhancement (2024-12-18)
+**Current State**: Complex JOIN query in application for trailing year sales aggregation
+**Query Complexity**: LEFT JOIN between `fct_products` and aggregated `fct_order_line_items` data
+**Current Implementation**: 
+- Query: `getProducts()` and `getProductByName()` in lib/queries.ts:547-697
+- Metrics: trailing year sales amount, units sold, order count
+- Performance: Complex aggregation with GROUP BY and date filtering
+
+**DBT Candidate**: Create `dim_products_with_sales_metrics` view
+**Proposed Implementation**:
+```sql
+SELECT 
+  p.*,
+  COALESCE(sales.trailing_year_sales, 0) as trailing_year_sales,
+  COALESCE(sales.trailing_year_units, 0) as trailing_year_units,
+  COALESCE(sales.trailing_year_orders, 0) as trailing_year_orders
+FROM {{ ref('fct_products') }} p
+LEFT JOIN {{ ref('mart_product_trailing_sales') }} sales 
+  ON p.item_name = sales.product_service
+```
+
+**Benefits**: 
+- Pre-calculated sales metrics eliminate complex runtime JOINs
+- Reusable across multiple features (product pages, reporting, analytics)
+- Centralized business logic for "trailing year" definition
+- Better query performance for product listings
+
+**Priority**: Medium 
+**Trigger Conditions**: 
+- Query performance >2 seconds 
+- Sales metrics needed in other features
+- More complex sales analytics required (YoY growth, seasonality, etc.)
+
+**Complexity**: Medium - requires new mart table with incremental refresh strategy for performance
+
 *New candidates will be added here as the application grows and new data quality issues or business logic opportunities are discovered.*
 
 ## Resolved Items

@@ -14,12 +14,10 @@ import { MetricCard } from '@/components/dashboard/MetricCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { RecentOrders } from '@/components/dashboard/RecentOrders'
 import { getDashboardMetrics, getRecentOrders, getWeeklyRevenue } from '@/lib/queries'
+import { formatCurrency, formatNumber } from '@/lib/utils'
 
 async function DashboardMetrics() {
   const metrics = await getDashboardMetrics()
-  
-  const formatCurrency = (value: string) => `$${parseFloat(value).toLocaleString()}`
-  const formatNumber = (value: string) => parseInt(value).toLocaleString()
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -27,27 +25,27 @@ async function DashboardMetrics() {
         title="365 Day Sales"
         value={metrics.sales365Days}
         icon={DollarSign}
-        formatValue={formatCurrency}
+        formatValue={(value) => formatCurrency(value, { showCents: false })}
       />
       <MetricCard
         title="Total Revenue"
         value={metrics.totalRevenue}
         change={metrics.revenueGrowth}
         icon={DollarSign}
-        formatValue={formatCurrency}
+        formatValue={(value) => formatCurrency(value)}
       />
       <MetricCard
         title="Total Orders"
         value={metrics.totalOrders.toString()}
         change={metrics.orderGrowth}
         icon={ShoppingCart}
-        formatValue={formatNumber}
+        formatValue={(value) => formatNumber(value, 0)}
       />
       <MetricCard
         title="Average Order Value"
         value={metrics.averageOrderValue}
         icon={TrendingUp}
-        formatValue={formatCurrency}
+        formatValue={(value) => formatCurrency(value)}
       />
     </div>
   )

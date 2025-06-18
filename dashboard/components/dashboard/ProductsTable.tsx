@@ -1,6 +1,7 @@
 import { Product } from '@/lib/queries';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -27,6 +28,9 @@ export function ProductsTable({ products }: ProductsTableProps) {
             <TableHead className="text-right hidden md:table-cell">Cost</TableHead>
             <TableHead className="text-right">Margin %</TableHead>
             <TableHead className="text-right hidden xl:table-cell">Margin $</TableHead>
+            <TableHead className="text-right hidden md:table-cell">Year Sales</TableHead>
+            <TableHead className="text-right hidden lg:table-cell">Units Sold</TableHead>
+            <TableHead className="text-right hidden xl:table-cell">Orders</TableHead>
             <TableHead className="hidden lg:table-cell">Type</TableHead>
           </TableRow>
         </TableHeader>
@@ -67,10 +71,10 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 {product.materialType}
               </TableCell>
               <TableCell className="text-right font-mono">
-                ${product.salesPrice}
+                {formatCurrency(product.salesPrice)}
               </TableCell>
               <TableCell className="text-right font-mono hidden md:table-cell">
-                ${product.purchaseCost}
+                {formatCurrency(product.purchaseCost)}
               </TableCell>
               <TableCell className="text-right">
                 <span 
@@ -86,7 +90,22 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden xl:table-cell">
-                ${product.marginAmount}
+                {formatCurrency(product.marginAmount)}
+              </TableCell>
+              <TableCell className="text-right font-mono hidden md:table-cell">
+                <span className={`${Number(product.trailingYearSales) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                  {formatCurrency(product.trailingYearSales)}
+                </span>
+              </TableCell>
+              <TableCell className="text-right font-mono hidden lg:table-cell">
+                <span className={`${Number(product.trailingYearUnits) > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                  {formatNumber(product.trailingYearUnits, 1)}
+                </span>
+              </TableCell>
+              <TableCell className="text-right font-mono hidden xl:table-cell">
+                <span className={`${product.trailingYearOrders > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
+                  {product.trailingYearOrders}
+                </span>
               </TableCell>
               <TableCell className="hidden lg:table-cell">
                 <Badge variant="outline" className="text-xs">

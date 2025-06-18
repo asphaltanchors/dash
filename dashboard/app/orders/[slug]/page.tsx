@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getOrderByNumber, getOrderLineItems } from '@/lib/queries'
+import { formatCurrency, formatNumber } from '@/lib/utils'
 
 interface OrderPageProps {
   params: Promise<{ slug: string }>
@@ -24,8 +25,7 @@ interface OrderPageProps {
 async function OrderLineItems({ orderNumber }: { orderNumber: string }) {
   const lineItems = await getOrderLineItems(orderNumber)
   
-  const formatCurrency = (value: string) => `$${parseFloat(value).toLocaleString()}`
-  const formatQuantity = (value: string) => parseFloat(value).toLocaleString()
+  const formatQuantity = (value: string) => formatNumber(value, 1)
 
   if (lineItems.length === 0) {
     return (
@@ -128,7 +128,6 @@ async function OrderDetails({ orderNumber }: { orderNumber: string }) {
     notFound()
   }
 
-  const formatCurrency = (value: string) => `$${parseFloat(value).toLocaleString()}`
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
