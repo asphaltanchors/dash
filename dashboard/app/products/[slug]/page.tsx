@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Package, DollarSign, Percent, TrendingUp } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 import { InventoryStatus } from '@/components/inventory/inventory-status';
 import { InventoryTrendChart } from '@/components/inventory/inventory-trend-chart';
 import { Suspense } from 'react';
@@ -141,7 +142,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${product.salesPrice}</div>
+              <div className="text-2xl font-bold">{formatCurrency(product.salesPrice)}</div>
             </CardContent>
           </Card>
           
@@ -151,7 +152,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${product.purchaseCost}</div>
+              <div className="text-2xl font-bold">{formatCurrency(product.purchaseCost)}</div>
             </CardContent>
           </Card>
           
@@ -179,7 +180,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${product.marginAmount}</div>
+              <div className="text-2xl font-bold">{formatCurrency(product.marginAmount)}</div>
             </CardContent>
           </Card>
         </div>

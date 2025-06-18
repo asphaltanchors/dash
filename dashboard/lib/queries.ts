@@ -515,11 +515,11 @@ export interface Product {
 
 // Get product metrics
 export async function getProductMetrics(): Promise<ProductMetrics> {
-  const metrics = await db
+  // Get basic product metrics
+  const productMetrics = await db
     .select({
       totalProducts: count(),
       averageMargin: avg(fctProductsInAnalyticsMart.marginPercentage),
-      totalInventoryValue: sum(fctProductsInAnalyticsMart.salesPrice),
       kitProducts: sql<number>`count(case when ${fctProductsInAnalyticsMart.isKit} = true then 1 end)`,
       averageSalesPrice: avg(fctProductsInAnalyticsMart.salesPrice),
       averagePurchaseCost: avg(fctProductsInAnalyticsMart.purchaseCost),
@@ -530,15 +530,25 @@ export async function getProductMetrics(): Promise<ProductMetrics> {
       notInArray(fctProductsInAnalyticsMart.itemType, ['NonInventory', 'OtherCharge'])
     ));
 
-  const result = metrics[0];
+  // Get actual inventory value based on quantities on hand
+  const inventoryValue = await db.execute(sql`
+    SELECT 
+      COALESCE(SUM(inventory_value_at_sales_price::numeric), 0) as total_inventory_value
+    FROM analytics_mart.fct_inventory_history 
+    WHERE inventory_date = (SELECT MAX(inventory_date) FROM analytics_mart.fct_inventory_history)
+      AND inventory_value_at_sales_price IS NOT NULL
+  `);
+
+  const productResult = productMetrics[0];
+  const inventoryResult = inventoryValue as unknown as Array<{ total_inventory_value: string }>;
 
   return {
-    totalProducts: result.totalProducts,
-    averageMargin: Number(result.averageMargin || 0).toFixed(1),
-    totalInventoryValue: Number(result.totalInventoryValue || 0).toFixed(2),
-    kitProducts: result.kitProducts,
-    averageSalesPrice: Number(result.averageSalesPrice || 0).toFixed(2),
-    averagePurchaseCost: Number(result.averagePurchaseCost || 0).toFixed(2),
+    totalProducts: productResult.totalProducts,
+    averageMargin: Number(productResult.averageMargin || 0).toFixed(1),
+    totalInventoryValue: Number(inventoryResult[0]?.total_inventory_value || 0).toFixed(2),
+    kitProducts: productResult.kitProducts,
+    averageSalesPrice: Number(productResult.averageSalesPrice || 0).toFixed(2),
+    averagePurchaseCost: Number(productResult.averagePurchaseCost || 0).toFixed(2),
     marginGrowth: 0, // TODO: Calculate based on historical data when available
   };
 }

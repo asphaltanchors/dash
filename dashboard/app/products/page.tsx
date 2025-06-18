@@ -13,7 +13,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { MetricCard } from '@/components/dashboard/MetricCard';
-import { Package, TrendingUp, DollarSign, Boxes } from 'lucide-react';
+import { Package, TrendingUp, DollarSign } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { ProductsTable } from '@/components/dashboard/ProductsTable';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +22,7 @@ async function ProductMetrics() {
   const metrics = await getProductMetrics();
   
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-3">
       <MetricCard
         title="Total Products"
         value={metrics.totalProducts.toString()}
@@ -40,12 +40,6 @@ async function ProductMetrics() {
         value={metrics.totalInventoryValue}
         icon={DollarSign}
         formatValue={(value) => formatCurrency(value, { showCents: false })}
-      />
-      <MetricCard
-        title="Kit Products"
-        value={metrics.kitProducts.toString()}
-        icon={Boxes}
-        formatValue={(value) => value}
       />
     </div>
   );

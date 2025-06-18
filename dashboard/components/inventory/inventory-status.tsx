@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { InventorySnapshot } from '@/lib/queries';
 import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/utils';
 
 interface InventoryStatusProps {
   inventory: InventorySnapshot;
@@ -111,11 +112,11 @@ export function InventoryStatus({ inventory }: InventoryStatusProps) {
           <CardContent className="space-y-3">
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">At Cost:</span>
-              <span className="font-medium">${inventory.inventoryValueAtCost}</span>
+              <span className="font-medium">{formatCurrency(inventory.inventoryValueAtCost)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">At Sales Price:</span>
-              <span className="font-medium">${inventory.inventoryValueAtSalesPrice}</span>
+              <span className="font-medium">{formatCurrency(inventory.inventoryValueAtSalesPrice)}</span>
             </div>
           </CardContent>
         </Card>
