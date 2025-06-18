@@ -10,26 +10,44 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { DataTable } from "@/components/orders/data-table"
-import { columns } from "@/components/orders/columns"
 import { SearchInput } from "@/components/orders/search-input"
-import { getAllOrders } from "@/lib/queries"
+import ChannelBreakdown from "@/components/orders/channel-breakdown"
+import { getAllOrders, getChannelMetrics } from "@/lib/queries"
 
 interface OrdersPageProps {
-  searchParams: Promise<{ search?: string }>
+  searchParams: Promise<{ 
+    search?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }>
 }
 
-async function OrdersTable({ searchTerm }: { searchTerm: string }) {
-  // Server-side search - only fetch relevant results
-  const { orders, totalCount } = await getAllOrders(1, 50, searchTerm) // Limit to 50 results
+async function OrdersTable({ 
+  searchTerm, 
+  sortBy, 
+  sortOrder 
+}: { 
+  searchTerm: string
+  sortBy: string
+  sortOrder: 'asc' | 'desc'
+}) {
+  // Server-side search and sorting - only fetch relevant results
+  const { orders, totalCount } = await getAllOrders(1, 50, searchTerm, sortBy, sortOrder)
   
   return (
     <DataTable 
-      columns={columns} 
       data={orders} 
       searchInput={<SearchInput initialValue={searchTerm} />}
       searchResults={searchTerm ? `${totalCount} orders found for "${searchTerm}"` : undefined}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
     />
   )
+}
+
+async function ChannelMetrics() {
+  const channelMetrics = await getChannelMetrics()
+  return <ChannelBreakdown metrics={channelMetrics} />
 }
 
 function LoadingTable() {
@@ -62,9 +80,32 @@ function LoadingTable() {
   )
 }
 
+function LoadingChannelBreakdown() {
+  return (
+    <div className="rounded-md border bg-card">
+      <div className="h-12 bg-muted/20 border-b animate-pulse"></div>
+      <div className="space-y-3 p-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex space-x-4">
+            <div className="h-4 bg-muted rounded w-32 animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
+            <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
-  const { search } = await searchParams
+  const { search, sortBy, sortOrder } = await searchParams
   const searchTerm = search || ''
+  const currentSortBy = sortBy || 'orderDate'
+  const currentSortOrder = sortOrder || 'desc'
 
   return (
     <>
@@ -94,9 +135,25 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           </div>
         </div>
 
-        <Suspense fallback={<LoadingTable />} key={searchTerm}>
-          <OrdersTable searchTerm={searchTerm} />
-        </Suspense>
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Sales by Channel</h2>
+            <Suspense fallback={<LoadingChannelBreakdown />}>
+              <ChannelMetrics />
+            </Suspense>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold mb-4">All Orders</h2>
+            <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}`}>
+              <OrdersTable 
+                searchTerm={searchTerm}
+                sortBy={currentSortBy}
+                sortOrder={currentSortOrder}
+              />
+            </Suspense>
+          </div>
+        </div>
       </div>
     </>
   )

@@ -33,21 +33,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { createColumns, OrderTableItem } from "./columns"
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
   data: TData[]
   searchInput?: React.ReactNode
   searchResults?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
-export function DataTable<TData, TValue>({
-  columns,
+export function DataTable({
   data,
   searchInput,
   searchResults,
-}: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  sortBy = 'orderDate',
+  sortOrder = 'desc',
+}: DataTableProps<OrderTableItem, any>) {
+  // Create columns on client-side with current sort state
+  const columns = createColumns(sortBy, sortOrder);
+  // Initialize sorting state from props (server state)
+  const [sorting, setSorting] = React.useState<SortingState>([
+    {
+      id: sortBy,
+      desc: sortOrder === 'desc',
+    },
+  ])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
@@ -55,11 +66,10 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: setSorting,
+    manualSorting: true, // Disable client-side sorting
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,

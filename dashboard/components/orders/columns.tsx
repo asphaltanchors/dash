@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock } from "lucide-react"
+import { ServerSortButton } from "./server-sort-button"
 
 // This type should match your order data structure
 export type OrderTableItem = {
@@ -51,20 +52,21 @@ function StatusBadge({ status, isPaid }: { status: string; isPaid: boolean }) {
   )
 }
 
-export const columns: ColumnDef<OrderTableItem>[] = [
+export const createColumns = (
+  currentSortBy?: string, 
+  currentSortOrder?: 'asc' | 'desc'
+): ColumnDef<OrderTableItem>[] => [
   {
     accessorKey: "orderNumber",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Order Number
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: () => (
+      <ServerSortButton 
+        column="orderNumber" 
+        currentSortBy={currentSortBy}
+        currentSortOrder={currentSortOrder}
+      >
+        Order Number
+      </ServerSortButton>
+    ),
     cell: ({ row }) => {
       const orderNumber = row.getValue("orderNumber") as string
       return (
@@ -79,17 +81,15 @@ export const columns: ColumnDef<OrderTableItem>[] = [
   },
   {
     accessorKey: "customer",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Customer
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: () => (
+      <ServerSortButton 
+        column="customer" 
+        currentSortBy={currentSortBy}
+        currentSortOrder={currentSortOrder}
+      >
+        Customer
+      </ServerSortButton>
+    ),
     cell: ({ row }) => {
       const customer = row.getValue("customer") as string
       return (
@@ -101,17 +101,15 @@ export const columns: ColumnDef<OrderTableItem>[] = [
   },
   {
     accessorKey: "orderDate",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Order Date
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    header: () => (
+      <ServerSortButton 
+        column="orderDate" 
+        currentSortBy={currentSortBy}
+        currentSortOrder={currentSortOrder}
+      >
+        Order Date
+      </ServerSortButton>
+    ),
     cell: ({ row }) => {
       const date = new Date(row.getValue("orderDate"))
       return date.toLocaleDateString('en-US', {
@@ -144,18 +142,17 @@ export const columns: ColumnDef<OrderTableItem>[] = [
   },
   {
     accessorKey: "totalAmount",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="justify-end"
+    header: () => (
+      <div className="text-right">
+        <ServerSortButton 
+          column="totalAmount" 
+          currentSortBy={currentSortBy}
+          currentSortOrder={currentSortOrder}
         >
           Amount
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+        </ServerSortButton>
+      </div>
+    ),
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("totalAmount"))
       const formatted = new Intl.NumberFormat("en-US", {

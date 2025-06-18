@@ -1,5 +1,5 @@
 import { db, fctOrdersInAnalyticsMart, fctProductsInAnalyticsMart, fctInventoryHistoryInAnalyticsMart, fctOrderLineItemsInAnalyticsMart } from '@/lib/db';
-import { desc, gte, lte, sql, count, sum, avg, and, notInArray } from 'drizzle-orm';
+import { desc, asc, gte, lte, sql, count, sum, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 
 export interface DashboardMetrics {
@@ -76,6 +76,18 @@ export interface OrderTableItem {
 export interface OrdersResponse {
   orders: OrderTableItem[];
   totalCount: number;
+}
+
+export interface SalesPeriodMetric {
+  period_start: string;
+  period_end: string;
+  total_revenue: string;
+  order_count: string;
+}
+
+export interface SalesChannelMetric {
+  sales_channel: string;
+  periods: SalesPeriodMetric[];
 }
 
 // Get last 30 days metrics compared to previous 30 days
@@ -297,13 +309,13 @@ export async function getAllOrders(
   // Build the order clause
   let orderClause;
   if (sortBy === 'orderDate') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.orderDate) : fctOrdersInAnalyticsMart.orderDate;
+    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.orderDate) : asc(fctOrdersInAnalyticsMart.orderDate);
   } else if (sortBy === 'totalAmount') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.totalAmount) : fctOrdersInAnalyticsMart.totalAmount;
+    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.totalAmount) : asc(fctOrdersInAnalyticsMart.totalAmount);
   } else if (sortBy === 'customer') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.customer) : fctOrdersInAnalyticsMart.customer;
+    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.customer) : asc(fctOrdersInAnalyticsMart.customer);
   } else if (sortBy === 'orderNumber') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.orderNumber) : fctOrdersInAnalyticsMart.orderNumber;
+    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.orderNumber) : asc(fctOrdersInAnalyticsMart.orderNumber);
   } else {
     orderClause = desc(fctOrdersInAnalyticsMart.orderDate); // default
   }
@@ -347,6 +359,79 @@ export async function getAllOrders(
     })),
     totalCount,
   };
+}
+
+// Get channel metrics with 4-year trailing trends
+export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
+  const today = new Date();
+  const fourYearsAgo = new Date();
+  fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
+  
+  // Generate 4 trailing year periods from today
+  const periods = [];
+  for (let i = 0; i < 4; i++) {
+    const periodEnd = new Date(today);
+    periodEnd.setFullYear(periodEnd.getFullYear() - i);
+    
+    const periodStart = new Date(periodEnd);
+    periodStart.setFullYear(periodStart.getFullYear() - 1);
+    periodStart.setDate(periodStart.getDate() + 1); // Start day after to avoid overlap
+    
+    periods.push({
+      period_start: format(periodStart, 'yyyy-MM-dd'),
+      period_end: format(periodEnd, 'yyyy-MM-dd'),
+      period_label: `${periodStart.getFullYear()}-${periodEnd.getFullYear()}`
+    });
+  }
+  
+  const channelMap = new Map<string, SalesPeriodMetric[]>();
+  
+  // Query each period separately to get trailing year data
+  for (const period of periods) {
+    const channelData = await db.execute(sql`
+      SELECT 
+        class as sales_channel,
+        SUM(total_amount) as total_revenue,
+        COUNT(*) as order_count
+      FROM analytics_mart.fct_orders 
+      WHERE total_amount IS NOT NULL 
+        AND order_date >= ${period.period_start}
+        AND order_date <= ${period.period_end}
+        AND class IS NOT NULL 
+        AND class != ''
+        AND class NOT IN ('Contractor', 'EXPORT from WWD')
+      GROUP BY class
+      ORDER BY class
+    `);
+
+    // Handle different return formats from Drizzle
+    const results = channelData as unknown as Array<{ 
+      sales_channel: string; 
+      total_revenue: string; 
+      order_count: number;
+    }>;
+    
+    results.forEach(row => {
+      const channel = row.sales_channel;
+      
+      if (!channelMap.has(channel)) {
+        channelMap.set(channel, []);
+      }
+      
+      channelMap.get(channel)!.push({
+        period_start: period.period_start,
+        period_end: period.period_end,
+        total_revenue: Number(row.total_revenue || 0).toFixed(2),
+        order_count: row.order_count.toString(),
+      });
+    });
+  }
+
+  // Convert to final format and ensure periods are in reverse chronological order (most recent first)
+  return Array.from(channelMap.entries()).map(([sales_channel, periods]) => ({
+    sales_channel,
+    periods: periods.sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime()),
+  }));
 }
 
 // Get weekly revenue for the last year
