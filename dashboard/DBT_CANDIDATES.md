@@ -52,6 +52,57 @@ LEFT JOIN {{ ref('mart_product_trailing_sales') }} sales
 
 **Complexity**: Medium - requires new mart table with incremental refresh strategy for performance
 
+### Company Analytics Implementation
+**Discovered**: During company dashboard development (December 2024)
+**Current Issue**: Customer drill-down approach is misguided - "customers" within companies are just store locations or data entry artifacts
+**User Insight**: "I don't really care about those customers. I care about active companies, order trends, product purchasing, company growth/decline"
+
+**Current Schema Assessment**:
+- ✅ `fct_companies` - Good company consolidation
+- ✅ `fct_company_orders` - Has order-level data but lacks time-series aggregations
+- ✅ `fct_company_products` - Has product purchasing data
+- ❌ Missing: Company health indicators (active/inactive, days since last order)
+- ❌ Missing: Time-series aggregations for growth analysis
+- ❌ Missing: Year-over-year comparison capabilities
+
+**DBT Enhancement Candidates**:
+
+1. **`dim_company_health`** - Health and activity indicators
+   ```sql
+   SELECT 
+     company_domain_key,
+     days_since_last_order,
+     order_frequency_category,
+     activity_status,
+     growth_trend_direction,
+     health_score
+   ```
+
+2. **`fct_company_orders_time_series`** - Temporal analysis
+   ```sql
+   SELECT 
+     company_domain_key,
+     order_year,
+     order_quarter,
+     total_revenue,
+     order_count,
+     yoy_revenue_growth,
+     yoy_order_growth
+   ```
+
+3. **Enhanced `fct_company_products`** - Product trend analysis
+   - Add time-based purchasing patterns
+   - Product category diversification metrics
+   - Purchase volume trends
+
+**Benefits**: 
+- Shift from meaningless customer details to actionable company business intelligence
+- Enable growth/decline assessment, health scoring, product intelligence
+- Support company lifecycle management and relationship strength evaluation
+
+**Priority**: High - Core business intelligence requirement
+**Complexity**: Medium - Requires time-series calculations and health scoring logic
+
 *New candidates will be added here as the application grows and new data quality issues or business logic opportunities are discovered.*
 
 ## Resolved Items

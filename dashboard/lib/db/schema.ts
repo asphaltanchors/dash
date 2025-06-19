@@ -1,8 +1,43 @@
-import { pgTable, pgSchema, varchar, text, date, numeric, boolean, timestamp, bigint } from "drizzle-orm/pg-core"
+import { pgTable, pgSchema, varchar, numeric, timestamp, date, text, boolean, bigint, integer } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const analyticsMart = pgSchema("analytics_mart");
 
+
+export const bridgeCustomerCompanyInAnalyticsMart = analyticsMart.table("bridge_customer_company", {
+	customerId: varchar("customer_id"),
+	companyDomainKey: varchar("company_domain_key"),
+	customerName: varchar("customer_name"),
+	customerCompanyName: varchar("customer_company_name"),
+	mainEmail: varchar("main_email"),
+	ccEmail: varchar("cc_email"),
+	mainPhone: varchar("main_phone"),
+	billingAddressLine1: varchar("billing_address_line_1"),
+	billingAddressCity: varchar("billing_address_city"),
+	billingAddressState: varchar("billing_address_state"),
+	billingAddressPostalCode: varchar("billing_address_postal_code"),
+	salesRep: varchar("sales_rep"),
+	terms: varchar(),
+	priceLevel: varchar("price_level"),
+	currentBalance: numeric("current_balance"),
+	customerStatus: varchar("customer_status"),
+	customerCreatedDate: timestamp("customer_created_date", { mode: 'string' }),
+	customerModifiedDate: timestamp("customer_modified_date", { mode: 'string' }),
+	domainType: varchar("domain_type"),
+	customerTotalRevenue: numeric("customer_total_revenue"),
+	customerTotalOrders: numeric("customer_total_orders"),
+	customerTotalLineItems: numeric("customer_total_line_items"),
+	customerFirstOrderDate: date("customer_first_order_date"),
+	customerLatestOrderDate: date("customer_latest_order_date"),
+	customerOrderDays: numeric("customer_order_days"),
+	customerValueTier: text("customer_value_tier"),
+	customerActivityStatus: text("customer_activity_status"),
+	ordersPerDay: numeric("orders_per_day"),
+	isIndividualCustomer: boolean("is_individual_customer"),
+	isMissingEmail: boolean("is_missing_email"),
+	hasRevenue: boolean("has_revenue"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
+});
 
 export const fctOrderLineItemsInAnalyticsMart = analyticsMart.table("fct_order_line_items", {
 	lineItemId: varchar("line_item_id"),
@@ -61,6 +96,39 @@ export const fctOrderLineItemsInAnalyticsMart = analyticsMart.table("fct_order_l
 	standardPurchaseCost: numeric("standard_purchase_cost"),
 	marginPercentage: numeric("margin_percentage"),
 	marginAmount: numeric("margin_amount"),
+});
+
+export const fctCompanyOrdersInAnalyticsMart = analyticsMart.table("fct_company_orders", {
+	companyDomainKey: varchar("company_domain_key"),
+	companyName: varchar("company_name"),
+	domainType: varchar("domain_type"),
+	businessSizeCategory: text("business_size_category"),
+	orderNumber: varchar("order_number"),
+	orderType: text("order_type"),
+	orderDate: date("order_date"),
+	customerName: varchar("customer_name"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	lineItemCount: bigint("line_item_count", { mode: "number" }),
+	calculatedOrderTotal: numeric("calculated_order_total"),
+	reportedOrderTotal: numeric("reported_order_total"),
+	orderTax: numeric("order_tax"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	uniqueProducts: bigint("unique_products", { mode: "number" }),
+	productFamilies: text("product_families"),
+	materialTypes: text("material_types"),
+	kitQuantity: numeric("kit_quantity"),
+	kitAmount: numeric("kit_amount"),
+	avgMarginPercentage: numeric("avg_margin_percentage"),
+	salesRep: varchar("sales_rep"),
+	paymentMethod: varchar("payment_method"),
+	terms: varchar(),
+	orderYear: numeric("order_year"),
+	orderQuarter: numeric("order_quarter"),
+	recencyCategory: text("recency_category"),
+	orderSizeCategory: text("order_size_category"),
+	productDiversity: text("product_diversity"),
+	daysSinceOrder: integer("days_since_order"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
 });
 
 export const fctProductsInAnalyticsMart = analyticsMart.table("fct_products", {
@@ -150,4 +218,73 @@ export const fctOrdersInAnalyticsMart = analyticsMart.table("fct_orders", {
 	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 	itemCount: bigint("item_count", { mode: "number" }),
 	effectiveTaxRate: numeric("effective_tax_rate"),
+});
+
+export const fctCompaniesInAnalyticsMart = analyticsMart.table("fct_companies", {
+	companyDomainKey: varchar("company_domain_key"),
+	domainType: varchar("domain_type"),
+	companyName: varchar("company_name"),
+	primaryEmail: varchar("primary_email"),
+	primaryPhone: varchar("primary_phone"),
+	primaryBillingAddressLine1: varchar("primary_billing_address_line_1"),
+	primaryBillingCity: varchar("primary_billing_city"),
+	primaryBillingState: varchar("primary_billing_state"),
+	primaryBillingPostalCode: varchar("primary_billing_postal_code"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	customerCount: bigint("customer_count", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	uniqueCustomerNames: bigint("unique_customer_names", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	uniqueCompanyNames: bigint("unique_company_names", { mode: "number" }),
+	totalCurrentBalance: numeric("total_current_balance"),
+	totalRevenue: numeric("total_revenue"),
+	totalOrders: numeric("total_orders"),
+	totalLineItems: numeric("total_line_items"),
+	firstOrderDate: date("first_order_date"),
+	latestOrderDate: date("latest_order_date"),
+	businessSizeCategory: text("business_size_category"),
+	revenueCategory: text("revenue_category"),
+	customerNamesSample: text("customer_names_sample"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
+});
+
+export const fctCompanyProductsInAnalyticsMart = analyticsMart.table("fct_company_products", {
+	companyDomainKey: varchar("company_domain_key"),
+	companyName: varchar("company_name"),
+	domainType: varchar("domain_type"),
+	businessSizeCategory: text("business_size_category"),
+	productService: varchar("product_service"),
+	productServiceDescription: varchar("product_service_description"),
+	productFamily: text("product_family"),
+	materialType: text("material_type"),
+	isKit: boolean("is_kit"),
+	itemType: text("item_type"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	totalTransactions: bigint("total_transactions", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	purchaseDays: bigint("purchase_days", { mode: "number" }),
+	totalQuantityPurchased: numeric("total_quantity_purchased"),
+	totalAmountSpent: numeric("total_amount_spent"),
+	avgUnitPrice: numeric("avg_unit_price"),
+	minUnitPrice: numeric("min_unit_price"),
+	maxUnitPrice: numeric("max_unit_price"),
+	standardSalesPrice: numeric("standard_sales_price"),
+	standardPurchaseCost: numeric("standard_purchase_cost"),
+	priceVariancePercentage: numeric("price_variance_percentage"),
+	avgMarginPercentage: numeric("avg_margin_percentage"),
+	firstPurchaseDate: date("first_purchase_date"),
+	latestPurchaseDate: date("latest_purchase_date"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	recentTransactions: bigint("recent_transactions", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	lastYearTransactions: bigint("last_year_transactions", { mode: "number" }),
+	daysSinceLastPurchase: integer("days_since_last_purchase"),
+	transactionsPerPurchaseDay: numeric("transactions_per_purchase_day"),
+	buyerStatus: text("buyer_status"),
+	purchaseVolumeCategory: text("purchase_volume_category"),
+	purchaseFrequencyCategory: text("purchase_frequency_category"),
+	companyTotalRevenue: numeric("company_total_revenue"),
+	productRevenuePercentage: numeric("product_revenue_percentage"),
+	primarySalesRep: varchar("primary_sales_rep"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
 });

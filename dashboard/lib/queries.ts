@@ -1,4 +1,4 @@
-import { db, fctOrdersInAnalyticsMart, fctProductsInAnalyticsMart, fctInventoryHistoryInAnalyticsMart, fctOrderLineItemsInAnalyticsMart } from '@/lib/db';
+import { db, fctOrdersInAnalyticsMart, fctProductsInAnalyticsMart, fctInventoryHistoryInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart } from '@/lib/db';
 import { desc, asc, gte, lte, sql, count, sum, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 
@@ -855,4 +855,357 @@ export async function getProductInventoryTrend(itemName: string): Promise<Invent
     quantityChange: Number(item.quantityChange || 0).toFixed(0),
     inventoryValueAtCost: Number(item.inventoryValueAtCost || 0).toFixed(2),
   }));
+}
+
+// Company interfaces and queries
+export interface TopCompany {
+  companyDomainKey: string;
+  companyName: string;
+  domainType: string;
+  businessSizeCategory: string;
+  revenueCategory: string;
+  totalRevenue: string;
+  totalOrders: string;
+  customerCount: number;
+  firstOrderDate: string;
+  latestOrderDate: string;
+}
+
+export async function getAllCompanies(
+  page: number = 1,
+  pageSize: number = 50,
+  searchTerm: string = '',
+  sortBy: string = 'totalRevenue',
+  sortOrder: 'asc' | 'desc' = 'desc'
+): Promise<{ companies: TopCompany[], totalCount: number }> {
+  
+  // Build WHERE clause for search
+  let whereClause = sql`${fctCompaniesInAnalyticsMart.domainType} = 'corporate'`;
+  
+  if (searchTerm) {
+    whereClause = sql`${whereClause} AND (
+      LOWER(${fctCompaniesInAnalyticsMart.companyName}) LIKE LOWER(${'%' + searchTerm + '%'}) OR
+      LOWER(${fctCompaniesInAnalyticsMart.companyDomainKey}) LIKE LOWER(${'%' + searchTerm + '%'})
+    )`;
+  }
+
+  // Build ORDER BY clause
+  let orderByClause;
+  const sortColumn = {
+    'companyName': fctCompaniesInAnalyticsMart.companyName,
+    'totalRevenue': fctCompaniesInAnalyticsMart.totalRevenue,
+    'totalOrders': fctCompaniesInAnalyticsMart.totalOrders,
+    'customerCount': fctCompaniesInAnalyticsMart.customerCount,
+    'latestOrderDate': fctCompaniesInAnalyticsMart.latestOrderDate,
+  }[sortBy] || fctCompaniesInAnalyticsMart.totalRevenue;
+
+  orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+  // Get total count
+  const totalCountResult = await db
+    .select({ count: count() })
+    .from(fctCompaniesInAnalyticsMart)
+    .where(whereClause);
+  
+  const totalCount = totalCountResult[0]?.count || 0;
+
+  // Get paginated results
+  const companies = await db
+    .select({
+      companyDomainKey: fctCompaniesInAnalyticsMart.companyDomainKey,
+      companyName: fctCompaniesInAnalyticsMart.companyName,
+      domainType: fctCompaniesInAnalyticsMart.domainType,
+      businessSizeCategory: fctCompaniesInAnalyticsMart.businessSizeCategory,
+      revenueCategory: fctCompaniesInAnalyticsMart.revenueCategory,
+      totalRevenue: fctCompaniesInAnalyticsMart.totalRevenue,
+      totalOrders: fctCompaniesInAnalyticsMart.totalOrders,
+      customerCount: fctCompaniesInAnalyticsMart.customerCount,
+      firstOrderDate: fctCompaniesInAnalyticsMart.firstOrderDate,
+      latestOrderDate: fctCompaniesInAnalyticsMart.latestOrderDate,
+    })
+    .from(fctCompaniesInAnalyticsMart)
+    .where(whereClause)
+    .orderBy(orderByClause)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+
+  return {
+    companies: companies.map(company => ({
+      companyDomainKey: company.companyDomainKey || '',
+      companyName: company.companyName || 'Unknown Company',
+      domainType: company.domainType || 'unknown',
+      businessSizeCategory: company.businessSizeCategory || 'Unknown',
+      revenueCategory: company.revenueCategory || 'Unknown',
+      totalRevenue: Number(company.totalRevenue || 0).toFixed(2),
+      totalOrders: Number(company.totalOrders || 0).toFixed(0),
+      customerCount: Number(company.customerCount || 0),
+      firstOrderDate: company.firstOrderDate as string || '',
+      latestOrderDate: company.latestOrderDate as string || '',
+    })),
+    totalCount: Number(totalCount)
+  };
+}
+
+export interface CompanyDetail {
+  companyDomainKey: string;
+  companyName: string;
+  domainType: string;
+  businessSizeCategory: string;
+  revenueCategory: string;
+  totalRevenue: string;
+  totalOrders: string;
+  customerCount: number;
+  firstOrderDate: string;
+  latestOrderDate: string;
+  primaryEmail: string;
+  primaryPhone: string;
+  primaryBillingAddressLine1: string;
+  primaryBillingCity: string;
+  primaryBillingState: string;
+  primaryBillingPostalCode: string;
+}
+
+export interface CompanyCustomer {
+  customerId: string;
+  customerName: string;
+  customerTotalRevenue: string;
+  customerTotalOrders: string;
+  customerValueTier: string;
+  customerActivityStatus: string;
+  billingAddressCity: string;
+  billingAddressState: string;
+  salesRep: string;
+  isIndividualCustomer: boolean;
+}
+
+export async function getCompanyByDomain(domainKey: string): Promise<CompanyDetail | null> {
+  const companies = await db
+    .select({
+      companyDomainKey: fctCompaniesInAnalyticsMart.companyDomainKey,
+      companyName: fctCompaniesInAnalyticsMart.companyName,
+      domainType: fctCompaniesInAnalyticsMart.domainType,
+      businessSizeCategory: fctCompaniesInAnalyticsMart.businessSizeCategory,
+      revenueCategory: fctCompaniesInAnalyticsMart.revenueCategory,
+      totalRevenue: fctCompaniesInAnalyticsMart.totalRevenue,
+      totalOrders: fctCompaniesInAnalyticsMart.totalOrders,
+      customerCount: fctCompaniesInAnalyticsMart.customerCount,
+      firstOrderDate: fctCompaniesInAnalyticsMart.firstOrderDate,
+      latestOrderDate: fctCompaniesInAnalyticsMart.latestOrderDate,
+      primaryEmail: fctCompaniesInAnalyticsMart.primaryEmail,
+      primaryPhone: fctCompaniesInAnalyticsMart.primaryPhone,
+      primaryBillingAddressLine1: fctCompaniesInAnalyticsMart.primaryBillingAddressLine1,
+      primaryBillingCity: fctCompaniesInAnalyticsMart.primaryBillingCity,
+      primaryBillingState: fctCompaniesInAnalyticsMart.primaryBillingState,
+      primaryBillingPostalCode: fctCompaniesInAnalyticsMart.primaryBillingPostalCode,
+    })
+    .from(fctCompaniesInAnalyticsMart)
+    .where(sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${domainKey}`)
+    .limit(1);
+
+  if (companies.length === 0) {
+    return null;
+  }
+
+  const company = companies[0];
+  return {
+    companyDomainKey: company.companyDomainKey || '',
+    companyName: company.companyName || 'Unknown Company',
+    domainType: company.domainType || 'unknown',
+    businessSizeCategory: company.businessSizeCategory || 'Unknown',
+    revenueCategory: company.revenueCategory || 'Unknown',
+    totalRevenue: Number(company.totalRevenue || 0).toFixed(2),
+    totalOrders: Number(company.totalOrders || 0).toFixed(0),
+    customerCount: Number(company.customerCount || 0),
+    firstOrderDate: company.firstOrderDate as string || '',
+    latestOrderDate: company.latestOrderDate as string || '',
+    primaryEmail: company.primaryEmail || '',
+    primaryPhone: company.primaryPhone || '',
+    primaryBillingAddressLine1: company.primaryBillingAddressLine1 || '',
+    primaryBillingCity: company.primaryBillingCity || '',
+    primaryBillingState: company.primaryBillingState || '',
+    primaryBillingPostalCode: company.primaryBillingPostalCode || '',
+  };
+}
+
+export async function getCompanyCustomers(domainKey: string): Promise<CompanyCustomer[]> {
+  const customers = await db
+    .select({
+      customerId: bridgeCustomerCompanyInAnalyticsMart.customerId,
+      customerName: bridgeCustomerCompanyInAnalyticsMart.customerName,
+      customerTotalRevenue: bridgeCustomerCompanyInAnalyticsMart.customerTotalRevenue,
+      customerTotalOrders: bridgeCustomerCompanyInAnalyticsMart.customerTotalOrders,
+      customerValueTier: bridgeCustomerCompanyInAnalyticsMart.customerValueTier,
+      customerActivityStatus: bridgeCustomerCompanyInAnalyticsMart.customerActivityStatus,
+      billingAddressCity: bridgeCustomerCompanyInAnalyticsMart.billingAddressCity,
+      billingAddressState: bridgeCustomerCompanyInAnalyticsMart.billingAddressState,
+      salesRep: bridgeCustomerCompanyInAnalyticsMart.salesRep,
+      isIndividualCustomer: bridgeCustomerCompanyInAnalyticsMart.isIndividualCustomer,
+    })
+    .from(bridgeCustomerCompanyInAnalyticsMart)
+    .where(sql`${bridgeCustomerCompanyInAnalyticsMart.companyDomainKey} = ${domainKey}`)
+    .orderBy(desc(bridgeCustomerCompanyInAnalyticsMart.customerTotalRevenue));
+
+  return customers.map(customer => ({
+    customerId: customer.customerId || '',
+    customerName: customer.customerName || 'Unknown Customer',
+    customerTotalRevenue: Number(customer.customerTotalRevenue || 0).toFixed(2),
+    customerTotalOrders: Number(customer.customerTotalOrders || 0).toFixed(0),
+    customerValueTier: customer.customerValueTier || 'Unknown',
+    customerActivityStatus: customer.customerActivityStatus || 'Unknown',
+    billingAddressCity: customer.billingAddressCity || '',
+    billingAddressState: customer.billingAddressState || '',
+    salesRep: customer.salesRep || '',
+    isIndividualCustomer: customer.isIndividualCustomer || false,
+  }));
+}
+
+// Phase 1 Company Analytics - Using existing schema
+export interface CompanyOrder {
+  orderNumber: string;
+  orderDate: string;
+  calculatedOrderTotal: string;
+  lineItemCount: number;
+  uniqueProducts: number;
+  orderType: string;
+  recencyCategory: string;
+  orderSizeCategory: string;
+  daysSinceOrder: number;
+}
+
+export interface CompanyProduct {
+  productService: string;
+  productServiceDescription: string;
+  productFamily: string;
+  materialType: string;
+  totalTransactions: number;
+  totalQuantityPurchased: string;
+  totalAmountSpent: string;
+  avgUnitPrice: string;
+  buyerStatus: string;
+  purchaseVolumeCategory: string;
+  daysSinceLastPurchase: number;
+}
+
+export interface CompanyHealthBasic {
+  daysSinceLastOrder: number;
+  activityStatus: string;
+  totalOrders: number;
+  orderFrequency: string;
+  avgOrderValue: string;
+}
+
+export async function getCompanyOrderTimeline(domainKey: string): Promise<CompanyOrder[]> {
+  const orders = await db
+    .select({
+      orderNumber: fctCompanyOrdersInAnalyticsMart.orderNumber,
+      orderDate: fctCompanyOrdersInAnalyticsMart.orderDate,
+      calculatedOrderTotal: fctCompanyOrdersInAnalyticsMart.calculatedOrderTotal,
+      lineItemCount: fctCompanyOrdersInAnalyticsMart.lineItemCount,
+      uniqueProducts: fctCompanyOrdersInAnalyticsMart.uniqueProducts,
+      orderType: fctCompanyOrdersInAnalyticsMart.orderType,
+      recencyCategory: fctCompanyOrdersInAnalyticsMart.recencyCategory,
+      orderSizeCategory: fctCompanyOrdersInAnalyticsMart.orderSizeCategory,
+      daysSinceOrder: fctCompanyOrdersInAnalyticsMart.daysSinceOrder,
+    })
+    .from(fctCompanyOrdersInAnalyticsMart)
+    .where(sql`${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${domainKey}`)
+    .orderBy(desc(fctCompanyOrdersInAnalyticsMart.orderDate))
+    .limit(50);
+
+  return orders.map(order => ({
+    orderNumber: order.orderNumber || '',
+    orderDate: order.orderDate as string || '',
+    calculatedOrderTotal: Number(order.calculatedOrderTotal || 0).toFixed(2),
+    lineItemCount: Number(order.lineItemCount || 0),
+    uniqueProducts: Number(order.uniqueProducts || 0),
+    orderType: order.orderType || 'Unknown',
+    recencyCategory: order.recencyCategory || 'Unknown',
+    orderSizeCategory: order.orderSizeCategory || 'Unknown',
+    daysSinceOrder: Number(order.daysSinceOrder || 0),
+  }));
+}
+
+export async function getCompanyProductAnalysis(domainKey: string): Promise<CompanyProduct[]> {
+  const products = await db
+    .select({
+      productService: fctCompanyProductsInAnalyticsMart.productService,
+      productServiceDescription: fctCompanyProductsInAnalyticsMart.productServiceDescription,
+      productFamily: fctCompanyProductsInAnalyticsMart.productFamily,
+      materialType: fctCompanyProductsInAnalyticsMart.materialType,
+      totalTransactions: fctCompanyProductsInAnalyticsMart.totalTransactions,
+      totalQuantityPurchased: fctCompanyProductsInAnalyticsMart.totalQuantityPurchased,
+      totalAmountSpent: fctCompanyProductsInAnalyticsMart.totalAmountSpent,
+      avgUnitPrice: fctCompanyProductsInAnalyticsMart.avgUnitPrice,
+      buyerStatus: fctCompanyProductsInAnalyticsMart.buyerStatus,
+      purchaseVolumeCategory: fctCompanyProductsInAnalyticsMart.purchaseVolumeCategory,
+      daysSinceLastPurchase: fctCompanyProductsInAnalyticsMart.daysSinceLastPurchase,
+    })
+    .from(fctCompanyProductsInAnalyticsMart)
+    .where(sql`${fctCompanyProductsInAnalyticsMart.companyDomainKey} = ${domainKey}`)
+    .orderBy(desc(fctCompanyProductsInAnalyticsMart.totalAmountSpent))
+    .limit(20);
+
+  return products.map(product => ({
+    productService: product.productService || '',
+    productServiceDescription: product.productServiceDescription || '',
+    productFamily: product.productFamily || 'Unknown',
+    materialType: product.materialType || 'Unknown',
+    totalTransactions: Number(product.totalTransactions || 0),
+    totalQuantityPurchased: Number(product.totalQuantityPurchased || 0).toFixed(2),
+    totalAmountSpent: Number(product.totalAmountSpent || 0).toFixed(2),
+    avgUnitPrice: Number(product.avgUnitPrice || 0).toFixed(2),
+    buyerStatus: product.buyerStatus || 'Unknown',
+    purchaseVolumeCategory: product.purchaseVolumeCategory || 'Unknown',
+    daysSinceLastPurchase: Number(product.daysSinceLastPurchase || 0),
+  }));
+}
+
+export async function getCompanyHealthBasic(domainKey: string): Promise<CompanyHealthBasic | null> {
+  const orders = await db
+    .select({
+      orderDate: fctCompanyOrdersInAnalyticsMart.orderDate,
+      calculatedOrderTotal: fctCompanyOrdersInAnalyticsMart.calculatedOrderTotal,
+    })
+    .from(fctCompanyOrdersInAnalyticsMart)
+    .where(sql`${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${domainKey}`)
+    .orderBy(desc(fctCompanyOrdersInAnalyticsMart.orderDate));
+
+  if (orders.length === 0) {
+    return null;
+  }
+
+  const latestOrder = orders[0];
+  const daysSinceLastOrder = Math.floor(
+    (new Date().getTime() - new Date(latestOrder.orderDate as string).getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  let activityStatus = 'Inactive';
+  if (daysSinceLastOrder <= 30) activityStatus = 'Active (30 days)';
+  else if (daysSinceLastOrder <= 90) activityStatus = 'Recent (90 days)';
+  else if (daysSinceLastOrder <= 365) activityStatus = 'Dormant (1 year)';
+
+  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.calculatedOrderTotal || 0), 0);
+  const avgOrderValue = totalRevenue / orders.length;
+
+  // Calculate simple order frequency (orders per month over active period)
+  const oldestOrder = orders[orders.length - 1];
+  const daysBetween = Math.floor(
+    (new Date(latestOrder.orderDate as string).getTime() - new Date(oldestOrder.orderDate as string).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const monthsBetween = Math.max(daysBetween / 30, 1);
+  const ordersPerMonth = orders.length / monthsBetween;
+
+  let orderFrequency = 'Low';
+  if (ordersPerMonth >= 4) orderFrequency = 'High (4+/month)';
+  else if (ordersPerMonth >= 1) orderFrequency = 'Medium (1-4/month)';
+  else if (ordersPerMonth >= 0.25) orderFrequency = 'Low (1/quarter)';
+  else orderFrequency = 'Very Low (<1/quarter)';
+
+  return {
+    daysSinceLastOrder,
+    activityStatus,
+    totalOrders: orders.length,
+    orderFrequency,
+    avgOrderValue: avgOrderValue.toFixed(2),
+  };
 }

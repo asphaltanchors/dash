@@ -6,6 +6,7 @@ import {
   BarChart3,
   ShoppingCart,
   Package,
+  Building2,
 } from "lucide-react"
 
 import {
@@ -36,6 +37,11 @@ const data = {
       title: "Products",
       url: "/products", 
       icon: Package,
+    },
+    {
+      title: "Companies",
+      url: "/companies",
+      icon: Building2,
     },
   ],
 }
