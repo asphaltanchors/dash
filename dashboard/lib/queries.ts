@@ -1,4 +1,4 @@
-import { db, fctOrdersInAnalyticsMart, fctProductsInAnalyticsMart, fctInventoryHistoryInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart } from '@/lib/db';
+import { db, fctOrdersInAnalyticsMart, fctProductsInAnalyticsMart, fctInventoryHistoryInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart } from '@/lib/db';
 import { desc, asc, gte, lte, sql, count, sum, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 
@@ -871,6 +871,26 @@ export interface TopCompany {
   latestOrderDate: string;
 }
 
+export interface CompanyWithHealth {
+  companyDomainKey: string;
+  companyName: string;
+  domainType: string;
+  businessSizeCategory: string;
+  revenueCategory: string;
+  totalRevenue: string;
+  totalOrders: string;
+  customerCount: number;
+  firstOrderDate: string;
+  latestOrderDate: string;
+  healthScore: string;
+  activityStatus: string;
+  healthCategory: string;
+  growthTrendDirection: string;
+  daysSinceLastOrder: number;
+  atRiskFlag: boolean;
+  growthOpportunityFlag: boolean;
+}
+
 export async function getAllCompanies(
   page: number = 1,
   pageSize: number = 50,
@@ -890,7 +910,6 @@ export async function getAllCompanies(
   }
 
   // Build ORDER BY clause
-  let orderByClause;
   const sortColumn = {
     'companyName': fctCompaniesInAnalyticsMart.companyName,
     'totalRevenue': fctCompaniesInAnalyticsMart.totalRevenue,
@@ -899,7 +918,7 @@ export async function getAllCompanies(
     'latestOrderDate': fctCompaniesInAnalyticsMart.latestOrderDate,
   }[sortBy] || fctCompaniesInAnalyticsMart.totalRevenue;
 
-  orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+  const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
   // Get total count
   const totalCountResult = await db
@@ -941,6 +960,99 @@ export async function getAllCompanies(
       customerCount: Number(company.customerCount || 0),
       firstOrderDate: company.firstOrderDate as string || '',
       latestOrderDate: company.latestOrderDate as string || '',
+    })),
+    totalCount: Number(totalCount)
+  };
+}
+
+export async function getCompaniesWithHealth(
+  page: number = 1,
+  pageSize: number = 50,
+  searchTerm: string = '',
+  sortBy: string = 'totalRevenue',
+  sortOrder: 'asc' | 'desc' = 'desc'
+): Promise<{ companies: CompanyWithHealth[], totalCount: number }> {
+  
+  // Build WHERE clause for search
+  let whereClause = sql`${fctCompaniesInAnalyticsMart.domainType} = 'corporate'`;
+  
+  if (searchTerm) {
+    whereClause = sql`${whereClause} AND (
+      LOWER(${fctCompaniesInAnalyticsMart.companyName}) LIKE LOWER(${'%' + searchTerm + '%'}) OR
+      LOWER(${fctCompaniesInAnalyticsMart.companyDomainKey}) LIKE LOWER(${'%' + searchTerm + '%'})
+    )`;
+  }
+
+  // Build ORDER BY clause - handle health-related sorting
+  const sortColumn = {
+    'companyName': fctCompaniesInAnalyticsMart.companyName,
+    'totalRevenue': fctCompaniesInAnalyticsMart.totalRevenue,
+    'totalOrders': fctCompaniesInAnalyticsMart.totalOrders,
+    'customerCount': fctCompaniesInAnalyticsMart.customerCount,
+    'latestOrderDate': fctCompaniesInAnalyticsMart.latestOrderDate,
+    'healthScore': dimCompanyHealthInAnalyticsMart.healthScore,
+    'activityStatus': dimCompanyHealthInAnalyticsMart.activityStatus,
+    'daysSinceLastOrder': dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
+  }[sortBy] || fctCompaniesInAnalyticsMart.totalRevenue;
+
+  const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+
+  // Get total count
+  const totalCountResult = await db
+    .select({ count: count() })
+    .from(fctCompaniesInAnalyticsMart)
+    .innerJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
+    .where(whereClause);
+  
+  const totalCount = totalCountResult[0]?.count || 0;
+
+  // Get companies with health data
+  const companies = await db
+    .select({
+      companyDomainKey: fctCompaniesInAnalyticsMart.companyDomainKey,
+      companyName: fctCompaniesInAnalyticsMart.companyName,
+      domainType: fctCompaniesInAnalyticsMart.domainType,
+      businessSizeCategory: fctCompaniesInAnalyticsMart.businessSizeCategory,
+      revenueCategory: fctCompaniesInAnalyticsMart.revenueCategory,
+      totalRevenue: fctCompaniesInAnalyticsMart.totalRevenue,
+      totalOrders: fctCompaniesInAnalyticsMart.totalOrders,
+      customerCount: fctCompaniesInAnalyticsMart.customerCount,
+      firstOrderDate: fctCompaniesInAnalyticsMart.firstOrderDate,
+      latestOrderDate: fctCompaniesInAnalyticsMart.latestOrderDate,
+      healthScore: dimCompanyHealthInAnalyticsMart.healthScore,
+      activityStatus: dimCompanyHealthInAnalyticsMart.activityStatus,
+      healthCategory: dimCompanyHealthInAnalyticsMart.healthCategory,
+      growthTrendDirection: dimCompanyHealthInAnalyticsMart.growthTrendDirection,
+      daysSinceLastOrder: dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
+      atRiskFlag: dimCompanyHealthInAnalyticsMart.atRiskFlag,
+      growthOpportunityFlag: dimCompanyHealthInAnalyticsMart.growthOpportunityFlag,
+    })
+    .from(fctCompaniesInAnalyticsMart)
+    .innerJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
+    .where(whereClause)
+    .orderBy(orderByClause)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+
+  return {
+    companies: companies.map(company => ({
+      companyDomainKey: company.companyDomainKey || '',
+      companyName: company.companyName || 'Unknown Company',
+      domainType: company.domainType || 'unknown',
+      businessSizeCategory: company.businessSizeCategory || 'Unknown',
+      revenueCategory: company.revenueCategory || 'Unknown',
+      totalRevenue: Number(company.totalRevenue || 0).toFixed(2),
+      totalOrders: Number(company.totalOrders || 0).toFixed(0),
+      customerCount: Number(company.customerCount || 0),
+      firstOrderDate: company.firstOrderDate as string || '',
+      latestOrderDate: company.latestOrderDate as string || '',
+      healthScore: Number(company.healthScore || 0).toFixed(0),
+      activityStatus: company.activityStatus || 'Unknown',
+      healthCategory: company.healthCategory || 'Unknown',
+      growthTrendDirection: company.growthTrendDirection || 'Unknown',
+      daysSinceLastOrder: Number(company.daysSinceLastOrder || 0),
+      atRiskFlag: Boolean(company.atRiskFlag),
+      growthOpportunityFlag: Boolean(company.growthOpportunityFlag),
     })),
     totalCount: Number(totalCount)
   };

@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { getAllCompanies } from '@/lib/queries';
+import { getCompaniesWithHealth } from '@/lib/queries';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -32,7 +32,7 @@ async function CompaniesTable({
   page: number
 }) {
   // Server-side search and sorting - only fetch relevant results
-  const { companies, totalCount } = await getAllCompanies(page, 50, searchTerm, sortBy, sortOrder)
+  const { companies, totalCount } = await getCompaniesWithHealth(page, 50, searchTerm, sortBy, sortOrder)
   
   return (
     <DataTable 

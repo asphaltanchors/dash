@@ -23,10 +23,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { createColumns } from "./columns"
-import { TopCompany } from "@/lib/queries"
+import { CompanyWithHealth } from "@/lib/queries"
 
 interface DataTableProps {
-  data: TopCompany[]
+  data: CompanyWithHealth[]
   totalCount: number
   currentPage: number
   pageSize: number
@@ -53,7 +53,7 @@ export function DataTable({
     { id: sortBy, desc: sortOrder === 'desc' }
   ])
 
-  const columns = createColumns(sortBy, sortOrder)
+  const columns = createColumns()
 
   const table = useReactTable({
     data,

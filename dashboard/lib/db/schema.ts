@@ -151,6 +151,42 @@ export const fctProductsInAnalyticsMart = analyticsMart.table("fct_products", {
 	snapshotDate: varchar("snapshot_date"),
 });
 
+export const dimCompanyHealthInAnalyticsMart = analyticsMart.table("dim_company_health", {
+	companyDomainKey: varchar("company_domain_key"),
+	companyName: varchar("company_name"),
+	domainType: varchar("domain_type"),
+	businessSizeCategory: text("business_size_category"),
+	revenueCategory: text("revenue_category"),
+	healthScore: numeric("health_score"),
+	activityStatus: text("activity_status"),
+	engagementLevel: text("engagement_level"),
+	growthTrendDirection: text("growth_trend_direction"),
+	orderFrequencyCategory: text("order_frequency_category"),
+	daysSinceLastOrder: integer("days_since_last_order"),
+	lastOrderDate: date("last_order_date"),
+	firstOrderDate: date("first_order_date"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	totalOrders: bigint("total_orders", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	activeYears: bigint("active_years", { mode: "number" }),
+	ordersPerYear: numeric("orders_per_year"),
+	totalRevenue: numeric("total_revenue"),
+	avgOrderValue: numeric("avg_order_value"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	ordersLast90Days: bigint("orders_last_90_days", { mode: "number" }),
+	revenueLast90Days: numeric("revenue_last_90_days"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	ordersLastYear: bigint("orders_last_year", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	ordersPriorYear: bigint("orders_prior_year", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	productDiversityScore: bigint("product_diversity_score", { mode: "number" }),
+	healthCategory: text("health_category"),
+	atRiskFlag: boolean("at_risk_flag"),
+	growthOpportunityFlag: boolean("growth_opportunity_flag"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
+});
+
 export const fctInventoryHistoryInAnalyticsMart = analyticsMart.table("fct_inventory_history", {
 	itemName: varchar("item_name"),
 	inventoryDate: date("inventory_date"),
@@ -175,6 +211,49 @@ export const fctInventoryHistoryInAnalyticsMart = analyticsMart.table("fct_inven
 	itemStatus: varchar("item_status"),
 	isBackup: boolean("is_backup"),
 	originalSnapshotDate: varchar("original_snapshot_date"),
+});
+
+export const fctCompanyOrdersTimeSeriesInAnalyticsMart = analyticsMart.table("fct_company_orders_time_series", {
+	companyDomainKey: varchar("company_domain_key"),
+	companyName: varchar("company_name"),
+	domainType: varchar("domain_type"),
+	businessSizeCategory: text("business_size_category"),
+	revenueCategory: text("revenue_category"),
+	orderYear: numeric("order_year"),
+	orderQuarter: numeric("order_quarter"),
+	periodKey: text("period_key"),
+	periodStartDate: date("period_start_date"),
+	periodEndDate: date("period_end_date"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	orderCount: bigint("order_count", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	uniqueCustomers: bigint("unique_customers", { mode: "number" }),
+	totalRevenue: numeric("total_revenue"),
+	avgOrderValue: numeric("avg_order_value"),
+	totalUniqueProducts: numeric("total_unique_products"),
+	avgProductsPerOrder: numeric("avg_products_per_order"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	largeOrders: bigint("large_orders", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	mediumOrders: bigint("medium_orders", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	smallOrders: bigint("small_orders", { mode: "number" }),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	microOrders: bigint("micro_orders", { mode: "number" }),
+	avgMarginPercentage: numeric("avg_margin_percentage"),
+	qoqOrderGrowthPct: numeric("qoq_order_growth_pct"),
+	qoqRevenueGrowthPct: numeric("qoq_revenue_growth_pct"),
+	yoyOrderGrowthPct: numeric("yoy_order_growth_pct"),
+	yoyRevenueGrowthPct: numeric("yoy_revenue_growth_pct"),
+	yoyGrowthTrend: text("yoy_growth_trend"),
+	yoyRevenueTrend: text("yoy_revenue_trend"),
+	quarterlyRevenueTier: text("quarterly_revenue_tier"),
+	quarterlyActivityLevel: text("quarterly_activity_level"),
+	quarterLabel: text("quarter_label"),
+	isCurrentQuarter: boolean("is_current_quarter"),
+	exceptionalGrowthFlag: boolean("exceptional_growth_flag"),
+	concerningDeclineFlag: boolean("concerning_decline_flag"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
 });
 
 export const fctOrdersInAnalyticsMart = analyticsMart.table("fct_orders", {
