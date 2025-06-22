@@ -30,7 +30,7 @@ interface ProductDetailPageProps {
 // Sales trend component
 async function ProductSalesSection({ productName }: { productName: string }) {
   const salesData = await getProductMonthlyRevenue(productName);
-  return <ProductSalesChart data={salesData} productName={productName} />;
+  return <ProductSalesChart data={salesData} />;
 }
 
 // Inventory components
