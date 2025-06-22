@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getCompanyByDomain, getCompanyOrderTimeline, getCompanyProductAnalysis, getCompanyHealthBasic, type CompanyDetail, type CompanyOrder, type CompanyProduct, type CompanyHealthBasic } from '@/lib/queries';
+import { getCompanyByDomain, getCompanyOrderTimeline, getCompanyProductAnalysis, getCompanyHealthBasic } from '@/lib/queries';
 import { formatCurrency } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

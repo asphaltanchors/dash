@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { DollarSign, ShoppingCart, Users, TrendingUp } from 'lucide-react'
+import { DollarSign, ShoppingCart, TrendingUp } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,

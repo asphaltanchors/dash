@@ -1,7 +1,7 @@
 import { Product } from '@/lib/queries';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { formatCurrency, formatNumber } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import {
   Table,
   TableBody,

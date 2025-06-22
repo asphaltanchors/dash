@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Calendar, CreditCard, MapPin, Package, User } from 'lucide-react'
+import { ArrowLeft, Calendar, CreditCard, Package, User } from 'lucide-react'
 import Link from 'next/link'
 import {
   Breadcrumb,

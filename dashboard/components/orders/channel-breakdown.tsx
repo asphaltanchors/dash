@@ -3,7 +3,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ArrowDown, ArrowUp } from "lucide-react"
-import { SalesChannelMetric, SalesPeriodMetric } from "@/lib/queries"
+import { SalesChannelMetric } from "@/lib/queries"
 import { formatCurrency, formatNumber } from "@/lib/utils"
 
 interface Props {

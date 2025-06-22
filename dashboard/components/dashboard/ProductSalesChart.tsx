@@ -8,7 +8,6 @@ import { formatCurrency } from "@/lib/utils"
 
 interface ProductSalesChartProps {
   data: WeeklyRevenue[]
-  productName: string
 }
 
 const chartConfig = {
@@ -18,7 +17,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function ProductSalesChart({ data, productName }: ProductSalesChartProps) {
+export function ProductSalesChart({ data }: ProductSalesChartProps) {
   // Transform data for recharts
   const chartData = data.map(item => ({
     date: new Date(item.date).toLocaleDateString('en-US', { 

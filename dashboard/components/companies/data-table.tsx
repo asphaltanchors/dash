@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  ColumnDef,
   SortingState,
   flexRender,
   getCoreRowModel,
@@ -76,13 +75,13 @@ export function DataTable({
     router.replace(`/companies?${params.toString()}`)
   }
 
-  const handleSort = (newSortBy: string, newSortOrder: 'asc' | 'desc') => {
+  const handleSort = React.useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
     const params = new URLSearchParams(searchParams)
     params.set('sortBy', newSortBy)
     params.set('sortOrder', newSortOrder)
     params.delete('page') // Reset to page 1 when sorting
     router.replace(`/companies?${params.toString()}`)
-  }
+  }, [searchParams, router])
 
   // Handle sorting changes
   React.useEffect(() => {
@@ -90,7 +89,7 @@ export function DataTable({
       const sort = sorting[0]
       handleSort(sort.id, sort.desc ? 'desc' : 'asc')
     }
-  }, [sorting])
+  }, [sorting, handleSort])
 
   const totalPages = Math.ceil(totalCount / pageSize)
   const startRow = (currentPage - 1) * pageSize + 1

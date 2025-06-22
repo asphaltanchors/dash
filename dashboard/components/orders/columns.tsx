@@ -30,7 +30,7 @@ export type OrderTableItem = {
   shipDate: string | null
 }
 
-function StatusBadge({ status, isPaid }: { status: string; isPaid: boolean }) {
+function StatusBadge({ status }: { status: string; isPaid: boolean }) {
   let variant: "default" | "secondary" | "destructive" | "outline" = "default"
   let icon = <Clock className="h-3 w-3" />
   
