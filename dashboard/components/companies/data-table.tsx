@@ -72,7 +72,8 @@ export function DataTable({
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams)
     params.set('page', newPage.toString())
-    router.replace(`/companies?${params.toString()}`)
+    const newUrl = `/companies?${params.toString()}`
+    router.push(newUrl)
   }
 
   const handleSort = React.useCallback((newSortBy: string, newSortOrder: 'asc' | 'desc') => {
@@ -80,16 +81,19 @@ export function DataTable({
     params.set('sortBy', newSortBy)
     params.set('sortOrder', newSortOrder)
     params.delete('page') // Reset to page 1 when sorting
-    router.replace(`/companies?${params.toString()}`)
+    router.push(`/companies?${params.toString()}`)
   }, [searchParams, router])
 
-  // Handle sorting changes
+  // Handle sorting changes - only when user actually changes sorting, not on initial load
   React.useEffect(() => {
     if (sorting.length > 0) {
       const sort = sorting[0]
-      handleSort(sort.id, sort.desc ? 'desc' : 'asc')
+      // Only trigger handleSort if the sorting actually changed from URL params
+      if (sort.id !== sortBy || (sort.desc ? 'desc' : 'asc') !== sortOrder) {
+        handleSort(sort.id, sort.desc ? 'desc' : 'asc')
+      }
     }
-  }, [sorting, handleSort])
+  }, [sorting, handleSort, sortBy, sortOrder])
 
   const totalPages = Math.ceil(totalCount / pageSize)
   const startRow = (currentPage - 1) * pageSize + 1

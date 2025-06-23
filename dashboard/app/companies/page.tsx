@@ -113,7 +113,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
           </div>
         </div>
         
-        <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}-${currentPage}`}>
+        <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}`}>
           <CompaniesTable 
             searchTerm={searchTerm}
             sortBy={currentSortBy}
