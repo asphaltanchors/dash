@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { DataTable } from "@/components/companies/data-table";
 import { SearchInput } from "@/components/companies/search-input";
-import { CompaniesFilters } from "@/components/companies/filters";
 
 interface CompaniesPageProps {
   searchParams: Promise<{ 
