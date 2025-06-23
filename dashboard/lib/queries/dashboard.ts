@@ -59,6 +59,9 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
   const previousYearStart = yearDateRange.compareStart!;
   const previousYearEnd = yearDateRange.compareEnd!;
 
+  // Get today's date to exclude future-dated orders
+  const today = format(new Date(), 'yyyy-MM-dd');
+
   // 365 day sales - only paid orders 
   const sales365 = await db
     .select({
@@ -69,6 +72,7 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
       and(
         gte(fctOrdersInAnalyticsMart.orderDate, yearStart),
         lte(fctOrdersInAnalyticsMart.orderDate, yearEnd),
+        lte(fctOrdersInAnalyticsMart.orderDate, today),
         sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
         sql`${fctOrdersInAnalyticsMart.isPaid} = true`
       )
@@ -84,6 +88,7 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
       and(
         gte(fctOrdersInAnalyticsMart.orderDate, previousYearStart),
         lte(fctOrdersInAnalyticsMart.orderDate, previousYearEnd),
+        lte(fctOrdersInAnalyticsMart.orderDate, today),
         sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
         sql`${fctOrdersInAnalyticsMart.isPaid} = true`
       )
@@ -101,6 +106,7 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
       and(
         gte(fctOrdersInAnalyticsMart.orderDate, currentStart),
         lte(fctOrdersInAnalyticsMart.orderDate, currentEnd),
+        lte(fctOrdersInAnalyticsMart.orderDate, today),
         sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
       )
     );
@@ -116,6 +122,7 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
       and(
         gte(fctOrdersInAnalyticsMart.orderDate, previousStart),
         lte(fctOrdersInAnalyticsMart.orderDate, previousEnd),
+        lte(fctOrdersInAnalyticsMart.orderDate, today),
         sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
       )
     );
@@ -148,6 +155,7 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
 
 // Get recent orders
 export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]> {
+  const today = format(new Date(), 'yyyy-MM-dd');
   const orders = await db
     .select({
       orderNumber: fctOrdersInAnalyticsMart.orderNumber,
@@ -158,7 +166,12 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
       isPaid: fctOrdersInAnalyticsMart.isPaid,
     })
     .from(fctOrdersInAnalyticsMart)
-    .where(sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`)
+    .where(
+      and(
+        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
+        lte(fctOrdersInAnalyticsMart.orderDate, today)
+      )
+    )
     .orderBy(desc(fctOrdersInAnalyticsMart.orderDate))
     .limit(limit);
 
@@ -175,6 +188,7 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
 // Get channel metrics with 4-year trailing trends
 export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
   const today = new Date();
+  const todayStr = format(today, 'yyyy-MM-dd');
   const fourYearsAgo = new Date();
   fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
   
@@ -208,6 +222,7 @@ export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
       WHERE total_amount IS NOT NULL 
         AND order_date >= ${period.period_start}
         AND order_date <= ${period.period_end}
+        AND order_date <= ${todayStr}
         AND class IS NOT NULL 
         AND class != ''
         AND class NOT IN ('Contractor', 'EXPORT from WWD')
@@ -253,6 +268,7 @@ export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<
   const dateRange = getDateRange(period, false);
   const startDate = dateRange.start;
   const endDate = dateRange.end;
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   // Determine appropriate grouping based on period length
   let dateGrouping: string;
@@ -281,6 +297,7 @@ export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<
     FROM analytics_mart.fct_orders
     WHERE order_date >= ${startDate}
       AND order_date <= ${endDate}
+      AND order_date <= ${today}
       AND total_amount IS NOT NULL
     GROUP BY DATE_TRUNC('${sql.raw(dateGrouping)}', order_date)
     ORDER BY period_start
@@ -301,6 +318,7 @@ export async function getOrderStatusBreakdown() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   return await db
     .select({
@@ -312,6 +330,7 @@ export async function getOrderStatusBreakdown() {
     .where(
       and(
         gte(fctOrdersInAnalyticsMart.orderDate, thirtyDaysAgoStr),
+        lte(fctOrdersInAnalyticsMart.orderDate, today),
         sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
       )
     )
