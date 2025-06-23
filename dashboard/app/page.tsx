@@ -14,10 +14,13 @@ import { MetricCard } from '@/components/dashboard/MetricCard'
 import { RevenueChart } from '@/components/dashboard/RevenueChart'
 import { RecentOrders } from '@/components/dashboard/RecentOrders'
 import { getDashboardMetrics, getRecentOrders, getWeeklyRevenue } from '@/lib/queries'
+import { parseFilters, getPeriodLabel, type DashboardFilters } from '@/lib/filter-utils'
+import { PeriodSelector } from '@/components/dashboard/PeriodSelector'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 
-async function DashboardMetrics() {
-  const metrics = await getDashboardMetrics()
+async function DashboardMetrics({ filters }: { filters: DashboardFilters }) {
+  const metrics = await getDashboardMetrics(filters)
+  const periodLabel = getPeriodLabel(filters.period || '30d')
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -29,14 +32,14 @@ async function DashboardMetrics() {
         formatValue={(value) => formatCurrency(value, { showCents: false })}
       />
       <MetricCard
-        title="30d Sales"
+        title={`${periodLabel} Sales`}
         value={metrics.totalRevenue}
         change={metrics.revenueGrowth}
         icon={DollarSign}
         formatValue={(value) => formatCurrency(value)}
       />
       <MetricCard
-        title="30d Orders"
+        title={`${periodLabel} Orders`}
         value={metrics.totalOrders.toString()}
         change={metrics.orderGrowth}
         icon={ShoppingCart}
@@ -52,9 +55,9 @@ async function DashboardMetrics() {
   )
 }
 
-async function DashboardChart() {
-  const weeklyRevenue = await getWeeklyRevenue()
-  return <RevenueChart data={weeklyRevenue} />
+async function DashboardChart({ filters }: { filters: DashboardFilters }) {
+  const weeklyRevenue = await getWeeklyRevenue(filters)
+  return <RevenueChart data={weeklyRevenue} period={filters.period} />
 }
 
 async function DashboardOrders() {
@@ -97,7 +100,14 @@ function LoadingTable() {
   )
 }
 
-export default function HomePage() {
+interface HomePageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const filters = parseFilters<DashboardFilters>(params);
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -124,6 +134,7 @@ export default function HomePage() {
               Overview of your e-commerce performance
             </p>
           </div>
+          <PeriodSelector currentPeriod={filters.period || '30d'} filters={filters as Record<string, string | number | boolean | undefined>} />
         </div>
 
         {/* Metrics Cards */}
@@ -137,12 +148,12 @@ export default function HomePage() {
             </div>
           }
         >
-          <DashboardMetrics />
+          <DashboardMetrics filters={filters} />
         </Suspense>
 
         {/* Revenue Chart - Full Width */}
         <Suspense fallback={<LoadingChart />}>
-          <DashboardChart />
+          <DashboardChart filters={filters} />
         </Suspense>
 
         {/* Recent Orders */}

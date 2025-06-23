@@ -4,9 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
 import { WeeklyRevenue } from "@/lib/queries"
+import { getPeriodLabel } from "@/lib/filter-utils"
 
 interface RevenueChartProps {
   data: WeeklyRevenue[]
+  period?: string
 }
 
 const chartConfig = {
@@ -16,13 +18,35 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function RevenueChart({ data }: RevenueChartProps) {
+export function RevenueChart({ data, period = '30d' }: RevenueChartProps) {
+  const periodLabel = getPeriodLabel(period);
+  
+  // Determine date formatting and granularity label based on period
+  let dateFormat: Intl.DateTimeFormatOptions;
+  let granularityLabel: string;
+  
+  switch (period) {
+    case '7d':
+      dateFormat = { month: 'short', day: 'numeric' };
+      granularityLabel = 'Daily';
+      break;
+    case '30d':
+    case '90d':
+      dateFormat = { month: 'short', day: 'numeric' };
+      granularityLabel = 'Weekly';
+      break;
+    case '1y':
+      dateFormat = { month: 'short', year: '2-digit' };
+      granularityLabel = 'Monthly';
+      break;
+    default:
+      dateFormat = { month: 'short', day: 'numeric' };
+      granularityLabel = 'Weekly';
+  }
+
   // Transform data for recharts
   const chartData = data.map(item => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    }),
+    date: new Date(item.date).toLocaleDateString('en-US', dateFormat),
     revenue: Number(item.revenue),
     orderCount: item.orderCount,
   }))
@@ -33,9 +57,9 @@ export function RevenueChart({ data }: RevenueChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Weekly Revenue Trend</CardTitle>
+        <CardTitle>{granularityLabel} Revenue Trend</CardTitle>
         <CardDescription>
-          Last 52 weeks • ${totalRevenue.toLocaleString()} total revenue • {totalOrders.toLocaleString()} orders
+          {periodLabel} • ${totalRevenue.toLocaleString()} total revenue • {totalOrders.toLocaleString()} orders
         </CardDescription>
       </CardHeader>
       <CardContent>
