@@ -56,15 +56,15 @@ async function FamilySalesSection({ filters }: { filters: ProductFilters }) {
   return <FamilySalesCard familySales={familySales} period={filters.period} />;
 }
 
-async function ProductsList() {
-  const products = await getProducts(50);
+async function ProductsList({ filters }: { filters: ProductFilters }) {
+  const products = await getProducts(50, filters);
   
   return (
     <Card>
       <CardHeader>
         <CardTitle>Products</CardTitle>
         <CardDescription>
-          Top products by margin amount
+          Top products by revenue in selected period
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -114,7 +114,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
         <ProductMetrics />
         <FamilySalesSection filters={filters} />
-        <ProductsList />
+        <ProductsList filters={filters} />
       </div>
     </>
   );

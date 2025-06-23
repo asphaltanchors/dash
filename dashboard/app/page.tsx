@@ -20,7 +20,7 @@ import { formatCurrency, formatNumber } from '@/lib/utils'
 
 async function DashboardMetrics({ filters }: { filters: DashboardFilters }) {
   const metrics = await getDashboardMetrics(filters)
-  const periodLabel = getPeriodLabel(filters.period || '30d')
+  const periodLabel = getPeriodLabel(filters.period || '1y')
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -107,6 +107,11 @@ interface HomePageProps {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
   const filters = parseFilters<DashboardFilters>(params);
+  
+  // Default to 1 year period if no period specified
+  if (!filters.period) {
+    filters.period = '1y';
+  }
 
   return (
     <>
@@ -134,7 +139,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               Overview of your e-commerce performance
             </p>
           </div>
-          <PeriodSelector currentPeriod={filters.period || '30d'} filters={filters as Record<string, string | number | boolean | undefined>} />
+          <PeriodSelector currentPeriod={filters.period || '1y'} filters={filters as Record<string, string | number | boolean | undefined>} />
         </div>
 
         {/* Metrics Cards */}

@@ -27,7 +27,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
             <TableHead className="hidden lg:table-cell">Material</TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Margin %</TableHead>
-            <TableHead className="text-right hidden md:table-cell">Year Sales</TableHead>
+            <TableHead className="text-right hidden md:table-cell">Period Sales</TableHead>
             <TableHead className="text-right hidden lg:table-cell">Units Sold</TableHead>
             <TableHead className="text-right hidden xl:table-cell">Orders</TableHead>
           </TableRow>
@@ -87,18 +87,16 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden md:table-cell">
-                <span className={`${Number(product.trailingYearSales) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                  {formatCurrency(product.trailingYearSales)}
-                </span>
+                {formatCurrency(product.periodSales)}
               </TableCell>
               <TableCell className="text-right font-mono hidden lg:table-cell">
-                <span className={`${product.trailingYearUnits > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
-                  {product.trailingYearUnits.toLocaleString()}
+                <span className={`${product.periodUnits > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                  {product.periodUnits.toLocaleString()}
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden xl:table-cell">
-                <span className={`${product.trailingYearOrders > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
-                  {product.trailingYearOrders}
+                <span className={`${product.periodOrders > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
+                  {product.periodOrders}
                 </span>
               </TableCell>
             </TableRow>

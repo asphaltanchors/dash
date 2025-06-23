@@ -576,9 +576,9 @@ export interface Product {
   marginAmount: string;
   isKit: boolean;
   itemType: string;
-  trailingYearSales: string;
-  trailingYearUnits: number;
-  trailingYearOrders: number;
+  periodSales: string;
+  periodUnits: number;
+  periodOrders: number;
 }
 
 
@@ -622,11 +622,10 @@ export async function getProductMetrics(): Promise<ProductMetrics> {
   };
 }
 
-// Get product list with trailing year sales data
-export async function getProducts(limit: number = 50): Promise<Product[]> {
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  const oneYearAgoStr = format(oneYearAgo, 'yyyy-MM-dd');
+// Get product list with sales data for specified period
+export async function getProducts(limit: number = 50, filters?: ProductFilters): Promise<Product[]> {
+  const dateRange = getDateRange(filters?.period || '1y', false);
+  const startDate = dateRange.start;
 
   const productsWithSales = await db.execute(sql`
     SELECT 
@@ -641,9 +640,9 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
       p.margin_amount,
       p.is_kit,
       p.item_type,
-      COALESCE(sales.total_sales, 0) as trailing_year_sales,
-      COALESCE(sales.total_units, 0) as trailing_year_units,
-      COALESCE(sales.order_count, 0) as trailing_year_orders
+      COALESCE(sales.total_sales, 0) as period_sales,
+      COALESCE(sales.total_units, 0) as period_units,
+      COALESCE(sales.order_count, 0) as period_orders
     FROM analytics_mart.fct_products p
     LEFT JOIN (
       SELECT 
@@ -652,7 +651,7 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
         SUM(product_service_quantity) as total_units,
         COUNT(DISTINCT order_number) as order_count
       FROM analytics_mart.fct_order_line_items 
-      WHERE order_date >= ${oneYearAgoStr}
+      WHERE order_date >= ${startDate}
         AND product_service_amount IS NOT NULL
         AND product_service IS NOT NULL
         AND product_service != 'Shipping'
@@ -660,7 +659,7 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
     ) sales ON p.item_name = sales.product_service
     WHERE p.sales_price IS NOT NULL
       AND p.item_type NOT IN ('NonInventory', 'OtherCharge')
-    ORDER BY trailing_year_sales DESC NULLS LAST
+    ORDER BY period_sales DESC NULLS LAST
     LIMIT ${limit}
   `);
 
@@ -677,9 +676,9 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
     margin_amount: string;
     is_kit: boolean;
     item_type: string;
-    trailing_year_sales: string;
-    trailing_year_units: string;
-    trailing_year_orders: number;
+    period_sales: string;
+    period_units: string;
+    period_orders: number;
   }>;
 
   return results.map(product => ({
@@ -694,9 +693,9 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
     marginAmount: Number(product.margin_amount || 0).toFixed(2),
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
-    trailingYearSales: Number(product.trailing_year_sales || 0).toFixed(2),
-    trailingYearUnits: Math.floor(Number(product.trailing_year_units || 0)),
-    trailingYearOrders: Number(product.trailing_year_orders || 0),
+    periodSales: Number(product.period_sales || 0).toFixed(2),
+    periodUnits: Math.floor(Number(product.period_units || 0)),
+    periodOrders: Number(product.period_orders || 0),
   }));
 }
 
@@ -704,7 +703,7 @@ export async function getProducts(limit: number = 50): Promise<Product[]> {
 export async function getProductByName(itemName: string): Promise<Product | null> {
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-  const oneYearAgoStr = format(oneYearAgo, 'yyyy-MM-dd');
+  const startDate = format(oneYearAgo, 'yyyy-MM-dd');
 
   const productWithSales = await db.execute(sql`
     SELECT 
@@ -719,9 +718,9 @@ export async function getProductByName(itemName: string): Promise<Product | null
       p.margin_amount,
       p.is_kit,
       p.item_type,
-      COALESCE(sales.total_sales, 0) as trailing_year_sales,
-      COALESCE(sales.total_units, 0) as trailing_year_units,
-      COALESCE(sales.order_count, 0) as trailing_year_orders
+      COALESCE(sales.total_sales, 0) as period_sales,
+      COALESCE(sales.total_units, 0) as period_units,
+      COALESCE(sales.order_count, 0) as period_orders
     FROM analytics_mart.fct_products p
     LEFT JOIN (
       SELECT 
@@ -730,7 +729,7 @@ export async function getProductByName(itemName: string): Promise<Product | null
         SUM(product_service_quantity) as total_units,
         COUNT(DISTINCT order_number) as order_count
       FROM analytics_mart.fct_order_line_items 
-      WHERE order_date >= ${oneYearAgoStr}
+      WHERE order_date >= ${startDate}
         AND product_service_amount IS NOT NULL
         AND product_service IS NOT NULL
         AND product_service != 'Shipping'
@@ -753,9 +752,9 @@ export async function getProductByName(itemName: string): Promise<Product | null
     margin_amount: string;
     is_kit: boolean;
     item_type: string;
-    trailing_year_sales: string;
-    trailing_year_units: string;
-    trailing_year_orders: number;
+    period_sales: string;
+    period_units: string;
+    period_orders: number;
   }>;
 
   if (results.length === 0) {
@@ -775,9 +774,9 @@ export async function getProductByName(itemName: string): Promise<Product | null
     marginAmount: Number(product.margin_amount || 0).toFixed(2),
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
-    trailingYearSales: Number(product.trailing_year_sales || 0).toFixed(2),
-    trailingYearUnits: Math.floor(Number(product.trailing_year_units || 0)),
-    trailingYearOrders: Number(product.trailing_year_orders || 0),
+    periodSales: Number(product.period_sales || 0).toFixed(2),
+    periodUnits: Math.floor(Number(product.period_units || 0)),
+    periodOrders: Number(product.period_orders || 0),
   };
 }
 
