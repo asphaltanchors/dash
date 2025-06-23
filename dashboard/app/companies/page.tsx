@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { DataTable } from "@/components/companies/data-table";
 import { SearchInput } from "@/components/companies/search-input";
+import { CompaniesFilters } from "@/components/companies/filters";
 
 interface CompaniesPageProps {
   searchParams: Promise<{ 
@@ -17,6 +18,10 @@ interface CompaniesPageProps {
     sortBy?: string
     sortOrder?: 'asc' | 'desc'
     page?: string
+    activityStatus?: string
+    businessSize?: string
+    revenueCategory?: string
+    healthCategory?: string
   }>
 }
 
@@ -24,15 +29,22 @@ async function CompaniesTable({
   searchTerm, 
   sortBy, 
   sortOrder,
-  page
+  page,
+  filters
 }: { 
   searchTerm: string
   sortBy: string
   sortOrder: 'asc' | 'desc'
   page: number
+  filters: {
+    activityStatus?: string
+    businessSize?: string
+    revenueCategory?: string
+    healthCategory?: string
+  }
 }) {
   // Server-side search and sorting - only fetch relevant results
-  const { companies, totalCount } = await getCompaniesWithHealth(page, 50, searchTerm, sortBy, sortOrder)
+  const { companies, totalCount } = await getCompaniesWithHealth(page, 50, searchTerm, sortBy, sortOrder, filters)
   
   return (
     <DataTable 
@@ -79,11 +91,18 @@ function LoadingTable() {
 }
 
 export default async function CompaniesPage({ searchParams }: CompaniesPageProps) {
-  const { search, sortBy, sortOrder, page } = await searchParams
+  const { search, sortBy, sortOrder, page, activityStatus, businessSize, revenueCategory, healthCategory } = await searchParams
   const searchTerm = search || ''
   const currentSortBy = sortBy || 'totalRevenue'
   const currentSortOrder = sortOrder || 'desc'
   const currentPage = parseInt(page || '1', 10)
+  
+  const filters = {
+    activityStatus: activityStatus || undefined,
+    businessSize: businessSize || undefined,
+    revenueCategory: revenueCategory || undefined,
+    healthCategory: healthCategory || undefined,
+  }
 
   return (
     <>
@@ -113,12 +132,13 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
           </div>
         </div>
         
-        <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}`}>
+        <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}-${JSON.stringify(filters)}`}>
           <CompaniesTable 
             searchTerm={searchTerm}
             sortBy={currentSortBy}
             sortOrder={currentSortOrder}
             page={currentPage}
+            filters={filters}
           />
         </Suspense>
       </div>

@@ -984,7 +984,13 @@ export async function getCompaniesWithHealth(
   pageSize: number = 50,
   searchTerm: string = '',
   sortBy: string = 'totalRevenue',
-  sortOrder: 'asc' | 'desc' = 'desc'
+  sortOrder: 'asc' | 'desc' = 'desc',
+  filters: {
+    activityStatus?: string
+    businessSize?: string
+    revenueCategory?: string
+    healthCategory?: string
+  } = {}
 ): Promise<{ companies: CompanyWithHealth[], totalCount: number }> {
   
   // Build WHERE clause for search
@@ -995,6 +1001,23 @@ export async function getCompaniesWithHealth(
       LOWER(${fctCompaniesInAnalyticsMart.companyName}) LIKE LOWER(${'%' + searchTerm + '%'}) OR
       LOWER(${fctCompaniesInAnalyticsMart.companyDomainKey}) LIKE LOWER(${'%' + searchTerm + '%'})
     )`;
+  }
+
+  // Apply filters
+  if (filters.activityStatus) {
+    whereClause = sql`${whereClause} AND ${dimCompanyHealthInAnalyticsMart.activityStatus} = ${filters.activityStatus}`;
+  }
+
+  if (filters.businessSize) {
+    whereClause = sql`${whereClause} AND ${fctCompaniesInAnalyticsMart.businessSizeCategory} = ${filters.businessSize}`;
+  }
+
+  if (filters.revenueCategory) {
+    whereClause = sql`${whereClause} AND ${fctCompaniesInAnalyticsMart.revenueCategory} = ${filters.revenueCategory}`;
+  }
+
+  if (filters.healthCategory) {
+    whereClause = sql`${whereClause} AND ${dimCompanyHealthInAnalyticsMart.healthCategory} = ${filters.healthCategory}`;
   }
 
   // Build ORDER BY clause - handle health-related sorting

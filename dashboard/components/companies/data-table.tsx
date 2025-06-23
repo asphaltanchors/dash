@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table"
 import { createColumns } from "./columns"
 import { CompanyWithHealth } from "@/lib/queries"
+import { CompaniesFilters } from "./filters"
 
 interface DataTableProps {
   data: CompanyWithHealth[]
@@ -101,13 +102,20 @@ export function DataTable({
 
   return (
     <div className="w-full">
-      <div className="flex items-center py-4">
-        {searchInput}
-        {searchResults && (
-          <div className="ml-4 text-sm text-muted-foreground">
-            {searchResults}
+      <div className="space-y-4 py-4">
+        <div className="flex items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            {searchInput}
+            {searchResults && (
+              <div className="text-sm text-muted-foreground">
+                {searchResults}
+              </div>
+            )}
           </div>
-        )}
+          <div className="flex-shrink-0">
+            <CompaniesFilters />
+          </div>
+        </div>
       </div>
       <div className="rounded-md border">
         <Table>
