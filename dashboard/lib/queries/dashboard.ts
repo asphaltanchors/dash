@@ -1,6 +1,6 @@
 // ABOUTME: Dashboard metrics and chart data queries for main dashboard overview
 // ABOUTME: Handles revenue trends, metrics calculations, and channel analysis
-import { db, fctOrdersInAnalyticsMart } from '@/lib/db';
+import { db, baseFctOrdersCurrentInAnalyticsMart } from '@/lib/db';
 import { desc, gte, lte, sql, count, sum, avg, and } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { getDateRange, type DashboardFilters } from '@/lib/filter-utils';
@@ -59,92 +59,86 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
   const previousYearStart = yearDateRange.compareStart!;
   const previousYearEnd = yearDateRange.compareEnd!;
 
-  // Get today's date to exclude future-dated orders
-  const today = format(new Date(), 'yyyy-MM-dd');
 
   // 365 day sales - only paid orders 
   const sales365 = await db
     .select({
-      totalSales: sum(fctOrdersInAnalyticsMart.totalAmount),
+      totalSales: sum(baseFctOrdersCurrentInAnalyticsMart.totalAmount),
     })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(
       and(
-        gte(fctOrdersInAnalyticsMart.orderDate, yearStart),
-        lte(fctOrdersInAnalyticsMart.orderDate, yearEnd),
-        lte(fctOrdersInAnalyticsMart.orderDate, today),
-        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
-        sql`${fctOrdersInAnalyticsMart.isPaid} = true`
+        gte(baseFctOrdersCurrentInAnalyticsMart.orderDate, yearStart),
+        lte(baseFctOrdersCurrentInAnalyticsMart.orderDate, yearEnd),
+        sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`,
+        sql`${baseFctOrdersCurrentInAnalyticsMart.isPaid} = true`
       )
     );
 
   // Previous 365 day sales - only paid orders
   const previousSales365 = await db
     .select({
-      totalSales: sum(fctOrdersInAnalyticsMart.totalAmount),
+      totalSales: sum(baseFctOrdersCurrentInAnalyticsMart.totalAmount),
     })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(
       and(
-        gte(fctOrdersInAnalyticsMart.orderDate, previousYearStart),
-        lte(fctOrdersInAnalyticsMart.orderDate, previousYearEnd),
-        lte(fctOrdersInAnalyticsMart.orderDate, today),
-        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
-        sql`${fctOrdersInAnalyticsMart.isPaid} = true`
+        gte(baseFctOrdersCurrentInAnalyticsMart.orderDate, previousYearStart),
+        lte(baseFctOrdersCurrentInAnalyticsMart.orderDate, previousYearEnd),
+        sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`,
+        sql`${baseFctOrdersCurrentInAnalyticsMart.isPaid} = true`
       )
     );
 
   // Current period (based on selected period)
   const currentPeriod = await db
     .select({
-      totalRevenue: sum(fctOrdersInAnalyticsMart.totalAmount),
+      totalRevenue: sum(baseFctOrdersCurrentInAnalyticsMart.totalAmount),
       totalOrders: count(),
-      averageOrderValue: avg(fctOrdersInAnalyticsMart.totalAmount),
+      averageOrderValue: avg(baseFctOrdersCurrentInAnalyticsMart.totalAmount),
     })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(
       and(
-        gte(fctOrdersInAnalyticsMart.orderDate, currentStart),
-        lte(fctOrdersInAnalyticsMart.orderDate, currentEnd),
-        lte(fctOrdersInAnalyticsMart.orderDate, today),
-        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
+        gte(baseFctOrdersCurrentInAnalyticsMart.orderDate, currentStart),
+        lte(baseFctOrdersCurrentInAnalyticsMart.orderDate, currentEnd),
+        sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`
       )
     );
 
   // Previous period (comparison period)
   const previousPeriod = await db
     .select({
-      totalRevenue: sum(fctOrdersInAnalyticsMart.totalAmount),
+      totalRevenue: sum(baseFctOrdersCurrentInAnalyticsMart.totalAmount),
       totalOrders: count(),
     })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(
       and(
-        gte(fctOrdersInAnalyticsMart.orderDate, previousStart),
-        lte(fctOrdersInAnalyticsMart.orderDate, previousEnd),
-        lte(fctOrdersInAnalyticsMart.orderDate, today),
-        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
+        gte(baseFctOrdersCurrentInAnalyticsMart.orderDate, previousStart),
+        lte(baseFctOrdersCurrentInAnalyticsMart.orderDate, previousEnd),
+        sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`
       )
     );
 
   const current = currentPeriod[0];
   const previous = previousPeriod[0];
 
-  const currentRevenue = Number(current.totalRevenue || 0);
-  const previousRevenue = Number(previous.totalRevenue || 0);
+  const currentRevenue = Number(current.totalRevenue);
+  const previousRevenue = Number(previous.totalRevenue);
   const revenueGrowth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
   
   const orderGrowth = previous.totalOrders > 0 ? ((current.totalOrders - previous.totalOrders) / previous.totalOrders) * 100 : 0;
 
-  const current365Sales = Number(sales365[0].totalSales || 0);
-  const previous365Sales = Number(previousSales365[0].totalSales || 0);
+  const current365Sales = Number(sales365[0].totalSales);
+  const previous365Sales = Number(previousSales365[0].totalSales);
   const sales365Growth = previous365Sales > 0 ? ((current365Sales - previous365Sales) / previous365Sales) * 100 : 0;
 
   return {
     sales365Days: current365Sales.toFixed(2),
     totalRevenue: currentRevenue.toFixed(2),
     totalOrders: current.totalOrders,
-    averageOrderValue: Number(current.averageOrderValue || 0).toFixed(2),
+    averageOrderValue: Number(current.averageOrderValue).toFixed(2),
     previousPeriodRevenue: previousRevenue.toFixed(2),
     previousPeriodOrders: previous.totalOrders,
     revenueGrowth: parseFloat(revenueGrowth.toFixed(1)),
@@ -155,31 +149,27 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
 
 // Get recent orders
 export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]> {
-  const today = format(new Date(), 'yyyy-MM-dd');
   const orders = await db
     .select({
-      orderNumber: fctOrdersInAnalyticsMart.orderNumber,
-      customer: fctOrdersInAnalyticsMart.customer,
-      orderDate: fctOrdersInAnalyticsMart.orderDate,
-      totalAmount: fctOrdersInAnalyticsMart.totalAmount,
-      status: fctOrdersInAnalyticsMart.status,
-      isPaid: fctOrdersInAnalyticsMart.isPaid,
+      orderNumber: baseFctOrdersCurrentInAnalyticsMart.orderNumber,
+      customer: baseFctOrdersCurrentInAnalyticsMart.customer,
+      orderDate: baseFctOrdersCurrentInAnalyticsMart.orderDate,
+      totalAmount: baseFctOrdersCurrentInAnalyticsMart.totalAmount,
+      status: baseFctOrdersCurrentInAnalyticsMart.status,
+      isPaid: baseFctOrdersCurrentInAnalyticsMart.isPaid,
     })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(
-      and(
-        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
-        lte(fctOrdersInAnalyticsMart.orderDate, today)
-      )
+      sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`
     )
-    .orderBy(desc(fctOrdersInAnalyticsMart.orderDate))
+    .orderBy(desc(baseFctOrdersCurrentInAnalyticsMart.orderDate))
     .limit(limit);
 
   return orders.map(order => ({
     orderNumber: order.orderNumber || 'N/A',
     customer: order.customer || 'Unknown',
     orderDate: order.orderDate as string,
-    totalAmount: Number(order.totalAmount || 0).toFixed(2),
+    totalAmount: Number(order.totalAmount).toFixed(2),
     status: order.status!,
     isPaid: order.isPaid!,
   }));
@@ -188,7 +178,6 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
 // Get channel metrics with 4-year trailing trends
 export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
   const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
   const fourYearsAgo = new Date();
   fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
   
@@ -222,7 +211,6 @@ export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
       WHERE total_amount IS NOT NULL 
         AND order_date >= ${period.period_start}
         AND order_date <= ${period.period_end}
-        AND order_date <= ${todayStr}
         AND class IS NOT NULL 
         AND class != ''
         AND class NOT IN ('Contractor', 'EXPORT from WWD')
@@ -247,7 +235,7 @@ export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
       channelMap.get(channel)!.push({
         period_start: period.period_start,
         period_end: period.period_end,
-        total_revenue: Number(row.total_revenue || 0).toFixed(2),
+        total_revenue: Number(row.total_revenue).toFixed(2),
         order_count: row.order_count.toString(),
       });
     });
@@ -268,7 +256,6 @@ export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<
   const dateRange = getDateRange(period, false);
   const startDate = dateRange.start;
   const endDate = dateRange.end;
-  const today = format(new Date(), 'yyyy-MM-dd');
 
   // Determine appropriate grouping based on period length
   let dateGrouping: string;
@@ -297,7 +284,6 @@ export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<
     FROM analytics_mart.fct_orders
     WHERE order_date >= ${startDate}
       AND order_date <= ${endDate}
-      AND order_date <= ${today}
       AND total_amount IS NOT NULL
     GROUP BY DATE_TRUNC('${sql.raw(dateGrouping)}', order_date)
     ORDER BY period_start
@@ -308,8 +294,8 @@ export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<
   
   return results.map(period => ({
     date: period.period_start,
-    revenue: Number(period.revenue || 0).toFixed(2),
-    orderCount: Number(period.order_count || 0),
+    revenue: Number(period.revenue).toFixed(2),
+    orderCount: Number(period.order_count),
   }));
 }
 
@@ -318,22 +304,20 @@ export async function getOrderStatusBreakdown() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const thirtyDaysAgoStr = format(thirtyDaysAgo, 'yyyy-MM-dd');
-  const today = format(new Date(), 'yyyy-MM-dd');
 
   return await db
     .select({
-      status: fctOrdersInAnalyticsMart.status,
+      status: baseFctOrdersCurrentInAnalyticsMart.status,
       count: count(),
-      totalAmount: sum(fctOrdersInAnalyticsMart.totalAmount),
+      totalAmount: sum(baseFctOrdersCurrentInAnalyticsMart.totalAmount),
     })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(
       and(
-        gte(fctOrdersInAnalyticsMart.orderDate, thirtyDaysAgoStr),
-        lte(fctOrdersInAnalyticsMart.orderDate, today),
-        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`
+        gte(baseFctOrdersCurrentInAnalyticsMart.orderDate, thirtyDaysAgoStr),
+        sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`
       )
     )
-    .groupBy(fctOrdersInAnalyticsMart.status)
+    .groupBy(baseFctOrdersCurrentInAnalyticsMart.status)
     .orderBy(desc(count()));
 }

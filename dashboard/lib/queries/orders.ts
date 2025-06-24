@@ -1,6 +1,6 @@
 // ABOUTME: Order-related queries including detailed order information and line items
 // ABOUTME: Handles order searches, pagination, filtering, and order line item management
-import { db, fctOrdersInAnalyticsMart, fctOrderLineItemsInAnalyticsMart } from '@/lib/db';
+import { db, baseFctOrdersCurrentInAnalyticsMart, fctOrderLineItemsInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count, and } from 'drizzle-orm';
 
 export interface OrderDetail {
@@ -57,26 +57,26 @@ export interface OrdersResponse {
 export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail | null> {
   const orders = await db
     .select({
-      orderNumber: fctOrdersInAnalyticsMart.orderNumber,
-      customer: fctOrdersInAnalyticsMart.customer,
-      orderDate: fctOrdersInAnalyticsMart.orderDate,
-      dueDate: fctOrdersInAnalyticsMart.dueDate,
-      shipDate: fctOrdersInAnalyticsMart.shipDate,
-      totalAmount: fctOrdersInAnalyticsMart.totalAmount,
-      totalLineItemsAmount: fctOrdersInAnalyticsMart.totalLineItemsAmount,
-      totalTax: fctOrdersInAnalyticsMart.totalTax,
-      effectiveTaxRate: fctOrdersInAnalyticsMart.effectiveTaxRate,
-      status: fctOrdersInAnalyticsMart.status,
-      isPaid: fctOrdersInAnalyticsMart.isPaid,
-      paymentMethod: fctOrdersInAnalyticsMart.paymentMethod,
-      shippingMethod: fctOrdersInAnalyticsMart.shippingMethod,
-      salesRep: fctOrdersInAnalyticsMart.salesRep,
-      currency: fctOrdersInAnalyticsMart.currency,
-      billingAddress: fctOrdersInAnalyticsMart.billingAddress,
-      shippingAddress: fctOrdersInAnalyticsMart.shippingAddress,
+      orderNumber: baseFctOrdersCurrentInAnalyticsMart.orderNumber,
+      customer: baseFctOrdersCurrentInAnalyticsMart.customer,
+      orderDate: baseFctOrdersCurrentInAnalyticsMart.orderDate,
+      dueDate: baseFctOrdersCurrentInAnalyticsMart.dueDate,
+      shipDate: baseFctOrdersCurrentInAnalyticsMart.shipDate,
+      totalAmount: baseFctOrdersCurrentInAnalyticsMart.totalAmount,
+      totalLineItemsAmount: baseFctOrdersCurrentInAnalyticsMart.totalLineItemsAmount,
+      totalTax: baseFctOrdersCurrentInAnalyticsMart.totalTax,
+      effectiveTaxRate: baseFctOrdersCurrentInAnalyticsMart.effectiveTaxRate,
+      status: baseFctOrdersCurrentInAnalyticsMart.status,
+      isPaid: baseFctOrdersCurrentInAnalyticsMart.isPaid,
+      paymentMethod: baseFctOrdersCurrentInAnalyticsMart.paymentMethod,
+      shippingMethod: baseFctOrdersCurrentInAnalyticsMart.shippingMethod,
+      salesRep: baseFctOrdersCurrentInAnalyticsMart.salesRep,
+      currency: baseFctOrdersCurrentInAnalyticsMart.currency,
+      billingAddress: baseFctOrdersCurrentInAnalyticsMart.billingAddress,
+      shippingAddress: baseFctOrdersCurrentInAnalyticsMart.shippingAddress,
     })
-    .from(fctOrdersInAnalyticsMart)
-    .where(sql`${fctOrdersInAnalyticsMart.orderNumber} = ${orderNumber}`)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
+    .where(sql`${baseFctOrdersCurrentInAnalyticsMart.orderNumber} = ${orderNumber}`)
     .limit(1);
 
   if (orders.length === 0) {
@@ -90,7 +90,7 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail
     orderDate: order.orderDate as string,
     dueDate: order.dueDate as string | null,
     shipDate: order.shipDate as string | null,
-    totalAmount: Number(order.totalAmount || 0).toFixed(2),
+    totalAmount: Number(order.totalAmount).toFixed(2),
     totalLineItemsAmount: order.totalLineItemsAmount ? Number(order.totalLineItemsAmount).toFixed(2) : null,
     totalTax: order.totalTax ? Number(order.totalTax).toFixed(2) : null,
     effectiveTaxRate: order.effectiveTaxRate ? Number(order.effectiveTaxRate).toFixed(4) : null,
@@ -151,42 +151,42 @@ export async function getAllOrders(
   const offset = (page - 1) * limit;
   
   // Build the where clause
-  let whereClause = sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`;
+  let whereClause = sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`;
   
   if (searchTerm) {
     whereClause = and(
       whereClause,
-      sql`(${fctOrdersInAnalyticsMart.orderNumber} ILIKE ${`%${searchTerm}%`} OR ${fctOrdersInAnalyticsMart.customer} ILIKE ${`%${searchTerm}%`})`
+      sql`(${baseFctOrdersCurrentInAnalyticsMart.orderNumber} ILIKE ${`%${searchTerm}%`} OR ${baseFctOrdersCurrentInAnalyticsMart.customer} ILIKE ${`%${searchTerm}%`})`
     )!;
   }
 
   // Build the order clause
   let orderClause;
   if (sortBy === 'orderDate') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.orderDate) : asc(fctOrdersInAnalyticsMart.orderDate);
+    orderClause = sortOrder === 'desc' ? desc(baseFctOrdersCurrentInAnalyticsMart.orderDate) : asc(baseFctOrdersCurrentInAnalyticsMart.orderDate);
   } else if (sortBy === 'totalAmount') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.totalAmount) : asc(fctOrdersInAnalyticsMart.totalAmount);
+    orderClause = sortOrder === 'desc' ? desc(baseFctOrdersCurrentInAnalyticsMart.totalAmount) : asc(baseFctOrdersCurrentInAnalyticsMart.totalAmount);
   } else if (sortBy === 'customer') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.customer) : asc(fctOrdersInAnalyticsMart.customer);
+    orderClause = sortOrder === 'desc' ? desc(baseFctOrdersCurrentInAnalyticsMart.customer) : asc(baseFctOrdersCurrentInAnalyticsMart.customer);
   } else if (sortBy === 'orderNumber') {
-    orderClause = sortOrder === 'desc' ? desc(fctOrdersInAnalyticsMart.orderNumber) : asc(fctOrdersInAnalyticsMart.orderNumber);
+    orderClause = sortOrder === 'desc' ? desc(baseFctOrdersCurrentInAnalyticsMart.orderNumber) : asc(baseFctOrdersCurrentInAnalyticsMart.orderNumber);
   } else {
-    orderClause = desc(fctOrdersInAnalyticsMart.orderDate); // default
+    orderClause = desc(baseFctOrdersCurrentInAnalyticsMart.orderDate); // default
   }
 
   // Get the orders
   const orders = await db
     .select({
-      orderNumber: fctOrdersInAnalyticsMart.orderNumber,
-      customer: fctOrdersInAnalyticsMart.customer,
-      orderDate: fctOrdersInAnalyticsMart.orderDate,
-      totalAmount: fctOrdersInAnalyticsMart.totalAmount,
-      status: fctOrdersInAnalyticsMart.status,
-      isPaid: fctOrdersInAnalyticsMart.isPaid,
-      dueDate: fctOrdersInAnalyticsMart.dueDate,
-      shipDate: fctOrdersInAnalyticsMart.shipDate,
+      orderNumber: baseFctOrdersCurrentInAnalyticsMart.orderNumber,
+      customer: baseFctOrdersCurrentInAnalyticsMart.customer,
+      orderDate: baseFctOrdersCurrentInAnalyticsMart.orderDate,
+      totalAmount: baseFctOrdersCurrentInAnalyticsMart.totalAmount,
+      status: baseFctOrdersCurrentInAnalyticsMart.status,
+      isPaid: baseFctOrdersCurrentInAnalyticsMart.isPaid,
+      dueDate: baseFctOrdersCurrentInAnalyticsMart.dueDate,
+      shipDate: baseFctOrdersCurrentInAnalyticsMart.shipDate,
     })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(whereClause)
     .orderBy(orderClause)
     .limit(limit)
@@ -195,7 +195,7 @@ export async function getAllOrders(
   // Get the total count for pagination
   const countResult = await db
     .select({ count: count() })
-    .from(fctOrdersInAnalyticsMart)
+    .from(baseFctOrdersCurrentInAnalyticsMart)
     .where(whereClause);
 
   const totalCount = countResult[0].count;
@@ -205,7 +205,7 @@ export async function getAllOrders(
       orderNumber: order.orderNumber || 'N/A',
       customer: order.customer || 'Unknown',
       orderDate: order.orderDate as string,
-      totalAmount: Number(order.totalAmount || 0).toFixed(2),
+      totalAmount: Number(order.totalAmount).toFixed(2),
       status: order.status || 'Unknown',
       isPaid: order.isPaid || false,
       dueDate: order.dueDate as string | null,

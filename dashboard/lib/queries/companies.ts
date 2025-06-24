@@ -180,9 +180,9 @@ export async function getAllCompanies(
       domainType: company.domainType || 'unknown',
       businessSizeCategory: company.businessSizeCategory || 'Unknown',
       revenueCategory: company.revenueCategory || 'Unknown',
-      totalRevenue: Number(company.totalRevenue || 0).toFixed(2),
-      totalOrders: Number(company.totalOrders || 0).toFixed(0),
-      customerCount: Number(company.customerCount || 0),
+      totalRevenue: Number(company.totalRevenue).toFixed(2),
+      totalOrders: Number(company.totalOrders).toFixed(0),
+      customerCount: Number(company.customerCount),
       firstOrderDate: company.firstOrderDate as string || '',
       latestOrderDate: company.latestOrderDate as string || '',
     })),
@@ -296,9 +296,9 @@ export async function getCompaniesWithHealth(
       domainType: company.domainType || 'unknown',
       businessSizeCategory: company.businessSizeCategory || 'Unknown',
       revenueCategory: company.revenueCategory || 'Unknown',
-      totalRevenue: Number(company.totalRevenue || 0).toFixed(2),
-      totalOrders: Number(company.totalOrders || 0).toFixed(0),
-      customerCount: Number(company.customerCount || 0),
+      totalRevenue: Number(company.totalRevenue).toFixed(2),
+      totalOrders: Number(company.totalOrders).toFixed(0),
+      customerCount: Number(company.customerCount),
       firstOrderDate: company.firstOrderDate as string || '',
       latestOrderDate: company.latestOrderDate as string || '',
       healthScore: Number(company.healthScore || 0).toFixed(0),
@@ -365,9 +365,9 @@ export async function getCompanyByDomain(domainKey: string): Promise<CompanyDeta
     domainType: company.domainType || 'unknown',
     businessSizeCategory: company.businessSizeCategory || 'Unknown',
     revenueCategory: company.revenueCategory || 'Unknown',
-    totalRevenue: Number(company.totalRevenue || 0).toFixed(2),
-    totalOrders: Number(company.totalOrders || 0).toFixed(0),
-    customerCount: Number(company.customerCount || 0),
+    totalRevenue: Number(company.totalRevenue).toFixed(2),
+    totalOrders: Number(company.totalOrders).toFixed(0),
+    customerCount: Number(company.customerCount),
     firstOrderDate: company.firstOrderDate as string || '',
     latestOrderDate: company.latestOrderDate as string || '',
     primaryEmail: company.primaryEmail || '',
@@ -413,8 +413,8 @@ export async function getCompanyCustomers(domainKey: string): Promise<CompanyCus
   return customers.map(customer => ({
     customerId: customer.customerId || '',
     customerName: customer.customerName || 'Unknown Customer',
-    customerTotalRevenue: Number(customer.customerTotalRevenue || 0).toFixed(2),
-    customerTotalOrders: Number(customer.customerTotalOrders || 0).toFixed(0),
+    customerTotalRevenue: Number(customer.customerTotalRevenue).toFixed(2),
+    customerTotalOrders: Number(customer.customerTotalOrders).toFixed(0),
     customerValueTier: customer.customerValueTier || 'Unknown',
     customerActivityStatus: customer.customerActivityStatus || 'Unknown',
     billingAddressCity: customer.billingAddressCity || '',
@@ -445,7 +445,7 @@ export async function getCompanyOrderTimeline(domainKey: string): Promise<Compan
   return orders.map(order => ({
     orderNumber: order.orderNumber || '',
     orderDate: order.orderDate as string || '',
-    calculatedOrderTotal: Number(order.calculatedOrderTotal || 0).toFixed(2),
+    calculatedOrderTotal: Number(order.calculatedOrderTotal).toFixed(2),
     lineItemCount: Number(order.lineItemCount || 0),
     uniqueProducts: Number(order.uniqueProducts || 0),
     orderType: order.orderType || 'Unknown',
@@ -482,7 +482,7 @@ export async function getCompanyProductAnalysis(domainKey: string): Promise<Comp
     materialType: product.materialType || 'Unknown',
     totalTransactions: Number(product.totalTransactions || 0),
     totalQuantityPurchased: Number(product.totalQuantityPurchased || 0).toFixed(2),
-    totalAmountSpent: Number(product.totalAmountSpent || 0).toFixed(2),
+    totalAmountSpent: Number(product.totalAmountSpent).toFixed(2),
     avgUnitPrice: Number(product.avgUnitPrice || 0).toFixed(2),
     buyerStatus: product.buyerStatus || 'Unknown',
     purchaseVolumeCategory: product.purchaseVolumeCategory || 'Unknown',
@@ -514,7 +514,7 @@ export async function getCompanyHealthBasic(domainKey: string): Promise<CompanyH
   else if (daysSinceLastOrder <= 90) activityStatus = 'Recent (90 days)';
   else if (daysSinceLastOrder <= 365) activityStatus = 'Dormant (1 year)';
 
-  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.calculatedOrderTotal || 0), 0);
+  const totalRevenue = orders.reduce((sum, order) => sum + Number(order.calculatedOrderTotal), 0);
   const avgOrderValue = totalRevenue / orders.length;
 
   // Calculate simple order frequency (orders per month over active period)

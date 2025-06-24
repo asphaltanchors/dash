@@ -85,12 +85,12 @@ export async function getFamilySales(filters: ProductFilters = {}): Promise<Fami
   }>;
 
   return results.map(family => {
-    const currentSales = Number(family.current_period_sales || 0);
-    const previousSales = Number(family.previous_period_sales || 0);
-    const currentOrders = Number(family.current_period_orders || 0);
-    const previousOrders = Number(family.previous_period_orders || 0);
-    const currentUnits = Number(family.current_period_units || 0);
-    const previousUnits = Number(family.previous_period_units || 0);
+    const currentSales = Number(family.current_period_sales);
+    const previousSales = Number(family.previous_period_sales);
+    const currentOrders = Number(family.current_period_orders);
+    const previousOrders = Number(family.previous_period_orders);
+    const currentUnits = Number(family.current_period_units);
+    const previousUnits = Number(family.previous_period_units);
 
     const salesGrowth = previousSales > 0 ? ((currentSales - previousSales) / previousSales) * 100 : 0;
     const orderGrowth = previousOrders > 0 ? ((currentOrders - previousOrders) / previousOrders) * 100 : 0;

@@ -69,11 +69,11 @@ export async function getProductMetrics(): Promise<ProductMetrics> {
 
   return {
     totalProducts: productResult.totalProducts,
-    averageMargin: Number(productResult.averageMargin || 0).toFixed(1),
+    averageMargin: Number(productResult.averageMargin).toFixed(1),
     totalInventoryValue: Number(inventoryResult[0]?.total_inventory_value || 0).toFixed(2),
     kitProducts: productResult.kitProducts,
-    averageSalesPrice: Number(productResult.averageSalesPrice || 0).toFixed(2),
-    averagePurchaseCost: Number(productResult.averagePurchaseCost || 0).toFixed(2),
+    averageSalesPrice: Number(productResult.averageSalesPrice).toFixed(2),
+    averagePurchaseCost: Number(productResult.averagePurchaseCost).toFixed(2),
     marginGrowth: 0, // TODO: Calculate based on historical data when available
   };
 }
@@ -143,10 +143,10 @@ export async function getProducts(limit: number = 50, filters?: ProductFilters):
     salesDescription: product.sales_description || '',
     productFamily: product.product_family || 'Other',
     materialType: product.material_type || 'Unknown',
-    salesPrice: Number(product.sales_price || 0).toFixed(2),
-    purchaseCost: Number(product.purchase_cost || 0).toFixed(2),
-    marginPercentage: Number(product.margin_percentage || 0).toFixed(1),
-    marginAmount: Number(product.margin_amount || 0).toFixed(2),
+    salesPrice: Number(product.sales_price).toFixed(2),
+    purchaseCost: Number(product.purchase_cost).toFixed(2),
+    marginPercentage: Number(product.margin_percentage).toFixed(1),
+    marginAmount: Number(product.margin_amount).toFixed(2),
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
     periodSales: Number(product.period_sales || 0).toFixed(2),
@@ -224,10 +224,10 @@ export async function getProductByName(itemName: string): Promise<Product | null
     salesDescription: product.sales_description || '',
     productFamily: product.product_family || 'Other',
     materialType: product.material_type || 'Unknown',
-    salesPrice: Number(product.sales_price || 0).toFixed(2),
-    purchaseCost: Number(product.purchase_cost || 0).toFixed(2),
-    marginPercentage: Number(product.margin_percentage || 0).toFixed(1),
-    marginAmount: Number(product.margin_amount || 0).toFixed(2),
+    salesPrice: Number(product.sales_price).toFixed(2),
+    purchaseCost: Number(product.purchase_cost).toFixed(2),
+    marginPercentage: Number(product.margin_percentage).toFixed(1),
+    marginAmount: Number(product.margin_amount).toFixed(2),
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
     periodSales: Number(product.period_sales || 0).toFixed(2),
@@ -255,7 +255,7 @@ export async function getProductMonthlyRevenue(itemName: string): Promise<Weekly
   
   return results.map(month => ({
     date: month.month_start,
-    revenue: Number(month.revenue || 0).toFixed(2),
+    revenue: Number(month.revenue).toFixed(2),
     orderCount: Number(month.order_count || 0),
   }));
 }
