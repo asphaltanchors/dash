@@ -214,3 +214,6 @@ When working with database queries and schemas, IMMEDIATELY flag any issues in `
 **Database Patterns:**
 - **Product identification**: Use `item_name` for URLs since `manufacturer_s_part_number` is sparsely populated
 - **Single record queries**: Always check for null/empty results and handle with `notFound()` or defaults
+
+**Avoid using `npm run build`**
+- The user is usually running `npm run dev` in a seperate window, running `npm run build` breaks the existing dev. Use typescript checking and linting instead. IF you must run `npm run build` ask the user first

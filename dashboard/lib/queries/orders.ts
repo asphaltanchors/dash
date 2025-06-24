@@ -1,7 +1,7 @@
 // ABOUTME: Order-related queries including detailed order information and line items
 // ABOUTME: Handles order searches, pagination, filtering, and order line item management
-import { db, baseFctOrdersCurrentInAnalyticsMart, fctOrderLineItemsInAnalyticsMart } from '@/lib/db';
-import { desc, asc, sql, count, and } from 'drizzle-orm';
+import { db, baseFctOrdersCurrentInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart } from '@/lib/db';
+import { desc, asc, sql, count, and, eq } from 'drizzle-orm';
 
 export interface OrderDetail {
   orderNumber: string;
@@ -46,6 +46,8 @@ export interface OrderTableItem {
   isPaid: boolean;
   dueDate: string | null;
   shipDate: string | null;
+  companyDomain: string | null;
+  isIndividualCustomer: boolean;
 }
 
 export interface OrdersResponse {
@@ -185,8 +187,14 @@ export async function getAllOrders(
       isPaid: baseFctOrdersCurrentInAnalyticsMart.isPaid,
       dueDate: baseFctOrdersCurrentInAnalyticsMart.dueDate,
       shipDate: baseFctOrdersCurrentInAnalyticsMart.shipDate,
+      companyDomain: bridgeCustomerCompanyInAnalyticsMart.companyDomainKey,
+      isIndividualCustomer: bridgeCustomerCompanyInAnalyticsMart.isIndividualCustomer,
     })
     .from(baseFctOrdersCurrentInAnalyticsMart)
+    .leftJoin(
+      bridgeCustomerCompanyInAnalyticsMart,
+      eq(baseFctOrdersCurrentInAnalyticsMart.customer, bridgeCustomerCompanyInAnalyticsMart.customerName)
+    )
     .where(whereClause)
     .orderBy(orderClause)
     .limit(limit)
@@ -210,6 +218,8 @@ export async function getAllOrders(
       isPaid: order.isPaid || false,
       dueDate: order.dueDate as string | null,
       shipDate: order.shipDate as string | null,
+      companyDomain: order.companyDomain,
+      isIndividualCustomer: order.isIndividualCustomer || false,
     })),
     totalCount,
   };

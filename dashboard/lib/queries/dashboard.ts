@@ -1,7 +1,7 @@
 // ABOUTME: Dashboard metrics and chart data queries for main dashboard overview
 // ABOUTME: Handles revenue trends, metrics calculations, and channel analysis
-import { db, baseFctOrdersCurrentInAnalyticsMart } from '@/lib/db';
-import { desc, gte, lte, sql, count, sum, avg, and } from 'drizzle-orm';
+import { db, baseFctOrdersCurrentInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart } from '@/lib/db';
+import { desc, gte, lte, sql, count, sum, avg, and, eq } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { getDateRange, type DashboardFilters } from '@/lib/filter-utils';
 
@@ -24,6 +24,8 @@ export interface RecentOrder {
   totalAmount: string;
   status: string;
   isPaid: boolean;
+  companyDomain: string | null;
+  isIndividualCustomer: boolean;
 }
 
 export interface WeeklyRevenue {
@@ -157,8 +159,14 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
       totalAmount: baseFctOrdersCurrentInAnalyticsMart.totalAmount,
       status: baseFctOrdersCurrentInAnalyticsMart.status,
       isPaid: baseFctOrdersCurrentInAnalyticsMart.isPaid,
+      companyDomain: bridgeCustomerCompanyInAnalyticsMart.companyDomainKey,
+      isIndividualCustomer: bridgeCustomerCompanyInAnalyticsMart.isIndividualCustomer,
     })
     .from(baseFctOrdersCurrentInAnalyticsMart)
+    .leftJoin(
+      bridgeCustomerCompanyInAnalyticsMart,
+      eq(baseFctOrdersCurrentInAnalyticsMart.customer, bridgeCustomerCompanyInAnalyticsMart.customerName)
+    )
     .where(
       sql`${baseFctOrdersCurrentInAnalyticsMart.totalAmount} is not null`
     )
@@ -172,6 +180,8 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
     totalAmount: Number(order.totalAmount).toFixed(2),
     status: order.status!,
     isPaid: order.isPaid!,
+    companyDomain: order.companyDomain,
+    isIndividualCustomer: order.isIndividualCustomer || false,
   }));
 }
 

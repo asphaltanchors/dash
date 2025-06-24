@@ -59,3 +59,30 @@ export function formatNumber(
     maximumFractionDigits: decimals,
   }).format(numValue);
 }
+
+/**
+ * Determine if a customer should have a link to a company page
+ * @param companyDomain - The company domain from the bridge table
+ * @param isIndividualCustomer - Whether the customer is marked as individual
+ * @returns Whether to show a company link
+ */
+export function shouldShowCompanyLink(
+  companyDomain: string | null | undefined,
+  isIndividualCustomer: boolean
+): boolean {
+  if (!companyDomain || isIndividualCustomer) {
+    return false;
+  }
+  
+  // Exclude special domain markers for individual customers and FBA orders
+  const excludedDomains = [
+    'NO_EMAIL_DOMAIN',
+    'INDIVIDUAL_GMAIL.COM',
+    'INDIVIDUAL_YAHOO.COM',
+    'INDIVIDUAL_ICLOUD.COM',
+    'INDIVIDUAL_HOTMAIL.COM',
+    'INDIVIDUAL_AOL.COM',
+  ];
+  
+  return !excludedDomains.includes(companyDomain.toUpperCase());
+}

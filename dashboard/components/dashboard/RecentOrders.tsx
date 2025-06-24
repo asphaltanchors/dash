@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { RecentOrder } from "@/lib/queries"
 import { CheckCircle, Clock } from "lucide-react"
 import Link from "next/link"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, shouldShowCompanyLink } from "@/lib/utils"
 
 interface RecentOrdersProps {
   orders: RecentOrder[]
@@ -67,7 +67,16 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                 </TableCell>
                 <TableCell>
                   <div className="max-w-[200px] truncate">
-                    {order.customer}
+                    {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
+                      <Link 
+                        href={`/companies/${encodeURIComponent(order.companyDomain!)}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {order.customer}
+                      </Link>
+                    ) : (
+                      order.customer
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>

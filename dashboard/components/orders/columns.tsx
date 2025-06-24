@@ -16,7 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock } from "lucide-react"
 import { ServerSortButton } from "./server-sort-button"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, shouldShowCompanyLink } from "@/lib/utils"
 
 // This type should match your order data structure
 export type OrderTableItem = {
@@ -28,6 +28,8 @@ export type OrderTableItem = {
   isPaid: boolean
   dueDate: string | null
   shipDate: string | null
+  companyDomain: string | null
+  isIndividualCustomer: boolean
 }
 
 function StatusBadge({ status }: { status: string; isPaid: boolean }) {
@@ -93,9 +95,19 @@ export const createColumns = (
     ),
     cell: ({ row }) => {
       const customer = row.getValue("customer") as string
+      const order = row.original
       return (
         <div className="max-w-[200px] truncate">
-          {customer}
+          {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
+            <Link 
+              href={`/companies/${encodeURIComponent(order.companyDomain!)}`}
+              className="text-blue-600 hover:underline"
+            >
+              {customer}
+            </Link>
+          ) : (
+            customer
+          )}
         </div>
       )
     },
