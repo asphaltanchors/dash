@@ -34,6 +34,7 @@ export interface CompanyWithHealth {
   daysSinceLastOrder: number;
   atRiskFlag: boolean;
   growthOpportunityFlag: boolean;
+  primaryCountry: string;
 }
 
 export interface CompanyDetail {
@@ -53,6 +54,19 @@ export interface CompanyDetail {
   primaryBillingCity: string;
   primaryBillingState: string;
   primaryBillingPostalCode: string;
+  primaryCountry: string;
+  region: string;
+  healthScore: string;
+  customerArchetype: string;
+  activityStatus: string;
+  engagementLevel: string;
+  growthTrendDirection: string;
+  healthCategory: string;
+  atRiskFlag: boolean;
+  growthOpportunityFlag: boolean;
+  ordersLast90Days: number;
+  revenueLast90Days: string;
+  revenuePercentile: number;
 }
 
 export interface CompanyCustomer {
@@ -187,6 +201,7 @@ export async function getCompaniesWithHealth(
     businessSize?: string
     revenueCategory?: string
     healthCategory?: string
+    country?: string
   } = {}
 ): Promise<{ companies: CompanyWithHealth[], totalCount: number }> {
   
@@ -217,6 +232,20 @@ export async function getCompaniesWithHealth(
     whereClause = sql`${whereClause} AND ${dimCompanyHealthInAnalyticsMart.healthCategory} = ${filters.healthCategory}`;
   }
 
+  // Add country filtering if specified - now much simpler since country is directly in companies table
+  if (filters.country) {
+    whereClause = sql`${whereClause} AND ${fctCompaniesInAnalyticsMart.primaryCountry} = ${filters.country}`;
+  }
+
+  // Get total count
+  const totalCountResult = await db
+    .select({ count: count() })
+    .from(fctCompaniesInAnalyticsMart)
+    .innerJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
+    .where(whereClause);
+  
+  const totalCount = totalCountResult[0]?.count || 0;
+
   // Build ORDER BY clause - handle health-related sorting
   const sortColumn = {
     'companyName': fctCompaniesInAnalyticsMart.companyName,
@@ -231,16 +260,7 @@ export async function getCompaniesWithHealth(
 
   const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
-  // Get total count
-  const totalCountResult = await db
-    .select({ count: count() })
-    .from(fctCompaniesInAnalyticsMart)
-    .innerJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
-    .where(whereClause);
-  
-  const totalCount = totalCountResult[0]?.count || 0;
-
-  // Get companies with health data
+  // Get companies with health data and their primary country
   const companies = await db
     .select({
       companyDomainKey: fctCompaniesInAnalyticsMart.companyDomainKey,
@@ -260,6 +280,7 @@ export async function getCompaniesWithHealth(
       daysSinceLastOrder: dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
       atRiskFlag: dimCompanyHealthInAnalyticsMart.atRiskFlag,
       growthOpportunityFlag: dimCompanyHealthInAnalyticsMart.growthOpportunityFlag,
+      primaryCountry: fctCompaniesInAnalyticsMart.primaryCountry,
     })
     .from(fctCompaniesInAnalyticsMart)
     .innerJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
@@ -287,6 +308,7 @@ export async function getCompaniesWithHealth(
       daysSinceLastOrder: Number(company.daysSinceLastOrder || 0),
       atRiskFlag: Boolean(company.atRiskFlag),
       growthOpportunityFlag: Boolean(company.growthOpportunityFlag),
+      primaryCountry: company.primaryCountry || 'Unknown',
     })),
     totalCount: Number(totalCount)
   };
@@ -311,8 +333,24 @@ export async function getCompanyByDomain(domainKey: string): Promise<CompanyDeta
       primaryBillingCity: fctCompaniesInAnalyticsMart.primaryBillingCity,
       primaryBillingState: fctCompaniesInAnalyticsMart.primaryBillingState,
       primaryBillingPostalCode: fctCompaniesInAnalyticsMart.primaryBillingPostalCode,
+      // Add health data
+      healthScore: dimCompanyHealthInAnalyticsMart.healthScore,
+      customerArchetype: dimCompanyHealthInAnalyticsMart.customerArchetype,
+      activityStatus: dimCompanyHealthInAnalyticsMart.activityStatus,
+      engagementLevel: dimCompanyHealthInAnalyticsMart.engagementLevel,
+      growthTrendDirection: dimCompanyHealthInAnalyticsMart.growthTrendDirection,
+      healthCategory: dimCompanyHealthInAnalyticsMart.healthCategory,
+      atRiskFlag: dimCompanyHealthInAnalyticsMart.atRiskFlag,
+      growthOpportunityFlag: dimCompanyHealthInAnalyticsMart.growthOpportunityFlag,
+      ordersLast90Days: dimCompanyHealthInAnalyticsMart.ordersLast90Days,
+      revenueLast90Days: dimCompanyHealthInAnalyticsMart.revenueLast90Days,
+      revenuePercentile: dimCompanyHealthInAnalyticsMart.revenuePercentile,
+      // Country data is now directly in the companies table
+      primaryCountry: fctCompaniesInAnalyticsMart.primaryCountry,
+      region: fctCompaniesInAnalyticsMart.region,
     })
     .from(fctCompaniesInAnalyticsMart)
+    .leftJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
     .where(sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${domainKey}`)
     .limit(1);
 
@@ -338,6 +376,19 @@ export async function getCompanyByDomain(domainKey: string): Promise<CompanyDeta
     primaryBillingCity: company.primaryBillingCity || '',
     primaryBillingState: company.primaryBillingState || '',
     primaryBillingPostalCode: company.primaryBillingPostalCode || '',
+    primaryCountry: company.primaryCountry || 'Unknown',
+    region: company.region || 'Unknown',
+    healthScore: Number(company.healthScore || 0).toFixed(0),
+    customerArchetype: company.customerArchetype || 'Unknown',
+    activityStatus: company.activityStatus || 'Unknown',
+    engagementLevel: company.engagementLevel || 'Unknown',
+    growthTrendDirection: company.growthTrendDirection || 'Unknown',
+    healthCategory: company.healthCategory || 'Unknown',
+    atRiskFlag: Boolean(company.atRiskFlag),
+    growthOpportunityFlag: Boolean(company.growthOpportunityFlag),
+    ordersLast90Days: Number(company.ordersLast90Days || 0),
+    revenueLast90Days: Number(company.revenueLast90Days || 0).toFixed(2),
+    revenuePercentile: Number(company.revenuePercentile || 0),
   };
 }
 

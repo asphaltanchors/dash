@@ -45,7 +45,7 @@ async function CompanyHeader({ domain }: { domain: string }) {
               <p className="text-sm text-muted-foreground">{company.companyDomainKey}</p>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Badge variant="outline">
                 {company.domainType}
               </Badge>
@@ -60,6 +60,16 @@ async function CompanyHeader({ domain }: { domain: string }) {
               >
                 {company.revenueCategory}
               </Badge>
+              {company.primaryCountry && company.primaryCountry !== 'Unknown' && (
+                <Badge variant="outline">
+                  🌍 {company.primaryCountry}
+                </Badge>
+              )}
+              {company.region && company.region !== 'Unknown' && (
+                <Badge variant="secondary">
+                  📍 {company.region}
+                </Badge>
+              )}
             </div>
 
             {company.primaryEmail && (
@@ -91,6 +101,7 @@ async function CompanyHeader({ domain }: { domain: string }) {
                 </div>
               </div>
             )}
+
           </div>
         </CardContent>
       </Card>
@@ -98,48 +109,132 @@ async function CompanyHeader({ domain }: { domain: string }) {
       <Card>
         <CardHeader>
           <CardTitle>Key Metrics & Health</CardTitle>
+          <CardDescription>Financial performance and customer health indicators</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm font-medium">Total Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(parseFloat(company.totalRevenue))}</p>
+          <div className="space-y-6">
+            {/* Financial Metrics */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Financial Performance</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium">Total Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(parseFloat(company.totalRevenue))}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Total Orders</p>
+                  <p className="text-2xl font-bold">{company.totalOrders}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium">Total Orders</p>
-                <p className="text-2xl font-bold">{company.totalOrders}</p>
-              </div>
+              {company.revenueLast90Days && (
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <p className="text-sm font-medium">Revenue (Last 90 Days)</p>
+                    <p className="text-lg font-semibold">{formatCurrency(parseFloat(company.revenueLast90Days))}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Orders (Last 90 Days)</p>
+                    <p className="text-lg font-semibold">{company.ordersLast90Days}</p>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Health & Activity */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Customer Health</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium">Health Score</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-2xl font-bold">{company.healthScore}/100</p>
+                    <Badge 
+                      variant={
+                        company.healthCategory?.includes('Excellent') ? 'default' :
+                        company.healthCategory?.includes('Good') ? 'default' :
+                        company.healthCategory?.includes('Fair') ? 'secondary' : 'destructive'
+                      }
+                    >
+                      {company.healthCategory}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Activity Status</p>
+                  <Badge 
+                    variant={
+                      company.activityStatus?.includes('Active') ? 'default' :
+                      company.activityStatus?.includes('Recent') ? 'secondary' : 'outline'
+                    }
+                  >
+                    {company.activityStatus}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <p className="text-sm font-medium">Customer Archetype</p>
+                  <Badge variant="outline">{company.customerArchetype}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Engagement Level</p>
+                  <Badge variant="secondary">{company.engagementLevel}</Badge>
+                </div>
+              </div>
+
+              {company.revenuePercentile > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm font-medium">Revenue Percentile</p>
+                  <p className="text-lg font-semibold">{company.revenuePercentile.toFixed(1)}th percentile</p>
+                  <p className="text-xs text-muted-foreground">Higher than {company.revenuePercentile.toFixed(1)}% of customers</p>
+                </div>
+              )}
+            </div>
+
+            {/* Risk & Opportunity Flags */}
+            {(company.atRiskFlag || company.growthOpportunityFlag) && (
+              <div>
+                <h4 className="text-sm font-semibold mb-3">Alerts & Opportunities</h4>
+                <div className="flex gap-2">
+                  {company.atRiskFlag && (
+                    <Badge variant="destructive">⚠️ At Risk</Badge>
+                  )}
+                  {company.growthOpportunityFlag && (
+                    <Badge variant="default">🚀 Growth Opportunity</Badge>
+                  )}
+                </div>
+              </div>
+            )}
 
             {health && (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium">Activity Status</p>
-                    <Badge 
-                      variant={
-                        health.activityStatus.includes('Active') ? 'default' :
-                        health.activityStatus.includes('Recent') ? 'secondary' : 'outline'
-                      }
-                    >
-                      {health.activityStatus}
-                    </Badge>
-                  </div>
-                  <div>
                     <p className="text-sm font-medium">Order Frequency</p>
                     <p className="text-sm">{health.orderFrequency}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Avg Order Value</p>
+                    <p className="text-lg font-semibold">{formatCurrency(parseFloat(health.avgOrderValue))}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm font-medium">Avg Order Value</p>
-                    <p className="text-2xl font-bold">{formatCurrency(parseFloat(health.avgOrderValue))}</p>
-                  </div>
-                  <div>
                     <p className="text-sm font-medium">Days Since Last Order</p>
                     <p className="text-2xl font-bold">{health.daysSinceLastOrder}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Growth Trend</p>
+                    <Badge 
+                      variant={
+                        company.growthTrendDirection?.includes('Positive') ? 'default' :
+                        company.growthTrendDirection?.includes('Stable') ? 'secondary' : 'outline'
+                      }
+                    >
+                      {company.growthTrendDirection}
+                    </Badge>
                   </div>
                 </div>
               </>

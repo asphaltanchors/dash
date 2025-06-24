@@ -50,6 +50,26 @@ const HEALTH_CATEGORY_OPTIONS = [
   'Excellent Health'
 ]
 
+const COUNTRY_OPTIONS = [
+  'Australia',
+  'Canada', 
+  'Germany',
+  'Israel',
+  'Italy',
+  'Lithuania',
+  'New Zealand',
+  'Norway',
+  'Romania',
+  'Saudi Arabia',
+  'Slovenia',
+  'Spain',
+  'Sweden',
+  'Trinidad',
+  'UAE',
+  'United Kingdom',
+  'United States'
+]
+
 const HEALTH_CATEGORY_COLORS = {
   'Critical Health': 'destructive',
   'Poor Health': 'destructive',
@@ -66,8 +86,9 @@ export function CompaniesFilters({ className }: FiltersProps) {
   const businessSize = searchParams.get('businessSize') || ''
   const revenueCategory = searchParams.get('revenueCategory') || ''
   const healthCategory = searchParams.get('healthCategory') || ''
+  const country = searchParams.get('country') || ''
 
-  const hasActiveFilters = activityStatus || businessSize || revenueCategory || healthCategory
+  const hasActiveFilters = activityStatus || businessSize || revenueCategory || healthCategory || country
 
   const updateFilter = (key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams)
@@ -90,6 +111,7 @@ export function CompaniesFilters({ className }: FiltersProps) {
     params.delete('businessSize')
     params.delete('revenueCategory')
     params.delete('healthCategory')
+    params.delete('country')
     params.delete('page')
     router.push(`/companies?${params.toString()}`)
   }
@@ -154,6 +176,20 @@ export function CompaniesFilters({ className }: FiltersProps) {
             <SelectContent>
               <SelectItem value="all">All Health</SelectItem>
               {HEALTH_CATEGORY_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+        <Select value={country} onValueChange={(value) => updateFilter('country', value)}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Country" />
+          </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Countries</SelectItem>
+              {COUNTRY_OPTIONS.map((option) => (
                 <SelectItem key={option} value={option}>
                   {option}
                 </SelectItem>
@@ -231,6 +267,20 @@ export function CompaniesFilters({ className }: FiltersProps) {
                 size="sm"
                 className="h-auto p-0 hover:bg-transparent"
                 onClick={() => removeFilter('healthCategory')}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          )}
+
+          {country && (
+            <Badge variant="secondary" className="gap-1 text-xs">
+              {country}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 hover:bg-transparent"
+                onClick={() => removeFilter('country')}
               >
                 <X className="h-3 w-3" />
               </Button>

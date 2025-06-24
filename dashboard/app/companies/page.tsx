@@ -21,6 +21,7 @@ interface CompaniesPageProps {
     businessSize?: string
     revenueCategory?: string
     healthCategory?: string
+    country?: string
   }>
 }
 
@@ -40,6 +41,7 @@ async function CompaniesTable({
     businessSize?: string
     revenueCategory?: string
     healthCategory?: string
+    country?: string
   }
 }) {
   // Server-side search and sorting - only fetch relevant results
@@ -90,7 +92,7 @@ function LoadingTable() {
 }
 
 export default async function CompaniesPage({ searchParams }: CompaniesPageProps) {
-  const { search, sortBy, sortOrder, page, activityStatus, businessSize, revenueCategory, healthCategory } = await searchParams
+  const { search, sortBy, sortOrder, page, activityStatus, businessSize, revenueCategory, healthCategory, country } = await searchParams
   const searchTerm = search || ''
   const currentSortBy = sortBy || 'totalRevenue'
   const currentSortOrder = sortOrder || 'desc'
@@ -101,6 +103,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
     businessSize: businessSize || undefined,
     revenueCategory: revenueCategory || undefined,
     healthCategory: healthCategory || undefined,
+    country: country || undefined,
   }
 
   return (
