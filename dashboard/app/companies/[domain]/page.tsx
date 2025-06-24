@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getCompanyByDomain, getCompanyOrderTimeline, getCompanyProductAnalysis, getCompanyHealthBasic } from '@/lib/queries';
-import { formatCurrency } from '@/lib/utils';
+import { getCompanyByDomain, getCompanyOrderTimeline, getCompanyProductAnalysis, getCompanyHealthBasic, getCompanyTimeSeriesData } from '@/lib/queries';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,7 +33,7 @@ async function CompanyHeader({ domain }: { domain: string }) {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6 lg:grid-cols-3 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Company Overview</CardTitle>
@@ -186,8 +186,18 @@ async function CompanyHeader({ domain }: { domain: string }) {
               {company.revenuePercentile > 0 && (
                 <div className="mt-4">
                   <p className="text-sm font-medium">Revenue Percentile</p>
-                  <p className="text-lg font-semibold">{company.revenuePercentile.toFixed(1)}th percentile</p>
-                  <p className="text-xs text-muted-foreground">Higher than {company.revenuePercentile.toFixed(1)}% of customers</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-lg font-semibold">{(company.revenuePercentile * 100).toFixed(1)}th</p>
+                    <div className="flex-1 bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-primary rounded-full h-2 transition-all duration-300"
+                        style={{ width: `${company.revenuePercentile * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Higher than {(company.revenuePercentile * 100).toFixed(1)}% of customers
+                  </p>
                 </div>
               )}
             </div>
@@ -253,6 +263,68 @@ async function CompanyHeader({ domain }: { domain: string }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Industry Intelligence Card */}
+      {company.enrichedIndustry && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Industry Intelligence</CardTitle>
+            <CardDescription>External data and company insights</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium">Industry</p>
+                <p className="text-lg font-semibold">{company.enrichedIndustry}</p>
+              </div>
+
+              {company.enrichedEmployeeCount > 0 && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Employee Count</p>
+                    <p className="text-2xl font-bold">{formatNumber(company.enrichedEmployeeCount)}</p>
+                  </div>
+                  {company.enrichedAnnualRevenue > 0 && (
+                    <div>
+                      <p className="text-sm font-medium">Annual Revenue (Est.)</p>
+                      <p className="text-2xl font-bold">{formatCurrency(company.enrichedAnnualRevenue, { showCents: false })}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {company.enrichedFoundedYear > 0 && (
+                <div>
+                  <p className="text-sm font-medium">Founded</p>
+                  <p className="text-lg font-semibold">{company.enrichedFoundedYear}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date().getFullYear() - company.enrichedFoundedYear} years in business
+                  </p>
+                </div>
+              )}
+
+              {company.enrichedDescription && (
+                <div>
+                  <p className="text-sm font-medium">Description</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {company.enrichedDescription.slice(0, 200)}
+                    {company.enrichedDescription.length > 200 && '...'}
+                  </p>
+                </div>
+              )}
+
+              {company.enrichmentSource && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    Data sourced from {company.enrichmentSource}
+                    {company.enrichmentDate && ` on ${new Date(company.enrichmentDate).toLocaleDateString()}`}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -405,9 +477,128 @@ async function CompanyProductAnalysis({ domain }: { domain: string }) {
   );
 }
 
+async function CompanyQuarterlyPerformance({ domain }: { domain: string }) {
+  const timeSeries = await getCompanyTimeSeriesData(domain);
+  
+  if (timeSeries.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Quarterly Performance ({timeSeries.length} quarters)</CardTitle>
+        <CardDescription>
+          Revenue trends and growth analysis over time
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Summary metrics for current quarter */}
+          {timeSeries.find(q => q.isCurrentQuarter) && (
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm font-medium">Current Quarter</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(parseFloat(timeSeries.find(q => q.isCurrentQuarter)?.totalRevenue || '0'))}
+                  </p>
+                  <Badge variant={
+                    parseFloat(timeSeries.find(q => q.isCurrentQuarter)?.yoyRevenueGrowthPct || '0') > 0 ? 'default' : 'secondary'
+                  }>
+                    {parseFloat(timeSeries.find(q => q.isCurrentQuarter)?.yoyRevenueGrowthPct || '0') > 0 ? '↗️' : '↘️'} 
+                    {timeSeries.find(q => q.isCurrentQuarter)?.yoyRevenueGrowthPct}% YoY
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Order Count</p>
+                  <p className="text-2xl font-bold">
+                    {formatNumber(timeSeries.find(q => q.isCurrentQuarter)?.orderCount || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Avg Order Value</p>
+                  <p className="text-2xl font-bold">
+                    {formatCurrency(parseFloat(timeSeries.find(q => q.isCurrentQuarter)?.avgOrderValue || '0'))}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quarterly data table */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Quarter</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead className="text-right">Orders</TableHead>
+                <TableHead className="text-right">Avg Order</TableHead>
+                <TableHead className="text-right">YoY Growth</TableHead>
+                <TableHead>Activity Level</TableHead>
+                <TableHead>Flags</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {timeSeries.map((quarter, index) => (
+                <TableRow key={`quarter-${index}-${quarter.quarterLabel}`} className={quarter.isCurrentQuarter ? 'bg-muted/30' : ''}>
+                  <TableCell className="font-medium">
+                    <div>
+                      <div className="font-semibold">{quarter.orderYear} {quarter.quarterLabel}</div>
+                      <Badge variant="outline" className="text-xs">
+                        {quarter.quarterlyRevenueTier}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(parseFloat(quarter.totalRevenue))}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatNumber(quarter.orderCount)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(parseFloat(quarter.avgOrderValue))}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {parseFloat(quarter.yoyRevenueGrowthPct) !== 0 && (
+                        <span className={parseFloat(quarter.yoyRevenueGrowthPct) > 0 ? 'text-green-600' : 'text-red-600'}>
+                          {parseFloat(quarter.yoyRevenueGrowthPct) > 0 ? '↗️' : '↘️'}
+                        </span>
+                      )}
+                      <span className={parseFloat(quarter.yoyRevenueGrowthPct) > 0 ? 'text-green-600' : parseFloat(quarter.yoyRevenueGrowthPct) < 0 ? 'text-red-600' : ''}>
+                        {quarter.yoyRevenueGrowthPct}%
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {quarter.quarterlyActivityLevel}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {quarter.exceptionalGrowthFlag && (
+                        <Badge variant="default" className="text-xs">🚀 Exceptional</Badge>
+                      )}
+                      {quarter.concerningDeclineFlag && (
+                        <Badge variant="destructive" className="text-xs">⚠️ Decline</Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CompanyHeaderSkeleton() {
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6 lg:grid-cols-3 md:grid-cols-2">
       <Card>
         <CardHeader>
           <Skeleton className="h-6 w-40" />
@@ -439,6 +630,22 @@ function CompanyHeaderSkeleton() {
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48" />
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-16 w-full" />
           </div>
         </CardContent>
       </Card>
@@ -482,6 +689,33 @@ function CompanyProductAnalysisSkeleton() {
   );
 }
 
+function CompanyQuarterlyPerformanceSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-72" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="p-4 bg-muted/50 rounded-lg">
+            <div className="grid grid-cols-3 gap-4">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function CompanyPage({ params }: CompanyPageProps) {
   const { domain } = await params;
 
@@ -510,6 +744,10 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
       <div className="flex-1 space-y-6 p-6">
         <Suspense fallback={<CompanyHeaderSkeleton />}>
           <CompanyHeader domain={domain} />
+        </Suspense>
+        
+        <Suspense fallback={<CompanyQuarterlyPerformanceSkeleton />}>
+          <CompanyQuarterlyPerformance domain={domain} />
         </Suspense>
         
         <Suspense fallback={<CompanyOrderTimelineSkeleton />}>

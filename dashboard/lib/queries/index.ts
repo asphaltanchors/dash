@@ -53,6 +53,7 @@ export {
   getCompanyOrderTimeline,
   getCompanyProductAnalysis,
   getCompanyHealthBasic,
+  getCompanyTimeSeriesData,
   type TopCompany,
   type CompanyWithHealth,
   type CompanyDetail,
@@ -60,6 +61,7 @@ export {
   type CompanyOrder,
   type CompanyProduct,
   type CompanyHealthBasic,
+  type CompanyTimeSeriesQuarter,
 } from './companies';
 
 // Family sales queries and interfaces

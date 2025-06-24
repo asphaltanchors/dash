@@ -1,6 +1,6 @@
 // ABOUTME: Company analysis and customer relationship management queries
 // ABOUTME: Handles company listings, detailed company profiles, and advanced company analytics
-import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart } from '@/lib/db';
+import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart, fctCompanyOrdersTimeSeriesInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count } from 'drizzle-orm';
 
 export interface TopCompany {
@@ -67,6 +67,14 @@ export interface CompanyDetail {
   ordersLast90Days: number;
   revenueLast90Days: string;
   revenuePercentile: number;
+  // Enrichment data
+  enrichedIndustry: string;
+  enrichedEmployeeCount: number;
+  enrichedAnnualRevenue: number;
+  enrichedDescription: string;
+  enrichedFoundedYear: number;
+  enrichmentSource: string;
+  enrichmentDate: string;
 }
 
 export interface CompanyCustomer {
@@ -114,6 +122,22 @@ export interface CompanyHealthBasic {
   totalOrders: number;
   orderFrequency: string;
   avgOrderValue: string;
+}
+
+export interface CompanyTimeSeriesQuarter {
+  quarterLabel: string;
+  orderYear: string;
+  orderQuarter: string;
+  totalRevenue: string;
+  orderCount: number;
+  avgOrderValue: string;
+  yoyRevenueGrowthPct: string;
+  yoyOrderGrowthPct: string;
+  quarterlyRevenueTier: string;
+  quarterlyActivityLevel: string;
+  exceptionalGrowthFlag: boolean;
+  concerningDeclineFlag: boolean;
+  isCurrentQuarter: boolean;
 }
 
 export async function getAllCompanies(
@@ -348,6 +372,14 @@ export async function getCompanyByDomain(domainKey: string): Promise<CompanyDeta
       // Country data is now directly in the companies table
       primaryCountry: fctCompaniesInAnalyticsMart.primaryCountry,
       region: fctCompaniesInAnalyticsMart.region,
+      // Add enrichment data
+      enrichedIndustry: fctCompaniesInAnalyticsMart.enrichedIndustry,
+      enrichedEmployeeCount: fctCompaniesInAnalyticsMart.enrichedEmployeeCount,
+      enrichedAnnualRevenue: fctCompaniesInAnalyticsMart.enrichedAnnualRevenue,
+      enrichedDescription: fctCompaniesInAnalyticsMart.enrichedDescription,
+      enrichedFoundedYear: fctCompaniesInAnalyticsMart.enrichedFoundedYear,
+      enrichmentSource: fctCompaniesInAnalyticsMart.enrichmentSource,
+      enrichmentDate: fctCompaniesInAnalyticsMart.enrichmentDate,
     })
     .from(fctCompaniesInAnalyticsMart)
     .leftJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
@@ -389,6 +421,13 @@ export async function getCompanyByDomain(domainKey: string): Promise<CompanyDeta
     ordersLast90Days: Number(company.ordersLast90Days || 0),
     revenueLast90Days: Number(company.revenueLast90Days || 0).toFixed(2),
     revenuePercentile: Number(company.revenuePercentile || 0),
+    enrichedIndustry: company.enrichedIndustry || '',
+    enrichedEmployeeCount: Number(company.enrichedEmployeeCount || 0),
+    enrichedAnnualRevenue: Number(company.enrichedAnnualRevenue || 0),
+    enrichedDescription: company.enrichedDescription || '',
+    enrichedFoundedYear: Number(company.enrichedFoundedYear || 0),
+    enrichmentSource: company.enrichmentSource || '',
+    enrichmentDate: company.enrichmentDate as string || '',
   };
 }
 
@@ -538,4 +577,43 @@ export async function getCompanyHealthBasic(domainKey: string): Promise<CompanyH
     orderFrequency,
     avgOrderValue: avgOrderValue.toFixed(2),
   };
+}
+
+export async function getCompanyTimeSeriesData(domainKey: string): Promise<CompanyTimeSeriesQuarter[]> {
+  const timeSeries = await db
+    .select({
+      quarterLabel: fctCompanyOrdersTimeSeriesInAnalyticsMart.quarterLabel,
+      orderYear: fctCompanyOrdersTimeSeriesInAnalyticsMart.orderYear,
+      orderQuarter: fctCompanyOrdersTimeSeriesInAnalyticsMart.orderQuarter,
+      totalRevenue: fctCompanyOrdersTimeSeriesInAnalyticsMart.totalRevenue,
+      orderCount: fctCompanyOrdersTimeSeriesInAnalyticsMart.orderCount,
+      avgOrderValue: fctCompanyOrdersTimeSeriesInAnalyticsMart.avgOrderValue,
+      yoyRevenueGrowthPct: fctCompanyOrdersTimeSeriesInAnalyticsMart.yoyRevenueGrowthPct,
+      yoyOrderGrowthPct: fctCompanyOrdersTimeSeriesInAnalyticsMart.yoyOrderGrowthPct,
+      quarterlyRevenueTier: fctCompanyOrdersTimeSeriesInAnalyticsMart.quarterlyRevenueTier,
+      quarterlyActivityLevel: fctCompanyOrdersTimeSeriesInAnalyticsMart.quarterlyActivityLevel,
+      exceptionalGrowthFlag: fctCompanyOrdersTimeSeriesInAnalyticsMart.exceptionalGrowthFlag,
+      concerningDeclineFlag: fctCompanyOrdersTimeSeriesInAnalyticsMart.concerningDeclineFlag,
+      isCurrentQuarter: fctCompanyOrdersTimeSeriesInAnalyticsMart.isCurrentQuarter,
+    })
+    .from(fctCompanyOrdersTimeSeriesInAnalyticsMart)
+    .where(sql`${fctCompanyOrdersTimeSeriesInAnalyticsMart.companyDomainKey} = ${domainKey}`)
+    .orderBy(desc(fctCompanyOrdersTimeSeriesInAnalyticsMart.orderYear), desc(fctCompanyOrdersTimeSeriesInAnalyticsMart.orderQuarter))
+    .limit(12); // Last 3 years of quarterly data
+
+  return timeSeries.map(quarter => ({
+    quarterLabel: quarter.quarterLabel || '',
+    orderYear: Number(quarter.orderYear || 0).toFixed(0),
+    orderQuarter: Number(quarter.orderQuarter || 0).toFixed(0),
+    totalRevenue: Number(quarter.totalRevenue || 0).toFixed(2),
+    orderCount: Number(quarter.orderCount || 0),
+    avgOrderValue: Number(quarter.avgOrderValue || 0).toFixed(2),
+    yoyRevenueGrowthPct: Number(quarter.yoyRevenueGrowthPct || 0).toFixed(1),
+    yoyOrderGrowthPct: Number(quarter.yoyOrderGrowthPct || 0).toFixed(1),
+    quarterlyRevenueTier: quarter.quarterlyRevenueTier || 'Unknown',
+    quarterlyActivityLevel: quarter.quarterlyActivityLevel || 'Unknown',
+    exceptionalGrowthFlag: Boolean(quarter.exceptionalGrowthFlag),
+    concerningDeclineFlag: Boolean(quarter.concerningDeclineFlag),
+    isCurrentQuarter: Boolean(quarter.isCurrentQuarter),
+  }));
 }
