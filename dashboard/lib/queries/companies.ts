@@ -67,6 +67,7 @@ export interface CompanyDetail {
   ordersLast90Days: number;
   revenueLast90Days: string;
   revenuePercentile: number;
+  daysSinceLastOrder: number;
   // Enrichment data
   enrichedIndustry: string;
   enrichedEmployeeCount: number;
@@ -369,6 +370,7 @@ export async function getCompanyByDomain(domainKey: string): Promise<CompanyDeta
       ordersLast90Days: dimCompanyHealthInAnalyticsMart.ordersLast90Days,
       revenueLast90Days: dimCompanyHealthInAnalyticsMart.revenueLast90Days,
       revenuePercentile: dimCompanyHealthInAnalyticsMart.revenuePercentile,
+      daysSinceLastOrder: dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
       // Country data is now directly in the companies table
       primaryCountry: fctCompaniesInAnalyticsMart.primaryCountry,
       region: fctCompaniesInAnalyticsMart.region,
@@ -421,6 +423,7 @@ export async function getCompanyByDomain(domainKey: string): Promise<CompanyDeta
     ordersLast90Days: Number(company.ordersLast90Days || 0),
     revenueLast90Days: Number(company.revenueLast90Days || 0).toFixed(2),
     revenuePercentile: Number(company.revenuePercentile || 0),
+    daysSinceLastOrder: Number(company.daysSinceLastOrder || 0),
     enrichedIndustry: company.enrichedIndustry || '',
     enrichedEmployeeCount: Number(company.enrichedEmployeeCount || 0),
     enrichedAnnualRevenue: Number(company.enrichedAnnualRevenue || 0),
