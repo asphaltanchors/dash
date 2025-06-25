@@ -134,7 +134,7 @@ lib/
 
 **Query Function Conventions:**
 - Export TypeScript interfaces for all data shapes
-- Use string date formatting for PostgreSQL date fields (`toISOString().split('T')[0]`)
+- Date fields are properly typed as DATE/TIMESTAMP from DBT pipeline
 - Include null checks and default values for all database fields
 - Centralize common filters (date ranges, status filters) as reusable functions
 
@@ -181,23 +181,23 @@ When working with database queries and schemas, IMMEDIATELY flag any issues in `
 4. **Prioritize based on code complexity reduction and data quality, NOT performance**
 5. **Ask: "Does this simplify application code or fix data issues?" rather than "Is this faster?"**
 
-## Memories
+## Key Reminders
 
-- When updating `@DBT_CANDIDATES.md` make a note of specifics that will help when coming back to resolve. e.g. if you say we should normalize a table, specify where the views are that use it so when it's done it's easy to update the code. You can use a very terse format - this is primarily going to be used for LLM communication, don't optimize for humans for that part.
+**Styling & Formatting:**
+- Using shadcn/ui with Tailwind CSS 4.0
+- Always format currencies with `formatCurrency()` function in `lib/utils`
+- Chart colors: Use `color: "var(--chart-1)"` NOT `color: "hsl(var(--chart-1))"`
 
-- we are using shadcn with TAILWIND 4.0.
-
-- currencies should always be formatted with the formatcurrency function in lib/utils
-
-- When updating @DBT_CANDIDATES.md ONLY specific requirements. we don't know anything about the implementation, actual raw DBT data, and getting to specific on what we need causes bad implementations. Be crystal clear on what problem we are trying to solve, and the requirements, but leave the implementation (e.g. what tables, what data sources, etc) to the implementation in the DBT code base.
-
-- when we identify DBT changes, don't bother implementing temporary fixes/work arounds here. Tell the user, then wait for them to tell you DBT is updated.
+**DBT Integration Workflow:**
+- When updating `DBT_CANDIDATES.md`, include specific implementation details for future reference
+- Focus on requirements and problems, not implementation details (tables, data sources)
+- Don't implement temporary workarounds - wait for DBT updates
+- Use terse format optimized for LLM communication
 
 ## Common Issues & Solutions
 
 **Chart Color Issues (Tailwind 4.0):**
 - **CRITICAL**: Charts showing black/missing colors means wrong color format in chartConfig
-- **FIX**: Use `color: "var(--chart-1)"` NOT `color: "hsl(var(--chart-1))"`
 - **Example**: 
   ```typescript
   const chartConfig = {
@@ -207,7 +207,6 @@ When working with database queries and schemas, IMMEDIATELY flag any issues in `
     },
   } satisfies ChartConfig
   ```
-- **DO NOT USE**: `"hsl(var(--chart-1))"` - this causes black charts in Tailwind 4.0
 
 **TypeScript/Build Errors:**
 - **Next.js 15 params**: Always use `const { param } = await params` for dynamic routes
