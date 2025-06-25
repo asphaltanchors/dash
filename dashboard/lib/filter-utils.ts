@@ -19,6 +19,7 @@ export interface ProductFilters extends BaseFilters {
   materialType?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ProductDetailFilters extends BaseFilters {
   // Product detail-specific filters can be added here in the future
 }

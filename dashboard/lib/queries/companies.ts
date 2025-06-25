@@ -2,6 +2,7 @@
 // ABOUTME: Handles company listings, detailed company profiles, and advanced company analytics
 import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart, fctCompanyOrdersTimeSeriesInAnalyticsMart, martProductCompanyPeriodSpendingInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count } from 'drizzle-orm';
+import { ProductDetailFilters } from '@/lib/filter-utils';
 
 export interface TopCompany {
   companyDomainKey: string;
