@@ -107,6 +107,30 @@ LEFT JOIN {{ ref('mart_product_trailing_sales') }} sales
 
 ## Resolved Items
 
+### ✅ Product Top Companies Period-Based Spending *(FIXED)*
+**Previous State**: Complex 4-table join query failing due to relationship mismatches
+**Failed Implementation**: `getTopCompaniesForProduct()` in lib/queries/companies.ts:637-686 blocking critical product analytics
+**Root Problem**: Period-filtered spending required transaction-level aggregation, not pre-aggregated lifetime totals
+**Business Need**: "Show me companies who bought Product X in the last 90 days and how much they spent in that period"
+
+**Resolution**: Implemented `mart_product_company_period_spending` DBT table
+**Implementation**: Created comprehensive period-based aggregation table with:
+- **Multiple periods**: 30d, 90d, 1y, all_time in single table
+- **Rich context**: Company details, product classifications, business categories
+- **Smart architecture**: Leverages existing `fct_order_line_items`, `bridge_customer_company`, `fct_companies`, `fct_company_products`
+- **Robust data quality**: 28 tests passing, proper NULL handling, edge case management
+- **15,384 rows** across all product-company-period combinations
+
+**Dashboard Integration**: Complex join eliminated, now simple query:
+```sql
+SELECT * FROM mart_product_company_period_spending 
+WHERE product_service = ? AND period_type = 'trailing_90d'
+ORDER BY total_amount_spent DESC LIMIT 10
+```
+
+**Status**: ✅ **RESOLVED** - Critical product analytics feature unblocked
+**Date**: 2024-12-25
+
 ### ✅ Date Fields Returning as Strings *(FIXED)*
 **Previous State**: Date fields defined as `date` but return strings in queries
 **Resolution**: Date fields are now properly typed as DATE/TIMESTAMP in DBT pipeline

@@ -3,7 +3,7 @@
 import { db, fctProductsInAnalyticsMart } from '@/lib/db';
 import { sql, count, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
-import { getDateRange, type ProductFilters } from '@/lib/filter-utils';
+import { getDateRange, type ProductFilters, type ProductDetailFilters } from '@/lib/filter-utils';
 
 export interface ProductMetrics {
   totalProducts: number;
@@ -155,8 +155,9 @@ export async function getProducts(limit: number = 50, filters?: ProductFilters):
   }));
 }
 
-// Get single product by name with trailing year sales data
+// Get single product by name with sales data (period-agnostic for product details)
 export async function getProductByName(itemName: string): Promise<Product | null> {
+  // Use 1-year lookback for basic product info - this is static product data
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
   const startDate = format(oneYearAgo, 'yyyy-MM-dd');
@@ -236,8 +237,11 @@ export async function getProductByName(itemName: string): Promise<Product | null
   };
 }
 
-// Get monthly revenue for a specific product (all time)
-export async function getProductMonthlyRevenue(itemName: string): Promise<WeeklyRevenue[]> {
+// Get monthly revenue for a specific product with period filtering
+export async function getProductMonthlyRevenue(itemName: string, filters?: ProductDetailFilters): Promise<WeeklyRevenue[]> {
+  const dateRange = getDateRange(filters?.period || '1y', false);
+  const startDate = dateRange.start;
+
   const monthlyData = await db.execute(sql`
     SELECT 
       DATE_TRUNC('month', order_date) as month_start,
@@ -246,6 +250,7 @@ export async function getProductMonthlyRevenue(itemName: string): Promise<Weekly
     FROM analytics_mart.fct_order_line_items
     WHERE product_service_amount IS NOT NULL
       AND product_service = ${itemName}
+      AND order_date >= ${startDate}
     GROUP BY DATE_TRUNC('month', order_date)
     ORDER BY month_start
   `);

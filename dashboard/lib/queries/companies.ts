@@ -1,6 +1,6 @@
 // ABOUTME: Company analysis and customer relationship management queries
 // ABOUTME: Handles company listings, detailed company profiles, and advanced company analytics
-import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart, fctCompanyOrdersTimeSeriesInAnalyticsMart } from '@/lib/db';
+import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart, fctCompanyOrdersTimeSeriesInAnalyticsMart, martProductCompanyPeriodSpendingInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count } from 'drizzle-orm';
 
 export interface TopCompany {
@@ -139,6 +139,19 @@ export interface CompanyTimeSeriesQuarter {
   exceptionalGrowthFlag: boolean;
   concerningDeclineFlag: boolean;
   isCurrentQuarter: boolean;
+}
+
+export interface ProductTopCompany {
+  companyDomainKey: string;
+  companyName: string;
+  totalAmountSpent: string;
+  totalTransactions: number;
+  totalQuantityPurchased: string;
+  avgUnitPrice: string;
+  firstPurchaseDate: string;
+  lastPurchaseDate: string;
+  buyerStatus: string;
+  purchaseVolumeCategory: string;
 }
 
 export async function getAllCompanies(
@@ -618,5 +631,53 @@ export async function getCompanyTimeSeriesData(domainKey: string): Promise<Compa
     exceptionalGrowthFlag: Boolean(quarter.exceptionalGrowthFlag),
     concerningDeclineFlag: Boolean(quarter.concerningDeclineFlag),
     isCurrentQuarter: Boolean(quarter.isCurrentQuarter),
+  }));
+}
+
+export async function getTopCompaniesForProduct(productName: string, limit: number = 10, filters?: ProductDetailFilters): Promise<ProductTopCompany[]> {
+  // Map period filter to DBT period types
+  const periodMapping: Record<string, string> = {
+    '7d': 'trailing_30d',    // Use 30d as closest available
+    '30d': 'trailing_30d',
+    '90d': 'trailing_90d', 
+    '1y': 'trailing_1y',
+    'all': 'all_time'
+  };
+  
+  const period = filters?.period || '1y';
+  const periodType = periodMapping[period] || 'trailing_1y';
+
+  // Query the pre-aggregated DBT mart table
+  const companies = await db
+    .select({
+      companyDomainKey: martProductCompanyPeriodSpendingInAnalyticsMart.companyDomainKey,
+      companyName: martProductCompanyPeriodSpendingInAnalyticsMart.companyName,
+      totalAmountSpent: martProductCompanyPeriodSpendingInAnalyticsMart.totalAmountSpent,
+      totalTransactions: martProductCompanyPeriodSpendingInAnalyticsMart.totalTransactions,
+      totalQuantityPurchased: martProductCompanyPeriodSpendingInAnalyticsMart.totalQuantityPurchased,
+      avgUnitPrice: martProductCompanyPeriodSpendingInAnalyticsMart.avgUnitPrice,
+      firstPurchaseDate: martProductCompanyPeriodSpendingInAnalyticsMart.firstPurchaseDate,
+      lastPurchaseDate: martProductCompanyPeriodSpendingInAnalyticsMart.lastPurchaseDate,
+      buyerStatus: martProductCompanyPeriodSpendingInAnalyticsMart.lifetimeBuyerStatus,
+      purchaseVolumeCategory: martProductCompanyPeriodSpendingInAnalyticsMart.lifetimeVolumeCategory,
+    })
+    .from(martProductCompanyPeriodSpendingInAnalyticsMart)
+    .where(sql`${martProductCompanyPeriodSpendingInAnalyticsMart.productService} = ${productName} 
+               AND ${martProductCompanyPeriodSpendingInAnalyticsMart.periodType} = ${periodType}
+               AND ${martProductCompanyPeriodSpendingInAnalyticsMart.totalAmountSpent} > 0`)
+    .orderBy(desc(martProductCompanyPeriodSpendingInAnalyticsMart.totalAmountSpent))
+    .limit(limit);
+
+  return companies.map(company => ({
+    companyDomainKey: company.companyDomainKey || '',
+    companyName: company.companyName || 'Unknown Company',
+    totalAmountSpent: Number(company.totalAmountSpent || 0).toFixed(2),
+    totalTransactions: Number(company.totalTransactions || 0),
+    totalQuantityPurchased: Number(company.totalQuantityPurchased || 0).toFixed(2),
+    avgUnitPrice: Number(company.avgUnitPrice || 0).toFixed(2),
+    firstPurchaseDate: company.firstPurchaseDate ? company.firstPurchaseDate.toString() : '',
+    lastPurchaseDate: company.lastPurchaseDate ? company.lastPurchaseDate.toString() : '',
+    buyerStatus: company.buyerStatus || 'Unknown',
+    purchaseVolumeCategory: company.purchaseVolumeCategory || 'Unknown',
   }));
 }

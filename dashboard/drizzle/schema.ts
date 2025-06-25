@@ -45,6 +45,48 @@ export const fctCompanyProductsInAnalyticsMart = analyticsMart.table("fct_compan
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
 });
 
+export const martProductCompanyPeriodSpendingInAnalyticsMart = analyticsMart.table("mart_product_company_period_spending", {
+	productService: varchar("product_service"),
+	companyDomainKey: varchar("company_domain_key"),
+	companyName: varchar("company_name"),
+	periodType: text("period_type"),
+	totalAmountSpent: numeric("total_amount_spent"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	totalTransactions: bigint("total_transactions", { mode: "number" }),
+	totalQuantityPurchased: numeric("total_quantity_purchased"),
+	avgUnitPrice: numeric("avg_unit_price"),
+	firstPurchaseDate: date("first_purchase_date"),
+	lastPurchaseDate: date("last_purchase_date"),
+	latestCustomer: text("latest_customer"),
+	latestSourceType: text("latest_source_type"),
+	domainType: varchar("domain_type"),
+	businessSizeCategory: text("business_size_category"),
+	companyRevenueCategory: text("company_revenue_category"),
+	primaryCountry: text("primary_country"),
+	region: text(),
+	companyCustomerCount: integer("company_customer_count"),
+	companyTotalRevenue: numeric("company_total_revenue"),
+	productFamily: text("product_family"),
+	materialType: text("material_type"),
+	isKit: boolean("is_kit"),
+	itemType: varchar("item_type"),
+	standardSalesPrice: numeric("standard_sales_price"),
+	standardPurchaseCost: numeric("standard_purchase_cost"),
+	standardMarginPercentage: numeric("standard_margin_percentage"),
+	lifetimeBuyerStatus: text("lifetime_buyer_status"),
+	lifetimeVolumeCategory: text("lifetime_volume_category"),
+	lifetimeFrequencyCategory: text("lifetime_frequency_category"),
+	lifetimeTotalSpent: numeric("lifetime_total_spent"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	lifetimeTotalTransactions: bigint("lifetime_total_transactions", { mode: "number" }),
+	periodBuyerStatus: text("period_buyer_status"),
+	periodSpendingCategory: text("period_spending_category"),
+	priceVariancePercentage: numeric("price_variance_percentage"),
+	periodShareOfLifetimeSpending: numeric("period_share_of_lifetime_spending"),
+	daysSinceLastPurchase: integer("days_since_last_purchase"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }),
+});
+
 export const fctCompanyOrdersTimeSeriesInAnalyticsMart = analyticsMart.table("fct_company_orders_time_series", {
 	companyDomainKey: varchar("company_domain_key"),
 	companyName: varchar("company_name"),

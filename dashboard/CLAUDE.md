@@ -189,6 +189,10 @@ When working with database queries and schemas, IMMEDIATELY flag any issues in `
 
 - currencies should always be formatted with the formatcurrency function in lib/utils
 
+- When updating @DBT_CANDIDATES.md ONLY specific requirements. we don't know anything about the implementation, actual raw DBT data, and getting to specific on what we need causes bad implementations. Be crystal clear on what problem we are trying to solve, and the requirements, but leave the implementation (e.g. what tables, what data sources, etc) to the implementation in the DBT code base.
+
+- when we identify DBT changes, don't bother implementing temporary fixes/work arounds here. Tell the user, then wait for them to tell you DBT is updated.
+
 ## Common Issues & Solutions
 
 **Chart Color Issues (Tailwind 4.0):**

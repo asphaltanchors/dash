@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation';
 import { getProductByName, getProductInventoryStatus, getProductInventoryTrend, getProductMonthlyRevenue } from '@/lib/queries';
+import { getTopCompaniesForProduct } from '@/lib/queries/companies';
+import { parseFilters, type ProductDetailFilters } from '@/lib/filter-utils';
+import { PeriodSelector } from '@/components/dashboard/PeriodSelector';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,18 +22,26 @@ import { formatCurrency } from '@/lib/utils';
 import { InventoryStatus } from '@/components/inventory/inventory-status';
 import { InventoryTrendChart } from '@/components/inventory/inventory-trend-chart';
 import { ProductSalesChart } from '@/components/dashboard/ProductSalesChart';
+import { TopCompaniesTable } from '@/components/dashboard/TopCompaniesTable';
 import { Suspense } from 'react';
 
 interface ProductDetailPageProps {
   params: Promise<{
     slug: string;
   }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 // Sales trend component
-async function ProductSalesSection({ productName }: { productName: string }) {
-  const salesData = await getProductMonthlyRevenue(productName);
+async function ProductSalesSection({ productName, filters }: { productName: string; filters?: ProductDetailFilters }) {
+  const salesData = await getProductMonthlyRevenue(productName, filters);
   return <ProductSalesChart data={salesData} />;
+}
+
+// Top companies component
+async function ProductTopCompaniesSection({ productName, filters }: { productName: string; filters?: ProductDetailFilters }) {
+  const topCompanies = await getTopCompaniesForProduct(productName, 10, filters);
+  return <TopCompaniesTable data={topCompanies} productName={productName} />;
 }
 
 // Inventory components
@@ -77,6 +88,32 @@ function SalesChartLoadingSkeleton() {
   );
 }
 
+function TopCompaniesLoadingSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="h-6 bg-gray-200 rounded w-32 animate-pulse mb-2" />
+        <div className="h-4 bg-gray-200 rounded w-64 animate-pulse" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-2">
+              <div className="h-4 bg-gray-200 rounded w-40 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-12 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-16 animate-pulse" />
+              <div className="h-4 bg-gray-200 rounded w-20 animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function InventoryLoadingSkeleton() {
   return (
     <div className="space-y-6">
@@ -111,13 +148,22 @@ function InventoryLoadingSkeleton() {
   );
 }
 
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+export default async function ProductDetailPage({ params, searchParams }: ProductDetailPageProps) {
   const { slug } = await params;
   const productName = decodeURIComponent(slug);
   const product = await getProductByName(productName);
   
   if (!product) {
     notFound();
+  }
+
+  // Parse filters from URL parameters
+  const searchParamsObj = await searchParams;
+  const filters = parseFilters<ProductDetailFilters>(searchParamsObj);
+  
+  // Default to 1 year period if no period specified
+  if (!filters.period) {
+    filters.period = '1y';
   }
 
   return (
@@ -140,6 +186,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+        </div>
+        <div className="ml-auto px-4">
+          <PeriodSelector currentPeriod={filters.period || '1y'} filters={filters as Record<string, string | number | boolean | undefined>} />
         </div>
       </header>
       <div className="flex-1 space-y-4 p-4 md:p-6 pt-6 min-w-0">
@@ -225,7 +274,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         </Card>
 
         <Suspense fallback={<SalesChartLoadingSkeleton />}>
-          <ProductSalesSection productName={productName} />
+          <ProductSalesSection productName={productName} filters={filters} />
+        </Suspense>
+
+        <Suspense fallback={<TopCompaniesLoadingSkeleton />}>
+          <ProductTopCompaniesSection productName={productName} filters={filters} />
         </Suspense>
 
         <Suspense fallback={<InventoryLoadingSkeleton />}>

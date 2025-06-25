@@ -19,6 +19,10 @@ export interface ProductFilters extends BaseFilters {
   materialType?: string;
 }
 
+export interface ProductDetailFilters extends BaseFilters {
+  // Product detail-specific filters can be added here in the future
+}
+
 export interface OrderFilters extends BaseFilters {
   search?: string;
   status?: string;
@@ -43,6 +47,7 @@ const PERIOD_SHORTCUTS = {
   '30d': { days: 30, label: '30 days' },
   '90d': { days: 90, label: '90 days' },
   '1y': { years: 1, label: '1 year' },
+  'all': { all: true, label: 'All time' },
 } as const;
 
 export type PeriodShortcut = keyof typeof PERIOD_SHORTCUTS;
@@ -96,6 +101,16 @@ export function parseFilters<T extends BaseFilters>(
 // Convert period shortcut to actual date range
 export function getDateRange(period: string = '30d', includeComparison: boolean = true): DateRange {
   const today = endOfDay(new Date());
+  
+  // Handle "all time" period - return very early start date to include all data
+  if (period === 'all') {
+    return {
+      start: '1900-01-01', // Very early date to include all historical data
+      end: format(today, 'yyyy-MM-dd'),
+      // No comparison period for "all time"
+    };
+  }
+
   let startDate: Date;
 
   // Parse period shortcut
@@ -103,8 +118,11 @@ export function getDateRange(period: string = '30d', includeComparison: boolean 
     const periodConfig = PERIOD_SHORTCUTS[period as PeriodShortcut];
     if ('days' in periodConfig) {
       startDate = startOfDay(subDays(today, periodConfig.days));
-    } else {
+    } else if ('years' in periodConfig) {
       startDate = startOfDay(subYears(today, periodConfig.years));
+    } else {
+      // Fallback for any other config (shouldn't happen)
+      startDate = startOfDay(subDays(today, 30));
     }
   } else {
     // Default to 30 days if period not recognized
