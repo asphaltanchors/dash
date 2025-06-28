@@ -130,8 +130,8 @@ export function InventoryStatus({ inventory }: InventoryStatusProps) {
               <Badge className={getStatusColor(inventory.itemStatus)}>
                 {inventory.itemStatus}
               </Badge>
-              {inventory.isBackup && (
-                <Badge variant="outline">Backup Item</Badge>
+              {inventory.isSeed && (
+                <Badge variant="outline">Seed Item</Badge>
               )}
             </div>
           </CardContent>

@@ -20,7 +20,17 @@ export interface OrderDetail {
   salesRep: string | null;
   currency: string | null;
   billingAddress: string | null;
+  billingAddressCity: string | null;
+  billingAddressState: string | null;
+  billingAddressPostalCode: string | null;
+  billingAddressCountry: string | null;
   shippingAddress: string | null;
+  shippingAddressCity: string | null;
+  shippingAddressState: string | null;
+  shippingAddressPostalCode: string | null;
+  shippingAddressCountry: string | null;
+  companyDomain: string | null;
+  isIndividualCustomer: boolean;
 }
 
 export interface OrderLineItem {
@@ -75,9 +85,23 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail
       salesRep: baseFctOrdersCurrentInAnalyticsMart.salesRep,
       currency: baseFctOrdersCurrentInAnalyticsMart.currency,
       billingAddress: baseFctOrdersCurrentInAnalyticsMart.billingAddress,
+      billingAddressCity: baseFctOrdersCurrentInAnalyticsMart.billingAddressCity,
+      billingAddressState: baseFctOrdersCurrentInAnalyticsMart.billingAddressState,
+      billingAddressPostalCode: baseFctOrdersCurrentInAnalyticsMart.billingAddressPostalCode,
+      billingAddressCountry: baseFctOrdersCurrentInAnalyticsMart.billingAddressCountry,
       shippingAddress: baseFctOrdersCurrentInAnalyticsMart.shippingAddress,
+      shippingAddressCity: baseFctOrdersCurrentInAnalyticsMart.shippingAddressCity,
+      shippingAddressState: baseFctOrdersCurrentInAnalyticsMart.shippingAddressState,
+      shippingAddressPostalCode: baseFctOrdersCurrentInAnalyticsMart.shippingAddressPostalCode,
+      shippingAddressCountry: baseFctOrdersCurrentInAnalyticsMart.shippingAddressCountry,
+      companyDomain: bridgeCustomerCompanyInAnalyticsMart.companyDomainKey,
+      isIndividualCustomer: bridgeCustomerCompanyInAnalyticsMart.isIndividualCustomer,
     })
     .from(baseFctOrdersCurrentInAnalyticsMart)
+    .leftJoin(
+      bridgeCustomerCompanyInAnalyticsMart,
+      eq(baseFctOrdersCurrentInAnalyticsMart.customer, bridgeCustomerCompanyInAnalyticsMart.customerName)
+    )
     .where(sql`${baseFctOrdersCurrentInAnalyticsMart.orderNumber} = ${orderNumber}`)
     .limit(1);
 
@@ -103,7 +127,17 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail
     salesRep: order.salesRep,
     currency: order.currency,
     billingAddress: order.billingAddress,
+    billingAddressCity: order.billingAddressCity,
+    billingAddressState: order.billingAddressState,
+    billingAddressPostalCode: order.billingAddressPostalCode,
+    billingAddressCountry: order.billingAddressCountry,
     shippingAddress: order.shippingAddress,
+    shippingAddressCity: order.shippingAddressCity,
+    shippingAddressState: order.shippingAddressState,
+    shippingAddressPostalCode: order.shippingAddressPostalCode,
+    shippingAddressCountry: order.shippingAddressCountry,
+    companyDomain: order.companyDomain,
+    isIndividualCustomer: order.isIndividualCustomer || false,
   };
 }
 

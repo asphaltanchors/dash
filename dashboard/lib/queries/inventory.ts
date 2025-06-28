@@ -16,7 +16,7 @@ export interface InventorySnapshot {
   inventoryValueAtCost: string;
   inventoryValueAtSalesPrice: string;
   itemStatus: string;
-  isBackup: boolean;
+  isSeed: boolean;
 }
 
 export interface InventoryTrend {
@@ -42,7 +42,7 @@ export async function getProductInventoryStatus(itemName: string): Promise<Inven
       inventoryValueAtCost: fctInventoryHistoryInAnalyticsMart.inventoryValueAtCost,
       inventoryValueAtSalesPrice: fctInventoryHistoryInAnalyticsMart.inventoryValueAtSalesPrice,
       itemStatus: fctInventoryHistoryInAnalyticsMart.itemStatus,
-      isBackup: fctInventoryHistoryInAnalyticsMart.isBackup,
+      isSeed: fctInventoryHistoryInAnalyticsMart.isSeed,
     })
     .from(fctInventoryHistoryInAnalyticsMart)
     .where(sql`${fctInventoryHistoryInAnalyticsMart.itemName} = ${itemName}`)
@@ -67,7 +67,7 @@ export async function getProductInventoryStatus(itemName: string): Promise<Inven
     inventoryValueAtCost: Number(item.inventoryValueAtCost || 0).toFixed(2),
     inventoryValueAtSalesPrice: Number(item.inventoryValueAtSalesPrice || 0).toFixed(2),
     itemStatus: item.itemStatus || 'Unknown',
-    isBackup: item.isBackup || false,
+    isSeed: item.isSeed || false,
   };
 }
 

@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getOrderByNumber, getOrderLineItems } from '@/lib/queries'
-import { formatCurrency, formatNumber } from '@/lib/utils'
+import { formatCurrency, formatNumber, formatCompleteAddress, shouldShowCompanyLink } from '@/lib/utils'
 
 interface OrderPageProps {
   params: Promise<{ slug: string }>
@@ -50,7 +50,7 @@ async function OrderLineItems({ orderNumber }: { orderNumber: string }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Product/Service</TableHead>
+              <TableHead>Product</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="text-right">Qty</TableHead>
               <TableHead className="text-right">Rate</TableHead>
@@ -64,7 +64,16 @@ async function OrderLineItems({ orderNumber }: { orderNumber: string }) {
               <TableRow key={`${item.lineItemId}-${index}`}>
                 <TableCell className="font-medium">
                   <div className="max-w-[200px]">
-                    <div className="truncate">{item.productService}</div>
+                    {item.productService ? (
+                      <Link 
+                        href={`/products/${encodeURIComponent(item.productService)}`}
+                        className="truncate hover:underline text-blue-600"
+                      >
+                        {item.productService}
+                      </Link>
+                    ) : (
+                      <div className="truncate">{item.productService}</div>
+                    )}
                     {item.unitOfMeasure && (
                       <div className="text-xs text-muted-foreground">
                         Unit: {item.unitOfMeasure}
@@ -205,18 +214,43 @@ async function OrderDetails({ orderNumber }: { orderNumber: string }) {
           <CardContent className="space-y-4">
             <div>
               <h4 className="font-medium">Customer</h4>
-              <p className="text-muted-foreground">{order.customer}</p>
+              {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
+                <Link 
+                  href={`/company/${order.companyDomain}`}
+                  className="text-muted-foreground hover:underline hover:text-blue-600"
+                >
+                  {order.customer}
+                </Link>
+              ) : (
+                <p className="text-muted-foreground">{order.customer}</p>
+              )}
             </div>
-            {order.billingAddress && (
+            {(order.billingAddress || order.billingAddressCity || order.billingAddressState) && (
               <div>
                 <h4 className="font-medium">Billing Address</h4>
-                <p className="text-muted-foreground whitespace-pre-line">{order.billingAddress}</p>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {formatCompleteAddress({
+                    address: order.billingAddress,
+                    city: order.billingAddressCity,
+                    state: order.billingAddressState,
+                    postalCode: order.billingAddressPostalCode,
+                    country: order.billingAddressCountry
+                  })}
+                </p>
               </div>
             )}
-            {order.shippingAddress && (
+            {(order.shippingAddress || order.shippingAddressCity || order.shippingAddressState) && (
               <div>
                 <h4 className="font-medium">Shipping Address</h4>
-                <p className="text-muted-foreground whitespace-pre-line">{order.shippingAddress}</p>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {formatCompleteAddress({
+                    address: order.shippingAddress,
+                    city: order.shippingAddressCity,
+                    state: order.shippingAddressState,
+                    postalCode: order.shippingAddressPostalCode,
+                    country: order.shippingAddressCountry
+                  })}
+                </p>
               </div>
             )}
           </CardContent>
