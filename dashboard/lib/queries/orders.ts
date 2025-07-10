@@ -1,6 +1,6 @@
 // ABOUTME: Order-related queries including detailed order information and line items
 // ABOUTME: Handles order searches, pagination, filtering, and order line item management
-import { db, baseFctOrdersCurrentInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart } from '@/lib/db';
+import { db, baseFctOrdersCurrentInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctProductPricingHistoryInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count, and, eq } from 'drizzle-orm';
 
 export interface OrderDetail {
@@ -45,6 +45,9 @@ export interface OrderLineItem {
   materialType: string | null;
   marginPercentage: string | null;
   marginAmount: string | null;
+  historicalRetailPrice: string | null;
+  historicalDiscountPercentage: string | null;
+  retailPriceSource: string | null;
 }
 
 export interface OrderTableItem {
@@ -156,24 +159,40 @@ export async function getOrderLineItems(orderNumber: string): Promise<OrderLineI
       materialType: fctOrderLineItemsInAnalyticsMart.materialType,
       marginPercentage: fctOrderLineItemsInAnalyticsMart.marginPercentage,
       marginAmount: fctOrderLineItemsInAnalyticsMart.marginAmount,
+      orderDate: fctOrderLineItemsInAnalyticsMart.orderDate,
+      retailPriceAtDate: fctProductPricingHistoryInAnalyticsMart.retailPriceAtDate,
+      discountFromRetailPct: fctProductPricingHistoryInAnalyticsMart.discountFromRetailPct,
+      retailPriceSource: fctProductPricingHistoryInAnalyticsMart.retailPriceSource,
     })
     .from(fctOrderLineItemsInAnalyticsMart)
+    .leftJoin(
+      fctProductPricingHistoryInAnalyticsMart,
+      and(
+        eq(fctOrderLineItemsInAnalyticsMart.productService, fctProductPricingHistoryInAnalyticsMart.productService),
+        eq(fctOrderLineItemsInAnalyticsMart.orderDate, fctProductPricingHistoryInAnalyticsMart.orderDate)
+      )
+    )
     .where(sql`${fctOrderLineItemsInAnalyticsMart.orderNumber} = ${orderNumber}`)
     .orderBy(fctOrderLineItemsInAnalyticsMart.lineItemId);
 
-  return lineItems.map(item => ({
-    lineItemId: item.lineItemId || 'N/A',
-    productService: item.productService || 'Unknown',
-    productServiceDescription: item.productServiceDescription || '',
-    quantity: Number(item.productServiceQuantity || 0).toFixed(2),
-    rate: Number(item.productServiceRate || 0).toFixed(2),
-    amount: Number(item.productServiceAmount || 0).toFixed(2),
-    unitOfMeasure: item.unitOfMeasure,
-    productFamily: item.productFamily,
-    materialType: item.materialType,
-    marginPercentage: item.marginPercentage ? Number(item.marginPercentage).toFixed(1) : null,
-    marginAmount: item.marginAmount ? Number(item.marginAmount).toFixed(2) : null,
-  }));
+  return lineItems.map(item => {
+    return {
+      lineItemId: item.lineItemId || 'N/A',
+      productService: item.productService || 'Unknown',
+      productServiceDescription: item.productServiceDescription || '',
+      quantity: Number(item.productServiceQuantity || 0).toFixed(2),
+      rate: Number(item.productServiceRate || 0).toFixed(2),
+      amount: Number(item.productServiceAmount || 0).toFixed(2),
+      unitOfMeasure: item.unitOfMeasure,
+      productFamily: item.productFamily,
+      materialType: item.materialType,
+      marginPercentage: item.marginPercentage ? Number(item.marginPercentage).toFixed(1) : null,
+      marginAmount: item.marginAmount ? Number(item.marginAmount).toFixed(2) : null,
+      historicalRetailPrice: item.retailPriceAtDate ? Number(item.retailPriceAtDate).toFixed(2) : null,
+      historicalDiscountPercentage: item.discountFromRetailPct ? Number(item.discountFromRetailPct).toFixed(1) : null,
+      retailPriceSource: item.retailPriceSource,
+    };
+  });
 }
 
 // Get all orders with pagination, sorting, and search

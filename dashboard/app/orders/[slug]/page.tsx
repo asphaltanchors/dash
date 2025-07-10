@@ -53,6 +53,8 @@ async function OrderLineItems({ orderNumber }: { orderNumber: string }) {
               <TableHead>Product</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="text-right">Qty</TableHead>
+              <TableHead className="text-right">Retail Price</TableHead>
+              <TableHead className="text-right">Discount %</TableHead>
               <TableHead className="text-right">Rate</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Family</TableHead>
@@ -88,6 +90,27 @@ async function OrderLineItems({ orderNumber }: { orderNumber: string }) {
                 </TableCell>
                 <TableCell className="text-right">
                   {formatQuantity(item.quantity)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {item.historicalRetailPrice ? (
+                    <div>
+                      <div>{formatCurrency(item.historicalRetailPrice)}</div>
+                      {item.retailPriceSource && (
+                        <div className="text-xs text-muted-foreground">
+                          {item.retailPriceSource === 'STABLE_PATTERN' ? 'Historical' : 'Estimated'}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {item.historicalDiscountPercentage ? (
+                    <span className="text-green-600 font-medium">{item.historicalDiscountPercentage}%</span>
+                  ) : (
+                    '-'
+                  )}
                 </TableCell>
                 <TableCell className="text-right">
                   {formatCurrency(item.rate)}
