@@ -39,6 +39,10 @@ export function RevenueChart({ data, period = '30d' }: RevenueChartProps) {
       dateFormat = { month: 'short', year: '2-digit' };
       granularityLabel = 'Monthly';
       break;
+    case 'all':
+      dateFormat = { month: 'short', year: 'numeric' };
+      granularityLabel = 'Quarterly';
+      break;
     default:
       dateFormat = { month: 'short', day: 'numeric' };
       granularityLabel = 'Weekly';

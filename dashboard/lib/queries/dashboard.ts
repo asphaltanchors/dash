@@ -51,8 +51,11 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
   const currentDateRange = getDateRange(filters.period || '30d', true);
   const currentStart = currentDateRange.start;
   const currentEnd = currentDateRange.end;
-  const previousStart = currentDateRange.compareStart!;
-  const previousEnd = currentDateRange.compareEnd!;
+  
+  // For "all" period, use a fallback comparison period (previous year)
+  const fallbackDateRange = getDateRange('1y', true);
+  const previousStart = currentDateRange.compareStart || fallbackDateRange.compareStart!;
+  const previousEnd = currentDateRange.compareEnd || fallbackDateRange.compareEnd!;
 
   // Calculate 365 day periods (for 365 day sales card)
   const yearDateRange = getDateRange('1y', true);
@@ -281,6 +284,9 @@ export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<
       break;
     case '1y':
       dateGrouping = 'month'; // Monthly granularity for 1 year
+      break;
+    case 'all':
+      dateGrouping = 'quarter'; // Quarterly granularity for all time
       break;
     default:
       dateGrouping = 'week';

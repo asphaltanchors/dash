@@ -107,6 +107,14 @@ LEFT JOIN {{ ref('mart_product_trailing_sales') }} sales
 
 ## Resolved Items
 
+### ✅ Bridge Table Duplicate Rows *(FIXED)*
+**Previous State**: `bridge_customer_company` table contained exact duplicate rows with different `customer_modified_date` values
+**Impact**: Recent Orders view showed duplicate entries (e.g., A6983, A6958 appearing twice)
+**Root Cause**: DBT pipeline was creating new rows on customer updates instead of updating existing records
+**Resolution**: Fixed DBT pipeline to use proper upsert logic instead of INSERT-only approach
+**Status**: ✅ **RESOLVED** - Bridge table duplicates eliminated at source
+**Date**: 2025-07-08
+
 ### ✅ Product Top Companies Period-Based Spending *(FIXED)*
 **Previous State**: Complex 4-table join query failing due to relationship mismatches
 **Failed Implementation**: `getTopCompaniesForProduct()` in lib/queries/companies.ts:637-686 blocking critical product analytics
