@@ -69,3 +69,11 @@ export {
   getFamilySales,
   type FamilySales,
 } from './families';
+
+// Contact queries and interfaces
+export {
+  getContacts,
+  getCompanyContacts,
+  type Contact,
+  type ContactFilters,
+} from './contacts';

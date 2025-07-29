@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getCompanyByDomain, getCompanyOrderTimeline, getCompanyProductAnalysis, getCompanyHealthBasic, getCompanyTimeSeriesData } from '@/lib/queries';
+import { getCompanyByDomain, getCompanyOrderTimeline, getCompanyProductAnalysis, getCompanyHealthBasic, getCompanyTimeSeriesData, getCompanyContacts } from '@/lib/queries';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -69,11 +69,11 @@ async function CompanyHero({ domain }: { domain: string }) {
         
         {/* Quick Actions */}
         <div className="flex gap-2">
-          {company.primaryEmail && (
+          <Link href={`/contacts?search=${encodeURIComponent(company.companyName)}`}>
             <Badge variant="outline" className="cursor-pointer hover:bg-muted">
-              📧 Contact
+              👥 View Contacts
             </Badge>
-          )}
+          </Link>
           <Badge variant="outline">{company.domainType}</Badge>
         </div>
       </div>
@@ -312,7 +312,10 @@ async function FinancialPerformance({ domain }: { domain: string }) {
 
 // Company Intelligence Section
 async function CompanyIntelligence({ domain }: { domain: string }) {
-  const company = await getCompanyByDomain(domain);
+  const [company, contacts] = await Promise.all([
+    getCompanyByDomain(domain),
+    getCompanyContacts(domain)
+  ]);
   
   if (!company) return null;
 
@@ -386,37 +389,108 @@ async function CompanyIntelligence({ domain }: { domain: string }) {
         </CardContent>
       </Card>
 
-      {/* Contact Information */}
+      {/* Contact Persons */}
       <Card>
         <CardHeader>
-          <CardTitle>Contact Information</CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Contact Persons</CardTitle>
+              <CardDescription>
+                {contacts.length} contact{contacts.length !== 1 ? 's' : ''} on file
+              </CardDescription>
+            </div>
+            {contacts.length > 0 && (
+              <Link href={`/contacts?search=${encodeURIComponent(company.companyName)}`}>
+                <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                  View All
+                </Badge>
+              </Link>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {company.primaryEmail && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Email</p>
-              <p className="text-sm">{company.primaryEmail}</p>
-            </div>
-          )}
-          {company.primaryPhone && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Phone</p>
-              <p className="text-sm">{company.primaryPhone}</p>
-            </div>
-          )}
-          {(company.primaryBillingAddressLine1 || company.primaryBillingCity) && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Address</p>
-              <div className="text-sm space-y-1">
-                {company.primaryBillingAddressLine1 && <div>{company.primaryBillingAddressLine1}</div>}
-                {(company.primaryBillingCity || company.primaryBillingState) && (
-                  <div>
-                    {company.primaryBillingCity}
-                    {company.primaryBillingCity && company.primaryBillingState && ', '}
-                    {company.primaryBillingState} {company.primaryBillingPostalCode}
+        <CardContent>
+          {contacts.length > 0 ? (
+            <div className="space-y-3">
+              {contacts.slice(0, 4).map((contact, index) => (
+                <div key={contact.contactDimKey || index} className="p-3 rounded-lg border bg-card">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium">{contact.fullName || 'Unknown'}</p>
+                      {contact.isPrimaryCompanyContact && (
+                        <Badge variant="default" className="text-xs">Primary</Badge>
+                      )}
+                      {contact.keyAccountContact && (
+                        <Badge variant="secondary" className="text-xs">Key Account</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {contact.contactRole && (
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {contact.contactRole}
+                        </Badge>
+                      )}
+                      {contact.contactDataQuality && (
+                        <Badge 
+                          variant={
+                            contact.contactDataQuality === 'complete' ? 'default' :
+                            contact.contactDataQuality === 'partial' ? 'secondary' : 'destructive'
+                          } 
+                          className="text-xs"
+                        >
+                          {contact.contactDataQuality}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                  
+                  {contact.jobTitle && (
+                    <p className="text-sm text-muted-foreground mb-2">{contact.jobTitle}</p>
+                  )}
+                  
+                  <div className="space-y-1">
+                    {contact.primaryEmail && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">📧</span>
+                        <span className="font-mono text-sm">{contact.primaryEmail}</span>
+                        {contact.emailMarketable && (
+                          <Badge variant="outline" className="text-xs">Marketable</Badge>
+                        )}
+                      </div>
+                    )}
+                    {contact.primaryPhone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">📞</span>
+                        <span className="font-mono text-sm">{contact.primaryPhone}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {contacts.length > 4 && (
+                <div className="text-center pt-2">
+                  <Link href={`/contacts?search=${encodeURIComponent(company.companyName)}`}>
+                    <Badge variant="outline" className="cursor-pointer hover:bg-muted">
+                      +{contacts.length - 4} more contacts
+                    </Badge>
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No contact persons found for this company</p>
+              <p className="text-sm mt-1">Contact information may be available in legacy data</p>
+              {(company.primaryEmail || company.primaryPhone) && (
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium mb-2">Legacy Contact Info:</p>
+                  {company.primaryEmail && (
+                    <div className="text-sm">📧 {company.primaryEmail}</div>
+                  )}
+                  {company.primaryPhone && (
+                    <div className="text-sm">📞 {company.primaryPhone}</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

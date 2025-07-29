@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Package,
   Building2,
+  Users,
 } from "lucide-react"
 
 import {
@@ -43,6 +44,11 @@ const data = {
       title: "Companies",
       url: "/companies",
       icon: Building2,
+    },
+    {
+      title: "Contacts",
+      url: "/contacts",
+      icon: Users,
     },
   ],
 }
