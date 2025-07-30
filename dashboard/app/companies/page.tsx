@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { getCompaniesWithHealth } from '@/lib/queries';
+import { parseFilters, type CompanyFilters } from '@/lib/filter-utils';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { DataTable } from "@/components/companies/data-table";
 import { SearchInput } from "@/components/companies/search-input";
+import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 
 interface CompaniesPageProps {
   searchParams: Promise<{ 
@@ -22,6 +24,7 @@ interface CompaniesPageProps {
     revenueCategory?: string
     healthCategory?: string
     country?: string
+    period?: string
   }>
 }
 
@@ -42,6 +45,7 @@ async function CompaniesTable({
     revenueCategory?: string
     healthCategory?: string
     country?: string
+    period?: string
   }
 }) {
   // Server-side search and sorting - only fetch relevant results
@@ -92,18 +96,26 @@ function LoadingTable() {
 }
 
 export default async function CompaniesPage({ searchParams }: CompaniesPageProps) {
-  const { search, sortBy, sortOrder, page, activityStatus, businessSize, revenueCategory, healthCategory, country } = await searchParams
-  const searchTerm = search || ''
-  const currentSortBy = sortBy || 'totalRevenue'
-  const currentSortOrder = sortOrder || 'desc'
-  const currentPage = parseInt(page || '1', 10)
+  const params = await searchParams;
+  const filters = parseFilters<CompanyFilters>(params);
   
-  const filters = {
-    activityStatus: activityStatus || undefined,
-    businessSize: businessSize || undefined,
-    revenueCategory: revenueCategory || undefined,
-    healthCategory: healthCategory || undefined,
-    country: country || undefined,
+  // Default to 'all' period if no period specified
+  if (!filters.period) {
+    filters.period = 'all';
+  }
+  
+  const searchTerm = filters.search || ''
+  const currentSortBy = params.sortBy || 'totalRevenue'
+  const currentSortOrder = (params.sortOrder as 'asc' | 'desc') || 'desc'
+  const currentPage = parseInt((params.page as string) || '1', 10)
+  
+  const queryFilters = {
+    activityStatus: params.activityStatus as string || undefined,
+    businessSize: params.businessSize as string || undefined,
+    revenueCategory: params.revenueCategory as string || undefined,
+    healthCategory: params.healthCategory as string || undefined,
+    country: params.country as string || undefined,
+    period: filters.period,
   }
 
   return (
@@ -132,15 +144,16 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
               Search and manage all corporate customers (excludes individual email domains)
             </p>
           </div>
+          <PeriodSelector currentPeriod={filters.period || 'all'} filters={filters as Record<string, string | number | boolean | undefined>} />
         </div>
         
-        <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}-${JSON.stringify(filters)}`}>
+        <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}-${JSON.stringify(queryFilters)}`}>
           <CompaniesTable 
             searchTerm={searchTerm}
             sortBy={currentSortBy}
             sortOrder={currentSortOrder}
             page={currentPage}
-            filters={filters}
+            filters={queryFilters}
           />
         </Suspense>
       </div>

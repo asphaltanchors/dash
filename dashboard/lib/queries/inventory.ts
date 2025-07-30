@@ -66,7 +66,7 @@ export async function getProductInventoryStatus(itemName: string): Promise<Inven
     previousQuantityOnHand: Number(item.previousQuantityOnHand || 0).toFixed(0),
     inventoryValueAtCost: Number(item.inventoryValueAtCost || 0).toFixed(2),
     inventoryValueAtSalesPrice: Number(item.inventoryValueAtSalesPrice || 0).toFixed(2),
-    itemStatus: item.itemStatus || 'Unknown',
+    itemStatus: typeof item.itemStatus === 'string' ? item.itemStatus : 'Unknown',
     isSeed: item.isSeed || false,
   };
 }

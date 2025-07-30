@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/db'
 import { dimCustomerContactsInAnalyticsMart } from '@/lib/db/schema'
-import { desc, asc, ilike, eq, and, or, count } from 'drizzle-orm'
+import { desc, asc, ilike, eq, and, or, count, type SQL } from 'drizzle-orm'
 
 export interface ContactFilters {
   search?: string
@@ -46,40 +46,18 @@ export async function getContacts(
 ) {
   const offset = (page - 1) * pageSize
 
-  let query = db
-    .select({
-      contactDimKey: dimCustomerContactsInAnalyticsMart.contactDimKey,
-      fullName: dimCustomerContactsInAnalyticsMart.fullName,
-      firstName: dimCustomerContactsInAnalyticsMart.firstName,
-      lastName: dimCustomerContactsInAnalyticsMart.lastName,
-      jobTitle: dimCustomerContactsInAnalyticsMart.jobTitle,
-      primaryEmail: dimCustomerContactsInAnalyticsMart.primaryEmail,
-      primaryPhone: dimCustomerContactsInAnalyticsMart.primaryPhone,
-      companyName: dimCustomerContactsInAnalyticsMart.companyName,
-      contactRole: dimCustomerContactsInAnalyticsMart.contactRole,
-      isPrimaryCompanyContact: dimCustomerContactsInAnalyticsMart.isPrimaryCompanyContact,
-      businessSizeCategory: dimCustomerContactsInAnalyticsMart.businessSizeCategory,
-      revenueCategory: dimCustomerContactsInAnalyticsMart.revenueCategory,
-      contactDataQuality: dimCustomerContactsInAnalyticsMart.contactDataQuality,
-      contactTier: dimCustomerContactsInAnalyticsMart.contactTier,
-      emailMarketable: dimCustomerContactsInAnalyticsMart.emailMarketable,
-      keyAccountContact: dimCustomerContactsInAnalyticsMart.keyAccountContact,
-      companyTotalRevenue: dimCustomerContactsInAnalyticsMart.companyTotalRevenue,
-      companyTotalOrders: dimCustomerContactsInAnalyticsMart.companyTotalOrders,
-    })
-    .from(dimCustomerContactsInAnalyticsMart)
-
   // Build where conditions
-  const whereConditions = []
+  const whereConditions: SQL[] = []
 
   if (searchTerm) {
-    whereConditions.push(
-      or(
-        ilike(dimCustomerContactsInAnalyticsMart.fullName, `%${searchTerm}%`),
-        ilike(dimCustomerContactsInAnalyticsMart.primaryEmail, `%${searchTerm}%`),
-        ilike(dimCustomerContactsInAnalyticsMart.companyName, `%${searchTerm}%`)
-      )
+    const searchCondition = or(
+      ilike(dimCustomerContactsInAnalyticsMart.fullName, `%${searchTerm}%`),
+      ilike(dimCustomerContactsInAnalyticsMart.primaryEmail, `%${searchTerm}%`),
+      ilike(dimCustomerContactsInAnalyticsMart.companyName, `%${searchTerm}%`)
     )
+    if (searchCondition) {
+      whereConditions.push(searchCondition)
+    }
   }
 
   if (filters.contactRole) {
@@ -106,11 +84,7 @@ export async function getContacts(
     whereConditions.push(eq(dimCustomerContactsInAnalyticsMart.keyAccountContact, filters.keyAccountContact))
   }
 
-  if (whereConditions.length > 0) {
-    query = query.where(and(...whereConditions))
-  }
-
-  // Add sorting
+  // Build the query with sorting
   const sortField = sortBy === 'fullName' 
     ? dimCustomerContactsInAnalyticsMart.fullName
     : sortBy === 'companyName'
@@ -119,23 +93,45 @@ export async function getContacts(
     ? dimCustomerContactsInAnalyticsMart.primaryEmail
     : dimCustomerContactsInAnalyticsMart.companyTotalRevenue
 
-  query = query.orderBy(sortOrder === 'desc' ? desc(sortField) : asc(sortField))
+  // Build and execute the main query
+  const queryBuilder = db
+    .select({
+      contactDimKey: dimCustomerContactsInAnalyticsMart.contactDimKey,
+      fullName: dimCustomerContactsInAnalyticsMart.fullName,
+      firstName: dimCustomerContactsInAnalyticsMart.firstName,
+      lastName: dimCustomerContactsInAnalyticsMart.lastName,
+      jobTitle: dimCustomerContactsInAnalyticsMart.jobTitle,
+      primaryEmail: dimCustomerContactsInAnalyticsMart.primaryEmail,
+      primaryPhone: dimCustomerContactsInAnalyticsMart.primaryPhone,
+      companyName: dimCustomerContactsInAnalyticsMart.companyName,
+      contactRole: dimCustomerContactsInAnalyticsMart.contactRole,
+      isPrimaryCompanyContact: dimCustomerContactsInAnalyticsMart.isPrimaryCompanyContact,
+      businessSizeCategory: dimCustomerContactsInAnalyticsMart.businessSizeCategory,
+      revenueCategory: dimCustomerContactsInAnalyticsMart.revenueCategory,
+      contactDataQuality: dimCustomerContactsInAnalyticsMart.contactDataQuality,
+      contactTier: dimCustomerContactsInAnalyticsMart.contactTier,
+      emailMarketable: dimCustomerContactsInAnalyticsMart.emailMarketable,
+      keyAccountContact: dimCustomerContactsInAnalyticsMart.keyAccountContact,
+      companyTotalRevenue: dimCustomerContactsInAnalyticsMart.companyTotalRevenue,
+      companyTotalOrders: dimCustomerContactsInAnalyticsMart.companyTotalOrders,
+    })
+    .from(dimCustomerContactsInAnalyticsMart)
 
-  // Add pagination
-  query = query.limit(pageSize).offset(offset)
-
-  const contacts = await query
+  const contacts = await (whereConditions.length > 0
+    ? queryBuilder.where(and(...whereConditions))
+    : queryBuilder)
+    .orderBy(sortOrder === 'desc' ? desc(sortField) : asc(sortField))
+    .limit(pageSize)
+    .offset(offset)
 
   // Get total count for pagination
-  let countQuery = db
+  const countQueryBuilder = db
     .select({ count: count() })
     .from(dimCustomerContactsInAnalyticsMart)
 
-  if (whereConditions.length > 0) {
-    countQuery = countQuery.where(and(...whereConditions))
-  }
-
-  const [{ count: totalCount }] = await countQuery
+  const [{ count: totalCount }] = await (whereConditions.length > 0
+    ? countQueryBuilder.where(and(...whereConditions))
+    : countQueryBuilder)
 
   return {
     contacts: contacts as Contact[],

@@ -2,7 +2,7 @@
 // ABOUTME: Handles company listings, detailed company profiles, and advanced company analytics
 import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart, fctCompanyOrdersTimeSeriesInAnalyticsMart, martProductCompanyPeriodSpendingInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count } from 'drizzle-orm';
-import { ProductDetailFilters } from '@/lib/filter-utils';
+import { ProductDetailFilters, getDateRange } from '@/lib/filter-utils';
 
 export interface TopCompany {
   companyDomainKey: string;
@@ -241,6 +241,7 @@ export async function getCompaniesWithHealth(
     revenueCategory?: string
     healthCategory?: string
     country?: string
+    period?: string
   } = {}
 ): Promise<{ companies: CompanyWithHealth[], totalCount: number }> {
   
@@ -276,6 +277,19 @@ export async function getCompaniesWithHealth(
     whereClause = sql`${whereClause} AND ${fctCompaniesInAnalyticsMart.primaryCountry} = ${filters.country}`;
   }
 
+  // Add period filtering based on latest order date
+  if (filters.period && filters.period !== 'all') {
+    const dateRange = getDateRange(filters.period, false);
+    whereClause = sql`${whereClause} AND ${fctCompaniesInAnalyticsMart.latestOrderDate} >= ${dateRange.start}`;
+  }
+
+  // Build date filter for orders subquery
+  let orderDateFilter = sql`1=1`;
+  if (filters.period && filters.period !== 'all') {
+    const dateRange = getDateRange(filters.period, false);
+    orderDateFilter = sql`${fctCompanyOrdersInAnalyticsMart.orderDate} >= ${dateRange.start}`;
+  }
+
   // Get total count
   const totalCountResult = await db
     .select({ count: count() })
@@ -285,30 +299,31 @@ export async function getCompaniesWithHealth(
   
   const totalCount = totalCountResult[0]?.count || 0;
 
-  // Build ORDER BY clause - handle health-related sorting
-  const sortColumn = {
-    'companyName': fctCompaniesInAnalyticsMart.companyName,
-    'totalRevenue': fctCompaniesInAnalyticsMart.totalRevenue,
-    'totalOrders': fctCompaniesInAnalyticsMart.totalOrders,
-    'customerCount': fctCompaniesInAnalyticsMart.customerCount,
-    'latestOrderDate': fctCompaniesInAnalyticsMart.latestOrderDate,
-    'healthScore': dimCompanyHealthInAnalyticsMart.healthScore,
-    'activityStatus': dimCompanyHealthInAnalyticsMart.activityStatus,
-    'daysSinceLastOrder': dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
-  }[sortBy] || fctCompaniesInAnalyticsMart.totalRevenue;
-
-  const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
-
-  // Get companies with health data and their primary country
-  const companies = await db
+  // Get companies with health data and period-specific revenue/orders
+  const companiesQuery = db
     .select({
       companyDomainKey: fctCompaniesInAnalyticsMart.companyDomainKey,
       companyName: fctCompaniesInAnalyticsMart.companyName,
       domainType: fctCompaniesInAnalyticsMart.domainType,
       businessSizeCategory: fctCompaniesInAnalyticsMart.businessSizeCategory,
       revenueCategory: fctCompaniesInAnalyticsMart.revenueCategory,
-      totalRevenue: fctCompaniesInAnalyticsMart.totalRevenue,
-      totalOrders: fctCompaniesInAnalyticsMart.totalOrders,
+      // Use period-specific totals or fall back to all-time totals
+      totalRevenue: filters.period && filters.period !== 'all' 
+        ? sql<string>`COALESCE((
+            SELECT SUM(${fctCompanyOrdersInAnalyticsMart.calculatedOrderTotal})::text
+            FROM ${fctCompanyOrdersInAnalyticsMart}
+            WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
+            AND ${orderDateFilter}
+          ), '0')`
+        : fctCompaniesInAnalyticsMart.totalRevenue,
+      totalOrders: filters.period && filters.period !== 'all'
+        ? sql<string>`COALESCE((
+            SELECT COUNT(*)::text
+            FROM ${fctCompanyOrdersInAnalyticsMart}
+            WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
+            AND ${orderDateFilter}
+          ), '0')`
+        : fctCompaniesInAnalyticsMart.totalOrders,
       customerCount: fctCompaniesInAnalyticsMart.customerCount,
       firstOrderDate: fctCompaniesInAnalyticsMart.firstOrderDate,
       latestOrderDate: fctCompaniesInAnalyticsMart.latestOrderDate,
@@ -323,8 +338,43 @@ export async function getCompaniesWithHealth(
     })
     .from(fctCompaniesInAnalyticsMart)
     .innerJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
-    .where(whereClause)
-    .orderBy(orderByClause)
+    .where(whereClause);
+
+  // Handle sorting - need to use raw SQL for period-specific revenue/order sorting
+  if (sortBy === 'totalRevenue' && filters.period && filters.period !== 'all') {
+    const orderDirection = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
+    companiesQuery.orderBy(sql`COALESCE((
+      SELECT SUM(${fctCompanyOrdersInAnalyticsMart.calculatedOrderTotal})
+      FROM ${fctCompanyOrdersInAnalyticsMart}
+      WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
+      AND ${orderDateFilter}
+    ), 0) ${orderDirection}`);
+  } else if (sortBy === 'totalOrders' && filters.period && filters.period !== 'all') {
+    const orderDirection = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
+    companiesQuery.orderBy(sql`COALESCE((
+      SELECT COUNT(*)
+      FROM ${fctCompanyOrdersInAnalyticsMart}
+      WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
+      AND ${orderDateFilter}
+    ), 0) ${orderDirection}`);
+  } else {
+    // Use standard sorting for other columns
+    const sortColumn = {
+      'companyName': fctCompaniesInAnalyticsMart.companyName,
+      'totalRevenue': fctCompaniesInAnalyticsMart.totalRevenue,
+      'totalOrders': fctCompaniesInAnalyticsMart.totalOrders,
+      'customerCount': fctCompaniesInAnalyticsMart.customerCount,
+      'latestOrderDate': fctCompaniesInAnalyticsMart.latestOrderDate,
+      'healthScore': dimCompanyHealthInAnalyticsMart.healthScore,
+      'activityStatus': dimCompanyHealthInAnalyticsMart.activityStatus,
+      'daysSinceLastOrder': dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
+    }[sortBy] || fctCompaniesInAnalyticsMart.totalRevenue;
+
+    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+    companiesQuery.orderBy(orderByClause);
+  }
+
+  const companies = await companiesQuery
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
