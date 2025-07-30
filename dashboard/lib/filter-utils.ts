@@ -42,6 +42,11 @@ export interface DashboardFilters extends BaseFilters {
   // Dashboard-specific filters can be added here in the future
 }
 
+export interface FamilyFilters extends BaseFilters {
+  search?: string;
+  materialType?: string;
+}
+
 // Period shortcuts mapping
 const PERIOD_SHORTCUTS = {
   '7d': { days: 7, label: '7 days' },

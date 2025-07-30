@@ -67,7 +67,13 @@ export {
 // Family sales queries and interfaces
 export {
   getFamilySales,
+  getFamilyDetail,
+  getFamilyProducts,
+  getFamilyTopCustomers,
   type FamilySales,
+  type FamilyDetail,
+  type FamilyProduct,
+  type FamilyCustomer,
 } from './families';
 
 // Contact queries and interfaces

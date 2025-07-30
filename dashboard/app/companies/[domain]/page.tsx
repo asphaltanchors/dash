@@ -661,7 +661,12 @@ async function ProductAnalysis({ domain }: { domain: string }) {
               <TableRow key={`product-${index}`}>
                 <TableCell className="font-medium">
                   <div>
-                    <div className="font-medium">{product.productService}</div>
+                    <Link 
+                      href={`/products/${encodeURIComponent(product.productService)}`}
+                      className="font-medium hover:underline text-blue-600 hover:text-blue-800"
+                    >
+                      {product.productService}
+                    </Link>
                     {product.productServiceDescription && (
                       <div className="text-sm text-muted-foreground truncate max-w-48">
                         {product.productServiceDescription}

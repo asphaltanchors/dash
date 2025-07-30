@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatCurrency } from '@/lib/utils';
 import { getPeriodLabel } from '@/lib/filter-utils';
 import { TrendingUp, TrendingDown, Package } from 'lucide-react';
+import Link from 'next/link';
 import type { FamilySales } from '@/lib/queries';
 
 interface FamilySalesCardProps {
@@ -60,7 +61,14 @@ export function FamilySalesCard({ familySales, period = '1y' }: FamilySalesCardP
           <TableBody>
             {familySales.map((family) => (
               <TableRow key={family.productFamily}>
-                <TableCell className="font-medium">{family.productFamily}</TableCell>
+                <TableCell className="font-medium">
+                  <Link 
+                    href={`/families/${encodeURIComponent(family.productFamily)}`}
+                    className="hover:underline text-blue-600 hover:text-blue-800"
+                  >
+                    {family.productFamily}
+                  </Link>
+                </TableCell>
                 <TableCell className="text-right">
                   <div>{formatCurrency(family.currentPeriodSales, { showCents: false })}</div>
                   <div className="text-xs text-muted-foreground">
