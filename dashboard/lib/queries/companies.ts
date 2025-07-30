@@ -1,8 +1,8 @@
 // ABOUTME: Company analysis and customer relationship management queries
 // ABOUTME: Handles company listings, detailed company profiles, and advanced company analytics
-import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart, fctCompanyOrdersTimeSeriesInAnalyticsMart, martProductCompanyPeriodSpendingInAnalyticsMart } from '@/lib/db';
+import { db, fctCompaniesInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctCompanyOrdersInAnalyticsMart, fctCompanyProductsInAnalyticsMart, dimCompanyHealthInAnalyticsMart, fctCompanyOrdersTimeSeriesInAnalyticsMart, martProductCompanyPeriodSpendingInAnalyticsMart, martCompanyPeriodMetricsInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count } from 'drizzle-orm';
-import { ProductDetailFilters, getDateRange } from '@/lib/filter-utils';
+import { ProductDetailFilters } from '@/lib/filter-utils';
 
 export interface TopCompany {
   companyDomainKey: string;
@@ -245,7 +245,19 @@ export async function getCompaniesWithHealth(
   } = {}
 ): Promise<{ companies: CompanyWithHealth[], totalCount: number }> {
   
-  // Build WHERE clause for search
+  // Map frontend period values to DBT period types
+  const periodMapping: Record<string, string> = {
+    '7d': 'trailing_7d',
+    '30d': 'trailing_30d',
+    '90d': 'trailing_90d', 
+    '1y': 'trailing_1y',
+    'all': 'all_time'
+  };
+  
+  const period = filters.period || 'all';
+  const periodType = periodMapping[period] || 'all_time';
+
+  // Build WHERE clause for search on the main companies table
   let whereClause = sql`${fctCompaniesInAnalyticsMart.domainType} = 'corporate'`;
   
   if (searchTerm) {
@@ -272,22 +284,19 @@ export async function getCompaniesWithHealth(
     whereClause = sql`${whereClause} AND ${dimCompanyHealthInAnalyticsMart.healthCategory} = ${filters.healthCategory}`;
   }
 
-  // Add country filtering if specified - now much simpler since country is directly in companies table
   if (filters.country) {
     whereClause = sql`${whereClause} AND ${fctCompaniesInAnalyticsMart.primaryCountry} = ${filters.country}`;
   }
 
-  // Add period filtering based on latest order date
-  if (filters.period && filters.period !== 'all') {
-    const dateRange = getDateRange(filters.period, false);
-    whereClause = sql`${whereClause} AND ${fctCompaniesInAnalyticsMart.latestOrderDate} >= ${dateRange.start}`;
-  }
-
-  // Build date filter for orders subquery
-  let orderDateFilter = sql`1=1`;
-  if (filters.period && filters.period !== 'all') {
-    const dateRange = getDateRange(filters.period, false);
-    orderDateFilter = sql`${fctCompanyOrdersInAnalyticsMart.orderDate} >= ${dateRange.start}`;
+  // For period filtering, we only include companies that have activity in the selected period
+  // (this replaces the previous latestOrderDate filtering)
+  if (period !== 'all') {
+    whereClause = sql`${whereClause} AND EXISTS (
+      SELECT 1 FROM ${martCompanyPeriodMetricsInAnalyticsMart} 
+      WHERE ${martCompanyPeriodMetricsInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
+      AND ${martCompanyPeriodMetricsInAnalyticsMart.periodType} = ${periodType}
+      AND ${martCompanyPeriodMetricsInAnalyticsMart.totalRevenue} > 0
+    )`;
   }
 
   // Get total count
@@ -299,7 +308,7 @@ export async function getCompaniesWithHealth(
   
   const totalCount = totalCountResult[0]?.count || 0;
 
-  // Get companies with health data and period-specific revenue/orders
+  // Main query using the period metrics mart for fast lookups
   const companiesQuery = db
     .select({
       companyDomainKey: fctCompaniesInAnalyticsMart.companyDomainKey,
@@ -307,26 +316,22 @@ export async function getCompaniesWithHealth(
       domainType: fctCompaniesInAnalyticsMart.domainType,
       businessSizeCategory: fctCompaniesInAnalyticsMart.businessSizeCategory,
       revenueCategory: fctCompaniesInAnalyticsMart.revenueCategory,
-      // Use period-specific totals or fall back to all-time totals
-      totalRevenue: filters.period && filters.period !== 'all' 
-        ? sql<string>`COALESCE((
-            SELECT SUM(${fctCompanyOrdersInAnalyticsMart.calculatedOrderTotal})::text
-            FROM ${fctCompanyOrdersInAnalyticsMart}
-            WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
-            AND ${orderDateFilter}
-          ), '0')`
-        : fctCompaniesInAnalyticsMart.totalRevenue,
-      totalOrders: filters.period && filters.period !== 'all'
-        ? sql<string>`COALESCE((
-            SELECT COUNT(*)::text
-            FROM ${fctCompanyOrdersInAnalyticsMart}
-            WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
-            AND ${orderDateFilter}
-          ), '0')`
-        : fctCompaniesInAnalyticsMart.totalOrders,
-      customerCount: fctCompaniesInAnalyticsMart.customerCount,
-      firstOrderDate: fctCompaniesInAnalyticsMart.firstOrderDate,
-      latestOrderDate: fctCompaniesInAnalyticsMart.latestOrderDate,
+      // Use period-specific metrics from the mart, fallback to lifetime totals for 'all'
+      totalRevenue: period === 'all' 
+        ? fctCompaniesInAnalyticsMart.totalRevenue
+        : sql<string>`COALESCE(${martCompanyPeriodMetricsInAnalyticsMart.totalRevenue}::text, '0')`,
+      totalOrders: period === 'all'
+        ? fctCompaniesInAnalyticsMart.totalOrders
+        : sql<string>`COALESCE(${martCompanyPeriodMetricsInAnalyticsMart.totalOrders}::text, '0')`,
+      customerCount: period === 'all'
+        ? fctCompaniesInAnalyticsMart.customerCount
+        : sql<number>`COALESCE(${martCompanyPeriodMetricsInAnalyticsMart.customerCount}, 0)`,
+      firstOrderDate: period === 'all'
+        ? fctCompaniesInAnalyticsMart.firstOrderDate
+        : martCompanyPeriodMetricsInAnalyticsMart.firstOrderDate,
+      latestOrderDate: period === 'all'
+        ? fctCompaniesInAnalyticsMart.latestOrderDate
+        : martCompanyPeriodMetricsInAnalyticsMart.latestOrderDate,
       healthScore: dimCompanyHealthInAnalyticsMart.healthScore,
       activityStatus: dimCompanyHealthInAnalyticsMart.activityStatus,
       healthCategory: dimCompanyHealthInAnalyticsMart.healthCategory,
@@ -338,41 +343,35 @@ export async function getCompaniesWithHealth(
     })
     .from(fctCompaniesInAnalyticsMart)
     .innerJoin(dimCompanyHealthInAnalyticsMart, sql`${fctCompaniesInAnalyticsMart.companyDomainKey} = ${dimCompanyHealthInAnalyticsMart.companyDomainKey}`)
+    // Left join with period metrics - for 'all' period, this will be null but we use lifetime values
+    .leftJoin(martCompanyPeriodMetricsInAnalyticsMart, sql`
+      ${fctCompaniesInAnalyticsMart.companyDomainKey} = ${martCompanyPeriodMetricsInAnalyticsMart.companyDomainKey}
+      AND ${martCompanyPeriodMetricsInAnalyticsMart.periodType} = ${periodType}
+    `)
     .where(whereClause);
 
-  // Handle sorting - need to use raw SQL for period-specific revenue/order sorting
-  if (sortBy === 'totalRevenue' && filters.period && filters.period !== 'all') {
-    const orderDirection = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
-    companiesQuery.orderBy(sql`COALESCE((
-      SELECT SUM(${fctCompanyOrdersInAnalyticsMart.calculatedOrderTotal})
-      FROM ${fctCompanyOrdersInAnalyticsMart}
-      WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
-      AND ${orderDateFilter}
-    ), 0) ${orderDirection}`);
-  } else if (sortBy === 'totalOrders' && filters.period && filters.period !== 'all') {
-    const orderDirection = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
-    companiesQuery.orderBy(sql`COALESCE((
-      SELECT COUNT(*)
-      FROM ${fctCompanyOrdersInAnalyticsMart}
-      WHERE ${fctCompanyOrdersInAnalyticsMart.companyDomainKey} = ${fctCompaniesInAnalyticsMart.companyDomainKey}
-      AND ${orderDateFilter}
-    ), 0) ${orderDirection}`);
-  } else {
-    // Use standard sorting for other columns
-    const sortColumn = {
-      'companyName': fctCompaniesInAnalyticsMart.companyName,
-      'totalRevenue': fctCompaniesInAnalyticsMart.totalRevenue,
-      'totalOrders': fctCompaniesInAnalyticsMart.totalOrders,
-      'customerCount': fctCompaniesInAnalyticsMart.customerCount,
-      'latestOrderDate': fctCompaniesInAnalyticsMart.latestOrderDate,
-      'healthScore': dimCompanyHealthInAnalyticsMart.healthScore,
-      'activityStatus': dimCompanyHealthInAnalyticsMart.activityStatus,
-      'daysSinceLastOrder': dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
-    }[sortBy] || fctCompaniesInAnalyticsMart.totalRevenue;
+  // Handle sorting with period-aware columns
+  const sortColumn = {
+    'companyName': fctCompaniesInAnalyticsMart.companyName,
+    'totalRevenue': period === 'all' 
+      ? fctCompaniesInAnalyticsMart.totalRevenue
+      : sql`COALESCE(${martCompanyPeriodMetricsInAnalyticsMart.totalRevenue}, 0)`,
+    'totalOrders': period === 'all'
+      ? fctCompaniesInAnalyticsMart.totalOrders
+      : sql`COALESCE(${martCompanyPeriodMetricsInAnalyticsMart.totalOrders}, 0)`,
+    'customerCount': period === 'all'
+      ? fctCompaniesInAnalyticsMart.customerCount
+      : sql`COALESCE(${martCompanyPeriodMetricsInAnalyticsMart.customerCount}, 0)`,
+    'latestOrderDate': period === 'all'
+      ? fctCompaniesInAnalyticsMart.latestOrderDate
+      : martCompanyPeriodMetricsInAnalyticsMart.latestOrderDate,
+    'healthScore': dimCompanyHealthInAnalyticsMart.healthScore,
+    'activityStatus': dimCompanyHealthInAnalyticsMart.activityStatus,
+    'daysSinceLastOrder': dimCompanyHealthInAnalyticsMart.daysSinceLastOrder,
+  }[sortBy] || (period === 'all' ? fctCompaniesInAnalyticsMart.totalRevenue : sql`COALESCE(${martCompanyPeriodMetricsInAnalyticsMart.totalRevenue}, 0)`);
 
-    const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
-    companiesQuery.orderBy(orderByClause);
-  }
+  const orderByClause = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+  companiesQuery.orderBy(orderByClause);
 
   const companies = await companiesQuery
     .limit(pageSize)
@@ -385,9 +384,9 @@ export async function getCompaniesWithHealth(
       domainType: company.domainType || 'unknown',
       businessSizeCategory: company.businessSizeCategory || 'Unknown',
       revenueCategory: company.revenueCategory || 'Unknown',
-      totalRevenue: Number(company.totalRevenue).toFixed(2),
-      totalOrders: Number(company.totalOrders).toFixed(0),
-      customerCount: Number(company.customerCount),
+      totalRevenue: Number(company.totalRevenue || 0).toFixed(2),
+      totalOrders: Number(company.totalOrders || 0).toFixed(0),
+      customerCount: Number(company.customerCount || 0),
       firstOrderDate: company.firstOrderDate as string || '',
       latestOrderDate: company.latestOrderDate as string || '',
       healthScore: Number(company.healthScore || 0).toFixed(0),
