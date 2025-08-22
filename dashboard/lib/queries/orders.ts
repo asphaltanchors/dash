@@ -18,6 +18,8 @@ export interface OrderDetail {
   paymentMethod: string | null;
   shippingMethod: string | null;
   salesRep: string | null;
+  salesChannel: string | null;
+  customerSegment: string | null;
   currency: string | null;
   billingAddress: string | null;
   billingAddressCity: string | null;
@@ -86,6 +88,8 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail
       paymentMethod: fctOrdersInAnalyticsMart.paymentMethod,
       shippingMethod: fctOrdersInAnalyticsMart.shippingMethod,
       salesRep: fctOrdersInAnalyticsMart.salesRep,
+      salesChannel: fctOrdersInAnalyticsMart.salesChannel,
+      customerSegment: fctOrdersInAnalyticsMart.customerSegment,
       currency: fctOrdersInAnalyticsMart.currency,
       billingAddress: fctOrdersInAnalyticsMart.billingAddress,
       billingAddressCity: fctOrdersInAnalyticsMart.billingAddressCity,
@@ -128,6 +132,8 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail
     paymentMethod: order.paymentMethod,
     shippingMethod: order.shippingMethod,
     salesRep: order.salesRep,
+    salesChannel: order.salesChannel,
+    customerSegment: order.customerSegment,
     currency: order.currency,
     billingAddress: order.billingAddress,
     billingAddressCity: order.billingAddressCity,

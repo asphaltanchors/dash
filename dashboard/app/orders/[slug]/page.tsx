@@ -310,6 +310,18 @@ async function OrderDetails({ orderNumber }: { orderNumber: string }) {
                 <p className="text-muted-foreground">{order.salesRep}</p>
               </div>
             )}
+            {order.salesChannel && (
+              <div>
+                <h4 className="font-medium">Sales Channel</h4>
+                <p className="text-muted-foreground">{order.salesChannel}</p>
+              </div>
+            )}
+            {order.customerSegment && (
+              <div>
+                <h4 className="font-medium">Customer Segment</h4>
+                <p className="text-muted-foreground">{order.customerSegment}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -1,11 +1,10 @@
 // ABOUTME: Family metrics card component displaying key performance indicators for a product family
 // ABOUTME: Shows revenue, products count, customers, orders, and growth metrics in a grid layout
 import { FamilyDetail } from '@/lib/queries';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, formatNumber } from '@/lib/utils';
 import { getPeriodLabel } from '@/lib/filter-utils';
-import { Package, Users, ShoppingCart, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Users, ShoppingCart, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 interface FamilyMetricsProps {
   familyDetail: FamilyDetail;
