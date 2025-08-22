@@ -26,8 +26,8 @@ export type OrderTableItem = {
   totalAmount: string
   status: string
   isPaid: boolean
-  dueDate: string | null
-  shipDate: string | null
+  salesChannel: string | null
+  customerSegment: string | null
   companyDomain: string | null
   isIndividualCustomer: boolean
 }
@@ -142,14 +142,34 @@ export const createColumns = (
     },
   },
   {
-    accessorKey: "isPaid",
-    header: "Payment",
+    accessorKey: "salesChannel",
+    header: "Channel",
     cell: ({ row }) => {
-      const isPaid = row.getValue("isPaid") as boolean
+      const salesChannel = row.getValue("salesChannel") as string | null
+      if (!salesChannel) return <span className="text-muted-foreground">-</span>
+      
       return (
-        <Badge variant={isPaid ? "default" : "secondary"}>
-          {isPaid ? "Paid" : "Unpaid"}
-        </Badge>
+        <div className="max-w-[120px] truncate">
+          <Badge variant="outline">
+            {salesChannel}
+          </Badge>
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: "customerSegment",
+    header: "Segment",
+    cell: ({ row }) => {
+      const customerSegment = row.getValue("customerSegment") as string | null
+      if (!customerSegment) return <span className="text-muted-foreground">-</span>
+      
+      return (
+        <div className="max-w-[120px] truncate">
+          <Badge variant="secondary">
+            {customerSegment}
+          </Badge>
+        </div>
       )
     },
   },
@@ -169,36 +189,6 @@ export const createColumns = (
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("totalAmount"))
       return <div className="text-right font-medium">{formatCurrency(amount)}</div>
-    },
-  },
-  {
-    accessorKey: "dueDate",
-    header: "Due Date",
-    cell: ({ row }) => {
-      const dueDate = row.getValue("dueDate") as string | null
-      if (!dueDate) return <span className="text-muted-foreground">-</span>
-      
-      const date = new Date(dueDate)
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    },
-  },
-  {
-    accessorKey: "shipDate",
-    header: "Ship Date",
-    cell: ({ row }) => {
-      const shipDate = row.getValue("shipDate") as string | null
-      if (!shipDate) return <span className="text-muted-foreground">-</span>
-      
-      const date = new Date(shipDate)
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
     },
   },
   {

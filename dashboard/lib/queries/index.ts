@@ -6,6 +6,7 @@ export {
   getDashboardMetrics,
   getRecentOrders,
   getChannelMetrics,
+  getSegmentMetrics,
   getWeeklyRevenue,
   getOrderStatusBreakdown,
   type DashboardMetrics,

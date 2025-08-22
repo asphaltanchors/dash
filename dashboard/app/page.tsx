@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { DollarSign, ShoppingCart, TrendingUp } from 'lucide-react'
+import { DollarSign, ShoppingCart, TrendingUp, CreditCard } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -25,13 +25,6 @@ async function DashboardMetrics({ filters }: { filters: DashboardFilters }) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <MetricCard
-        title="365 Day Sales"
-        value={metrics.sales365Days}
-        change={metrics.sales365DaysGrowth}
-        icon={DollarSign}
-        formatValue={(value) => formatCurrency(value, { showCents: false })}
-      />
-      <MetricCard
         title={`${periodLabel} Sales`}
         value={metrics.totalRevenue}
         change={metrics.revenueGrowth}
@@ -49,6 +42,13 @@ async function DashboardMetrics({ filters }: { filters: DashboardFilters }) {
         title="Average Order Value"
         value={metrics.averageOrderValue}
         icon={TrendingUp}
+        formatValue={(value) => formatCurrency(value)}
+      />
+      <MetricCard
+        title="Accounts Receivable"
+        value={metrics.accountsReceivable}
+        subtitle={`${metrics.arOrders} unpaid orders`}
+        icon={CreditCard}
         formatValue={(value) => formatCurrency(value)}
       />
     </div>

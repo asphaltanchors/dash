@@ -6,6 +6,7 @@ interface MetricCardProps {
   value: string;
   previousValue?: string;
   change?: number;
+  subtitle?: string;
   icon: LucideIcon;
   formatValue?: (value: string) => string;
 }
@@ -14,7 +15,8 @@ export function MetricCard({
   title, 
   value, 
   previousValue, 
-  change, 
+  change,
+  subtitle, 
   icon: Icon,
   formatValue = (val) => val 
 }: MetricCardProps) {
@@ -44,7 +46,12 @@ export function MetricCard({
             </span>
           </div>
         )}
-        {previousValue && change === undefined && (
+        {subtitle && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {subtitle}
+          </p>
+        )}
+        {previousValue && change === undefined && !subtitle && (
           <p className="text-xs text-muted-foreground mt-1">
             Previous: {formatValue(previousValue)}
           </p>

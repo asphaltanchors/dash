@@ -12,7 +12,8 @@ import {
 import { DataTable } from "@/components/orders/data-table"
 import { SearchInput } from "@/components/orders/search-input"
 import ChannelBreakdown from "@/components/orders/channel-breakdown"
-import { getAllOrders, getChannelMetrics } from "@/lib/queries"
+import SegmentBreakdown from "@/components/orders/segment-breakdown"
+import { getAllOrders, getChannelMetrics, getSegmentMetrics } from "@/lib/queries"
 
 interface OrdersPageProps {
   searchParams: Promise<{ 
@@ -48,6 +49,11 @@ async function OrdersTable({
 async function ChannelMetrics() {
   const channelMetrics = await getChannelMetrics()
   return <ChannelBreakdown metrics={channelMetrics} />
+}
+
+async function SegmentMetrics() {
+  const segmentMetrics = await getSegmentMetrics()
+  return <SegmentBreakdown metrics={segmentMetrics} />
 }
 
 function LoadingTable() {
@@ -140,6 +146,13 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
             <h2 className="text-xl font-semibold mb-4">Sales by Channel</h2>
             <Suspense fallback={<LoadingChannelBreakdown />}>
               <ChannelMetrics />
+            </Suspense>
+          </div>
+          
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Sales by Segment</h2>
+            <Suspense fallback={<LoadingChannelBreakdown />}>
+              <SegmentMetrics />
             </Suspense>
           </div>
 

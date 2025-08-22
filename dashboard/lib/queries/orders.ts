@@ -59,8 +59,8 @@ export interface OrderTableItem {
   totalAmount: string;
   status: string;
   isPaid: boolean;
-  dueDate: string | null;
-  shipDate: string | null;
+  salesChannel: string | null;
+  customerSegment: string | null;
   companyDomain: string | null;
   isIndividualCustomer: boolean;
 }
@@ -244,8 +244,8 @@ export async function getAllOrders(
       totalAmount: fctOrdersInAnalyticsMart.totalAmount,
       status: fctOrdersInAnalyticsMart.status,
       isPaid: fctOrdersInAnalyticsMart.isPaid,
-      dueDate: fctOrdersInAnalyticsMart.dueDate,
-      shipDate: fctOrdersInAnalyticsMart.shipDate,
+      salesChannel: fctOrdersInAnalyticsMart.salesChannel,
+      customerSegment: fctOrdersInAnalyticsMart.customerSegment,
       companyDomain: bridgeCustomerCompanyInAnalyticsMart.companyDomainKey,
       isIndividualCustomer: bridgeCustomerCompanyInAnalyticsMart.isIndividualCustomer,
     })
@@ -275,8 +275,8 @@ export async function getAllOrders(
       totalAmount: Number(order.totalAmount).toFixed(2),
       status: order.status || 'Unknown',
       isPaid: order.isPaid || false,
-      dueDate: order.dueDate as string | null,
-      shipDate: order.shipDate as string | null,
+      salesChannel: order.salesChannel,
+      customerSegment: order.customerSegment,
       companyDomain: order.companyDomain,
       isIndividualCustomer: order.isIndividualCustomer || false,
     })),

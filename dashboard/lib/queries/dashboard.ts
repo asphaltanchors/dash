@@ -10,6 +10,8 @@ export interface DashboardMetrics {
   totalRevenue: string;
   totalOrders: number;
   averageOrderValue: string;
+  accountsReceivable: string;
+  arOrders: number;
   previousPeriodRevenue: string;
   previousPeriodOrders: number;
   revenueGrowth: number;
@@ -95,12 +97,26 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
       )
     );
 
-  // Current period (based on selected period)
-  const currentPeriod = await db
+  // Current period revenue - only paid orders
+  const currentPaidPeriod = await db
     .select({
       totalRevenue: sum(fctOrdersInAnalyticsMart.totalAmount),
-      totalOrders: count(),
       averageOrderValue: avg(fctOrdersInAnalyticsMart.totalAmount),
+    })
+    .from(fctOrdersInAnalyticsMart)
+    .where(
+      and(
+        gte(fctOrdersInAnalyticsMart.orderDate, currentStart),
+        lte(fctOrdersInAnalyticsMart.orderDate, currentEnd),
+        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
+        sql`${fctOrdersInAnalyticsMart.isPaid} = true`
+      )
+    );
+
+  // Current period orders - all orders
+  const currentAllPeriod = await db
+    .select({
+      totalOrders: count(),
     })
     .from(fctOrdersInAnalyticsMart)
     .where(
@@ -111,10 +127,40 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
       )
     );
 
-  // Previous period (comparison period)
-  const previousPeriod = await db
+  // Current period accounts receivable - unpaid orders
+  const currentAR = await db
+    .select({
+      totalAR: sum(fctOrdersInAnalyticsMart.totalAmount),
+      arOrders: count(),
+    })
+    .from(fctOrdersInAnalyticsMart)
+    .where(
+      and(
+        gte(fctOrdersInAnalyticsMart.orderDate, currentStart),
+        lte(fctOrdersInAnalyticsMart.orderDate, currentEnd),
+        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
+        sql`${fctOrdersInAnalyticsMart.isPaid} = false`
+      )
+    );
+
+  // Previous period revenue - only paid orders
+  const previousPaidPeriod = await db
     .select({
       totalRevenue: sum(fctOrdersInAnalyticsMart.totalAmount),
+    })
+    .from(fctOrdersInAnalyticsMart)
+    .where(
+      and(
+        gte(fctOrdersInAnalyticsMart.orderDate, previousStart),
+        lte(fctOrdersInAnalyticsMart.orderDate, previousEnd),
+        sql`${fctOrdersInAnalyticsMart.totalAmount} is not null`,
+        sql`${fctOrdersInAnalyticsMart.isPaid} = true`
+      )
+    );
+
+  // Previous period orders - all orders
+  const previousAllPeriod = await db
+    .select({
       totalOrders: count(),
     })
     .from(fctOrdersInAnalyticsMart)
@@ -126,14 +172,17 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
       )
     );
 
-  const current = currentPeriod[0];
-  const previous = previousPeriod[0];
+  const currentPaid = currentPaidPeriod[0];
+  const previousPaid = previousPaidPeriod[0];
+  const currentAll = currentAllPeriod[0];
+  const previousAll = previousAllPeriod[0];
+  const currentARData = currentAR[0];
 
-  const currentRevenue = Number(current.totalRevenue);
-  const previousRevenue = Number(previous.totalRevenue);
+  const currentRevenue = Number(currentPaid.totalRevenue);
+  const previousRevenue = Number(previousPaid.totalRevenue);
   const revenueGrowth = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
   
-  const orderGrowth = previous.totalOrders > 0 ? ((current.totalOrders - previous.totalOrders) / previous.totalOrders) * 100 : 0;
+  const orderGrowth = previousAll.totalOrders > 0 ? ((currentAll.totalOrders - previousAll.totalOrders) / previousAll.totalOrders) * 100 : 0;
 
   const current365Sales = Number(sales365[0].totalSales);
   const previous365Sales = Number(previousSales365[0].totalSales);
@@ -142,10 +191,12 @@ export async function getDashboardMetrics(filters: DashboardFilters = {}): Promi
   return {
     sales365Days: current365Sales.toFixed(2),
     totalRevenue: currentRevenue.toFixed(2),
-    totalOrders: current.totalOrders,
-    averageOrderValue: Number(current.averageOrderValue).toFixed(2),
+    totalOrders: currentAll.totalOrders,
+    averageOrderValue: Number(currentPaid.averageOrderValue).toFixed(2),
+    accountsReceivable: Number(currentARData.totalAR || 0).toFixed(2),
+    arOrders: currentARData.arOrders || 0,
     previousPeriodRevenue: previousRevenue.toFixed(2),
-    previousPeriodOrders: previous.totalOrders,
+    previousPeriodOrders: previousAll.totalOrders,
     revenueGrowth: parseFloat(revenueGrowth.toFixed(1)),
     orderGrowth: parseFloat(orderGrowth.toFixed(1)),
     sales365DaysGrowth: parseFloat(sales365Growth.toFixed(1)),
@@ -217,18 +268,18 @@ export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
   for (const period of periods) {
     const channelData = await db.execute(sql`
       SELECT 
-        class as sales_channel,
+        sales_channel,
         SUM(total_amount) as total_revenue,
         COUNT(*) as order_count
       FROM analytics_mart.fct_orders 
       WHERE total_amount IS NOT NULL 
         AND order_date >= ${period.period_start}
         AND order_date <= ${period.period_end}
-        AND class IS NOT NULL 
-        AND class != ''
-        AND class NOT IN ('Contractor', 'EXPORT from WWD')
-      GROUP BY class
-      ORDER BY class
+        AND sales_channel IS NOT NULL 
+        AND sales_channel != ''
+        AND sales_channel NOT IN ('Contractor', 'EXPORT from WWD')
+      GROUP BY sales_channel
+      ORDER BY sales_channel
     `);
 
     // Handle different return formats from Drizzle
@@ -256,6 +307,78 @@ export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
 
   // Convert to final format and ensure periods are in reverse chronological order (most recent first)
   return Array.from(channelMap.entries()).map(([sales_channel, periods]) => ({
+    sales_channel,
+    periods: periods.sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime()),
+  }));
+}
+
+// Get customer segment metrics with 4-year trailing trends
+export async function getSegmentMetrics(): Promise<SalesChannelMetric[]> {
+  const today = new Date();
+  const fourYearsAgo = new Date();
+  fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
+  
+  // Generate 4 trailing year periods from today
+  const periods = [];
+  for (let i = 0; i < 4; i++) {
+    const periodEnd = new Date(today);
+    periodEnd.setFullYear(periodEnd.getFullYear() - i);
+    
+    const periodStart = new Date(periodEnd);
+    periodStart.setFullYear(periodStart.getFullYear() - 1);
+    periodStart.setDate(periodStart.getDate() + 1); // Start day after to avoid overlap
+    
+    periods.push({
+      period_start: format(periodStart, 'yyyy-MM-dd'),
+      period_end: format(periodEnd, 'yyyy-MM-dd'),
+      period_label: `${periodStart.getFullYear()}-${periodEnd.getFullYear()}`
+    });
+  }
+  
+  const segmentMap = new Map<string, SalesPeriodMetric[]>();
+  
+  // Query each period separately to get trailing year data
+  for (const period of periods) {
+    const segmentData = await db.execute(sql`
+      SELECT 
+        customer_segment as sales_channel,
+        SUM(total_amount) as total_revenue,
+        COUNT(*) as order_count
+      FROM analytics_mart.fct_orders 
+      WHERE total_amount IS NOT NULL 
+        AND order_date >= ${period.period_start}
+        AND order_date <= ${period.period_end}
+        AND customer_segment IS NOT NULL 
+        AND customer_segment != ''
+      GROUP BY customer_segment
+      ORDER BY customer_segment
+    `);
+
+    // Handle different return formats from Drizzle
+    const results = segmentData as unknown as Array<{ 
+      sales_channel: string; 
+      total_revenue: string; 
+      order_count: number;
+    }>;
+    
+    results.forEach(row => {
+      const segment = row.sales_channel;
+      
+      if (!segmentMap.has(segment)) {
+        segmentMap.set(segment, []);
+      }
+      
+      segmentMap.get(segment)!.push({
+        period_start: period.period_start,
+        period_end: period.period_end,
+        total_revenue: Number(row.total_revenue).toFixed(2),
+        order_count: row.order_count.toString(),
+      });
+    });
+  }
+
+  // Convert to final format and ensure periods are in reverse chronological order (most recent first)
+  return Array.from(segmentMap.entries()).map(([sales_channel, periods]) => ({
     sales_channel,
     periods: periods.sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime()),
   }));

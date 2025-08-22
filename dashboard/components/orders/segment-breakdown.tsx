@@ -109,12 +109,10 @@ function TrendIndicator({ change }: { change: number }) {
   )
 }
 
-export default function ChannelBreakdown({ metrics }: Props) {
+export default function SegmentBreakdown({ metrics }: Props) {
   const filteredMetrics = metrics.filter(m =>
-    m.sales_channel !== 'Contractor' &&
-    m.sales_channel !== 'EXPORT from WWD' &&
     m.periods.length > 0 &&
-    Number(m.periods[0].total_revenue) >= 5000
+    Number(m.periods[0].total_revenue) > 0
   )
 
   const totals = filteredMetrics.reduce(
@@ -132,7 +130,6 @@ export default function ChannelBreakdown({ metrics }: Props) {
     a.sales_channel.localeCompare(b.sales_channel)
   )
 
-
   const getPercentageChange = (current: string | undefined, previous: string | undefined) => {
     if (current === undefined || previous === undefined) return 0;
     const curr = Number(current)
@@ -146,7 +143,7 @@ export default function ChannelBreakdown({ metrics }: Props) {
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b-2">
-            <TableHead className="w-[180px] font-bold">Channel</TableHead>
+            <TableHead className="w-[180px] font-bold">Segment</TableHead>
             <TableHead className="text-right font-bold">Revenue</TableHead>
             <TableHead className="text-right w-[80px] font-bold">Share</TableHead>
             <TableHead className="text-right w-[140px] font-bold border-r">Trend</TableHead>
@@ -173,17 +170,13 @@ export default function ChannelBreakdown({ metrics }: Props) {
               previousPeriod?.total_revenue
             )
 
-            const channelName = metric.sales_channel?.startsWith('Amazon Combined:')
-              ? metric.sales_channel.split(':')[1].trim()
-              : metric.sales_channel || "Unknown"
-
             return (
               <TableRow
                 key={metric.sales_channel}
                 className="hover:bg-gray-50 even:bg-gray-50/50"
               >
                 <TableCell className="font-semibold">
-                  {channelName}
+                  {metric.sales_channel || "Unknown"}
                 </TableCell>
                 <TableCell className="text-right font-semibold">
                   {formatCurrency(currentRevenue, { showCents: false })}
