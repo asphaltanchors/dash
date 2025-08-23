@@ -11,9 +11,7 @@ import {
 } from "@/components/ui/sidebar"
 import { DataTable } from "@/components/orders/data-table"
 import { SearchInput } from "@/components/orders/search-input"
-import ChannelBreakdown from "@/components/orders/channel-breakdown"
-import SegmentBreakdown from "@/components/orders/segment-breakdown"
-import { getAllOrders, getChannelMetrics, getSegmentMetrics } from "@/lib/queries"
+import { getAllOrders } from "@/lib/queries"
 
 interface OrdersPageProps {
   searchParams: Promise<{ 
@@ -46,15 +44,6 @@ async function OrdersTable({
   )
 }
 
-async function ChannelMetrics() {
-  const channelMetrics = await getChannelMetrics()
-  return <ChannelBreakdown metrics={channelMetrics} />
-}
-
-async function SegmentMetrics() {
-  const segmentMetrics = await getSegmentMetrics()
-  return <SegmentBreakdown metrics={segmentMetrics} />
-}
 
 function LoadingTable() {
   return (
@@ -86,26 +75,6 @@ function LoadingTable() {
   )
 }
 
-function LoadingChannelBreakdown() {
-  return (
-    <div className="rounded-md border bg-card">
-      <div className="h-12 bg-muted/20 border-b animate-pulse"></div>
-      <div className="space-y-3 p-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex space-x-4">
-            <div className="h-4 bg-muted rounded w-32 animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
-            <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const { search, sortBy, sortOrder } = await searchParams
@@ -141,32 +110,13 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Sales by Channel</h2>
-            <Suspense fallback={<LoadingChannelBreakdown />}>
-              <ChannelMetrics />
-            </Suspense>
-          </div>
-          
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Sales by Segment</h2>
-            <Suspense fallback={<LoadingChannelBreakdown />}>
-              <SegmentMetrics />
-            </Suspense>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold mb-4">All Orders</h2>
-            <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}`}>
-              <OrdersTable 
-                searchTerm={searchTerm}
-                sortBy={currentSortBy}
-                sortOrder={currentSortOrder}
-              />
-            </Suspense>
-          </div>
-        </div>
+        <Suspense fallback={<LoadingTable />} key={`${searchTerm}-${currentSortBy}-${currentSortOrder}`}>
+          <OrdersTable 
+            searchTerm={searchTerm}
+            sortBy={currentSortBy}
+            sortOrder={currentSortOrder}
+          />
+        </Suspense>
       </div>
     </>
   )

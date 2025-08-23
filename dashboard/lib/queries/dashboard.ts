@@ -1,6 +1,6 @@
 // ABOUTME: Dashboard metrics and chart data queries for main dashboard overview
 // ABOUTME: Handles revenue trends, metrics calculations, and channel analysis
-import { db, fctOrdersInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart } from '@/lib/db';
+import { db, fctOrdersInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctDsoMetricsInAnalyticsMart, dimAccountsReceivableAgingInAnalyticsMart } from '@/lib/db';
 import { desc, gte, lte, sql, count, sum, avg, and, eq } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { getDateRange, type DashboardFilters } from '@/lib/filter-utils';
@@ -46,6 +46,40 @@ export interface SalesPeriodMetric {
 export interface SalesChannelMetric {
   sales_channel: string;
   periods: SalesPeriodMetric[];
+}
+
+export interface DSOMetric {
+  metricCategory: string;
+  period: number | null;
+  dsoDays: string;
+  collectionEfficiencyPct: string;
+  totalAccountsReceivable: string;
+  openInvoiceCount: number;
+  dailyAvgSales: string;
+  dsoAssessment: string;
+  customerSegment: string | null;
+  segmentAr: string | null;
+  avgDaysOutstanding: string | null;
+}
+
+export interface ARAgingDetail {
+  analysisLevel: string;
+  orderNumber: string | null;
+  customer: string | null;
+  customerSegment: string | null;
+  orderDate: string | null;
+  dueDate: string | null;
+  totalAmount: string;
+  terms: string | null;
+  daysOutstanding: number;
+  daysPastDue: number;
+  agingBucket: string;
+  collectionRisk: string;
+  paymentPattern: string | null;
+  openInvoiceCount: number;
+  totalArAmount: string;
+  avgDaysOutstanding: string;
+  maxDaysOutstanding: string;
 }
 
 // Get dashboard metrics with flexible period comparison
@@ -459,4 +493,99 @@ export async function getOrderStatusBreakdown() {
     )
     .groupBy(fctOrdersInAnalyticsMart.status)
     .orderBy(desc(count()));
+}
+
+// Get DSO (Days Sales Outstanding) metrics
+export async function getDSOMetrics(): Promise<DSOMetric[]> {
+  const dsoData = await db
+    .select({
+      metricCategory: fctDsoMetricsInAnalyticsMart.metricCategory,
+      period: fctDsoMetricsInAnalyticsMart.period,
+      dsoDays: fctDsoMetricsInAnalyticsMart.dsoDays,
+      collectionEfficiencyPct: fctDsoMetricsInAnalyticsMart.collectionEfficiencyPct,
+      totalAccountsReceivable: fctDsoMetricsInAnalyticsMart.totalAccountsReceivable,
+      openInvoiceCount: fctDsoMetricsInAnalyticsMart.openInvoiceCount,
+      dailyAvgSales: fctDsoMetricsInAnalyticsMart.dailyAvgSales,
+      dsoAssessment: fctDsoMetricsInAnalyticsMart.dsoAssessment,
+      customerSegment: fctDsoMetricsInAnalyticsMart.customerSegment,
+      segmentAr: fctDsoMetricsInAnalyticsMart.segmentAr,
+      avgDaysOutstanding: fctDsoMetricsInAnalyticsMart.avgDaysOutstanding,
+    })
+    .from(fctDsoMetricsInAnalyticsMart);
+
+  return dsoData.map(metric => ({
+    metricCategory: metric.metricCategory || 'Unknown',
+    period: metric.period,
+    dsoDays: Number(metric.dsoDays || 0).toFixed(1),
+    collectionEfficiencyPct: Number(metric.collectionEfficiencyPct || 0).toFixed(1),
+    totalAccountsReceivable: Number(metric.totalAccountsReceivable || 0).toFixed(2),
+    openInvoiceCount: Number(metric.openInvoiceCount || 0),
+    dailyAvgSales: Number(metric.dailyAvgSales || 0).toFixed(2),
+    dsoAssessment: metric.dsoAssessment || 'Unknown',
+    customerSegment: metric.customerSegment,
+    segmentAr: metric.segmentAr ? Number(metric.segmentAr).toFixed(2) : null,
+    avgDaysOutstanding: metric.avgDaysOutstanding ? Number(metric.avgDaysOutstanding).toFixed(1) : null,
+  }));
+}
+
+// Get current DSO summary for executive dashboard
+export async function getCurrentDSO(): Promise<DSOMetric | null> {
+  const metrics = await getDSOMetrics();
+  const overallMetric = metrics.find(m => m.metricCategory === 'Overall DSO Metrics');
+  return overallMetric || null;
+}
+
+// Get accounts receivable aging details
+export async function getARAgingDetails(): Promise<ARAgingDetail[]> {
+  const arData = await db
+    .select({
+      analysisLevel: dimAccountsReceivableAgingInAnalyticsMart.analysisLevel,
+      orderNumber: dimAccountsReceivableAgingInAnalyticsMart.orderNumber,
+      customer: dimAccountsReceivableAgingInAnalyticsMart.customer,
+      customerSegment: dimAccountsReceivableAgingInAnalyticsMart.customerSegment,
+      orderDate: dimAccountsReceivableAgingInAnalyticsMart.orderDate,
+      dueDate: dimAccountsReceivableAgingInAnalyticsMart.dueDate,
+      totalAmount: dimAccountsReceivableAgingInAnalyticsMart.totalAmount,
+      terms: dimAccountsReceivableAgingInAnalyticsMart.terms,
+      daysOutstanding: dimAccountsReceivableAgingInAnalyticsMart.daysOutstanding,
+      daysPastDue: dimAccountsReceivableAgingInAnalyticsMart.daysPastDue,
+      agingBucket: dimAccountsReceivableAgingInAnalyticsMart.agingBucket,
+      collectionRisk: dimAccountsReceivableAgingInAnalyticsMart.collectionRisk,
+      paymentPattern: dimAccountsReceivableAgingInAnalyticsMart.paymentPattern,
+      openInvoiceCount: dimAccountsReceivableAgingInAnalyticsMart.openInvoiceCount,
+      totalArAmount: dimAccountsReceivableAgingInAnalyticsMart.totalArAmount,
+      avgDaysOutstanding: dimAccountsReceivableAgingInAnalyticsMart.avgDaysOutstanding,
+      maxDaysOutstanding: dimAccountsReceivableAgingInAnalyticsMart.maxDaysOutstanding,
+    })
+    .from(dimAccountsReceivableAgingInAnalyticsMart)
+    .orderBy(desc(dimAccountsReceivableAgingInAnalyticsMart.daysOutstanding));
+
+  return arData.map(item => ({
+    analysisLevel: item.analysisLevel || 'Unknown',
+    orderNumber: item.orderNumber,
+    customer: item.customer,
+    customerSegment: item.customerSegment,
+    orderDate: item.orderDate as string | null,
+    dueDate: item.dueDate as string | null,
+    totalAmount: Number(item.totalAmount || 0).toFixed(2),
+    terms: item.terms,
+    daysOutstanding: Number(item.daysOutstanding || 0),
+    daysPastDue: Number(item.daysPastDue || 0),
+    agingBucket: item.agingBucket || 'Unknown',
+    collectionRisk: item.collectionRisk || 'Unknown',
+    paymentPattern: item.paymentPattern,
+    openInvoiceCount: Number(item.openInvoiceCount || 0),
+    totalArAmount: Number(item.totalArAmount || 0).toFixed(2),
+    avgDaysOutstanding: Number(item.avgDaysOutstanding || 0).toFixed(1),
+    maxDaysOutstanding: Number(item.maxDaysOutstanding || 0).toFixed(1),
+  }));
+}
+
+// Get problem accounts (high-risk AR)
+export async function getProblemAccounts(): Promise<ARAgingDetail[]> {
+  const arDetails = await getARAgingDetails();
+  return arDetails.filter(item => 
+    item.analysisLevel === 'Individual Invoices' &&
+    (item.collectionRisk === 'High Risk' || item.collectionRisk === 'Critical Risk')
+  );
 }

@@ -9,6 +9,8 @@ import {
   Package,
   Building2,
   Users,
+  TrendingUp,
+  DollarSign,
 } from "lucide-react"
 
 import {
@@ -34,6 +36,16 @@ const data = {
       title: "Orders", 
       url: "/orders",
       icon: ShoppingCart,
+    },
+    {
+      title: "Sales Performance",
+      url: "/sales-performance",
+      icon: TrendingUp,
+    },
+    {
+      title: "Cash Flow",
+      url: "/cash-flow",
+      icon: DollarSign,
     },
     {
       title: "Products",

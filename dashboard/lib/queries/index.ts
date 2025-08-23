@@ -9,11 +9,17 @@ export {
   getSegmentMetrics,
   getWeeklyRevenue,
   getOrderStatusBreakdown,
+  getDSOMetrics,
+  getCurrentDSO,
+  getARAgingDetails,
+  getProblemAccounts,
   type DashboardMetrics,
   type RecentOrder,
   type WeeklyRevenue,
   type SalesPeriodMetric,
   type SalesChannelMetric,
+  type DSOMetric,
+  type ARAgingDetail,
 } from './dashboard';
 
 // Order queries and interfaces
