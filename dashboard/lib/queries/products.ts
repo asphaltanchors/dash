@@ -1,6 +1,6 @@
 // ABOUTME: Product catalog queries including metrics, pricing, and sales performance data
 // ABOUTME: Handles product listings, individual product details, and period-based sales analysis
-import { db, fctProductsInAnalyticsMart } from '@/lib/db';
+import { db, fctProductsInAnalyticsMart, martProductMarginAnalyticsInAnalyticsMart } from '@/lib/db';
 import { sql, count, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { getDateRange, type ProductFilters, type ProductDetailFilters } from '@/lib/filter-utils';
@@ -25,6 +25,9 @@ export interface Product {
   purchaseCost: string;
   marginPercentage: string;
   marginAmount: string;
+  actualMarginPercentage?: string;
+  actualMarginAmount?: string;
+  discountPercentage?: string;
   isKit: boolean;
   itemType: string;
   periodSales: string;
@@ -84,7 +87,7 @@ export async function getProducts(limit: number = 50, filters?: ProductFilters):
   const startDate = dateRange.start;
 
   const productsWithSales = await db.execute(sql`
-    SELECT 
+    SELECT
       p.quick_books_internal_id,
       p.item_name,
       p.sales_description,
@@ -98,21 +101,33 @@ export async function getProducts(limit: number = 50, filters?: ProductFilters):
       p.item_type,
       COALESCE(sales.total_sales, 0) as period_sales,
       COALESCE(sales.total_units, 0) as period_units,
-      COALESCE(sales.order_count, 0) as period_orders
+      COALESCE(sales.order_count, 0) as period_orders,
+      COALESCE(margins.avg_margin_percentage, 0) as actual_margin_percentage,
+      COALESCE(margins.avg_unit_margin_amount, 0) as actual_margin_amount,
+      COALESCE(margins.volume_weighted_discount_percentage, 0) as discount_percentage
     FROM analytics_mart.fct_products p
     LEFT JOIN (
-      SELECT 
-        product_service,
-        SUM(product_service_amount) as total_sales,
-        SUM(product_service_quantity) as total_units,
-        COUNT(DISTINCT order_number) as order_count
-      FROM analytics_mart.fct_order_line_items 
+      SELECT
+        product_name,
+        SUM(total_revenue) as total_sales,
+        SUM(total_units_sold) as total_units,
+        SUM(line_item_count) as order_count
+      FROM analytics_mart.mart_product_unit_sales
+      WHERE sale_date >= ${startDate}
+        AND product_name IS NOT NULL
+      GROUP BY product_name
+    ) sales ON p.item_name = sales.product_name
+    LEFT JOIN (
+      SELECT
+        sku,
+        AVG(avg_margin_percentage) as avg_margin_percentage,
+        AVG(avg_unit_margin_amount) as avg_unit_margin_amount,
+        AVG(volume_weighted_discount_percentage) as volume_weighted_discount_percentage
+      FROM analytics_mart.mart_product_margin_analytics
       WHERE order_date >= ${startDate}
-        AND product_service_amount IS NOT NULL
-        AND product_service IS NOT NULL
-        AND product_service != 'Shipping'
-      GROUP BY product_service
-    ) sales ON p.item_name = sales.product_service
+        AND sku IS NOT NULL
+      GROUP BY sku
+    ) margins ON p.item_name = margins.sku
     WHERE p.sales_price IS NOT NULL
       AND p.item_type NOT IN ('NonInventory', 'OtherCharge')
     ORDER BY period_sales DESC NULLS LAST
@@ -135,6 +150,9 @@ export async function getProducts(limit: number = 50, filters?: ProductFilters):
     period_sales: string;
     period_units: string;
     period_orders: number;
+    actual_margin_percentage: string;
+    actual_margin_amount: string;
+    discount_percentage: string;
   }>;
 
   return results.map(product => ({
@@ -147,6 +165,9 @@ export async function getProducts(limit: number = 50, filters?: ProductFilters):
     purchaseCost: Number(product.purchase_cost).toFixed(2),
     marginPercentage: Number(product.margin_percentage).toFixed(1),
     marginAmount: Number(product.margin_amount).toFixed(2),
+    actualMarginPercentage: Number(product.actual_margin_percentage || 0) > 0 ? Number(product.actual_margin_percentage).toFixed(1) : undefined,
+    actualMarginAmount: Number(product.actual_margin_amount || 0) > 0 ? Number(product.actual_margin_amount).toFixed(2) : undefined,
+    discountPercentage: Number(product.discount_percentage || 0) > 0 ? Number(product.discount_percentage).toFixed(1) : undefined,
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
     periodSales: Number(product.period_sales || 0).toFixed(2),
@@ -163,7 +184,7 @@ export async function getProductByName(itemName: string): Promise<Product | null
   const startDate = format(oneYearAgo, 'yyyy-MM-dd');
 
   const productWithSales = await db.execute(sql`
-    SELECT 
+    SELECT
       p.quick_books_internal_id,
       p.item_name,
       p.sales_description,
@@ -177,21 +198,33 @@ export async function getProductByName(itemName: string): Promise<Product | null
       p.item_type,
       COALESCE(sales.total_sales, 0) as period_sales,
       COALESCE(sales.total_units, 0) as period_units,
-      COALESCE(sales.order_count, 0) as period_orders
+      COALESCE(sales.order_count, 0) as period_orders,
+      COALESCE(margins.avg_margin_percentage, 0) as actual_margin_percentage,
+      COALESCE(margins.avg_unit_margin_amount, 0) as actual_margin_amount,
+      COALESCE(margins.volume_weighted_discount_percentage, 0) as discount_percentage
     FROM analytics_mart.fct_products p
     LEFT JOIN (
-      SELECT 
-        product_service,
-        SUM(product_service_amount) as total_sales,
-        SUM(product_service_quantity) as total_units,
-        COUNT(DISTINCT order_number) as order_count
-      FROM analytics_mart.fct_order_line_items 
+      SELECT
+        product_name,
+        SUM(total_revenue) as total_sales,
+        SUM(total_units_sold) as total_units,
+        SUM(line_item_count) as order_count
+      FROM analytics_mart.mart_product_unit_sales
+      WHERE sale_date >= ${startDate}
+        AND product_name IS NOT NULL
+      GROUP BY product_name
+    ) sales ON p.item_name = sales.product_name
+    LEFT JOIN (
+      SELECT
+        sku,
+        AVG(avg_margin_percentage) as avg_margin_percentage,
+        AVG(avg_unit_margin_amount) as avg_unit_margin_amount,
+        AVG(volume_weighted_discount_percentage) as volume_weighted_discount_percentage
+      FROM analytics_mart.mart_product_margin_analytics
       WHERE order_date >= ${startDate}
-        AND product_service_amount IS NOT NULL
-        AND product_service IS NOT NULL
-        AND product_service != 'Shipping'
-      GROUP BY product_service
-    ) sales ON p.item_name = sales.product_service
+        AND sku IS NOT NULL
+      GROUP BY sku
+    ) margins ON p.item_name = margins.sku
     WHERE p.item_name = ${itemName}
     LIMIT 1
   `);
@@ -212,6 +245,9 @@ export async function getProductByName(itemName: string): Promise<Product | null
     period_sales: string;
     period_units: string;
     period_orders: number;
+    actual_margin_percentage: string;
+    actual_margin_amount: string;
+    discount_percentage: string;
   }>;
 
   if (results.length === 0) {
@@ -229,6 +265,9 @@ export async function getProductByName(itemName: string): Promise<Product | null
     purchaseCost: Number(product.purchase_cost).toFixed(2),
     marginPercentage: Number(product.margin_percentage).toFixed(1),
     marginAmount: Number(product.margin_amount).toFixed(2),
+    actualMarginPercentage: Number(product.actual_margin_percentage || 0) > 0 ? Number(product.actual_margin_percentage).toFixed(1) : undefined,
+    actualMarginAmount: Number(product.actual_margin_amount || 0) > 0 ? Number(product.actual_margin_amount).toFixed(2) : undefined,
+    discountPercentage: Number(product.discount_percentage || 0) > 0 ? Number(product.discount_percentage).toFixed(1) : undefined,
     isKit: product.is_kit || false,
     itemType: product.item_type || 'Unknown',
     periodSales: Number(product.period_sales || 0).toFixed(2),

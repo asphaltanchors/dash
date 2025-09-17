@@ -233,14 +233,19 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${
-                Number(product.marginPercentage) >= 30 
-                  ? 'text-green-600' 
-                  : Number(product.marginPercentage) >= 15 
-                  ? 'text-yellow-600' 
+                Number(product.actualMarginPercentage || product.marginPercentage) >= 30
+                  ? 'text-green-600'
+                  : Number(product.actualMarginPercentage || product.marginPercentage) >= 15
+                  ? 'text-yellow-600'
                   : 'text-red-600'
               }`}>
-                {product.marginPercentage}%
+                {product.actualMarginPercentage || product.marginPercentage}%
               </div>
+              {product.actualMarginPercentage && (
+                <div className="text-xs text-muted-foreground">
+                  Actual margin (catalog: {product.marginPercentage}%)
+                </div>
+              )}
             </CardContent>
           </Card>
           
@@ -250,7 +255,19 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(product.marginAmount)}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(product.actualMarginAmount || product.marginAmount)}
+              </div>
+              {product.actualMarginAmount && (
+                <div className="text-xs text-muted-foreground">
+                  Per unit actual (catalog: {formatCurrency(product.marginAmount)})
+                </div>
+              )}
+              {product.discountPercentage && Number(product.discountPercentage) > 0 && (
+                <div className="text-xs text-orange-600">
+                  {Number(product.discountPercentage).toFixed(0)}% discount from catalog
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

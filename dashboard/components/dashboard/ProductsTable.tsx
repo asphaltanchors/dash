@@ -74,16 +74,16 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 {formatCurrency(product.salesPrice)}
               </TableCell>
               <TableCell className="text-right font-mono">
-                <span 
+                <span
                   className={`font-medium ${
-                    Number(product.marginPercentage) >= 70 
-                      ? 'text-green-600' 
-                      : Number(product.marginPercentage) >= 50 
-                      ? 'text-yellow-600' 
+                    Number(product.actualMarginPercentage || product.marginPercentage) >= 70
+                      ? 'text-green-600'
+                      : Number(product.actualMarginPercentage || product.marginPercentage) >= 50
+                      ? 'text-yellow-600'
                       : 'text-red-600'
                   }`}
                 >
-                  {product.marginPercentage}%
+                  {product.actualMarginPercentage || product.marginPercentage}%
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden md:table-cell">
