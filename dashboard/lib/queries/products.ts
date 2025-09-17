@@ -1,6 +1,6 @@
 // ABOUTME: Product catalog queries including metrics, pricing, and sales performance data
 // ABOUTME: Handles product listings, individual product details, and period-based sales analysis
-import { db, fctProductsInAnalyticsMart, martProductMarginAnalyticsInAnalyticsMart } from '@/lib/db';
+import { db, fctProductsInAnalyticsMart } from '@/lib/db';
 import { sql, count, avg, and, notInArray } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { getDateRange, type ProductFilters, type ProductDetailFilters } from '@/lib/filter-utils';
