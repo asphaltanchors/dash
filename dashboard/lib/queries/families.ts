@@ -32,34 +32,32 @@ export async function getFamilySales(filters: ProductFilters = {}): Promise<Fami
 
   const familySalesData = await db.execute(sql`
     WITH current_period AS (
-      SELECT 
+      SELECT
         product_family,
-        COUNT(DISTINCT order_number) as current_orders,
-        SUM(product_service_quantity) as current_units,
-        SUM(product_service_amount) as current_sales
-      FROM analytics_mart.fct_order_line_items
+        SUM(line_item_count) as current_orders,
+        SUM(total_units_sold) as current_units,
+        SUM(total_revenue) as current_sales
+      FROM analytics_mart.mart_product_unit_sales
       WHERE product_family IS NOT NULL
-        AND order_date >= ${currentStart}
-        AND order_date <= ${currentEnd}
-        AND product_service_amount IS NOT NULL
+        AND sale_date >= ${currentStart}
+        AND sale_date <= ${currentEnd}
         ${familyCondition}
       GROUP BY product_family
     ),
     previous_period AS (
-      SELECT 
+      SELECT
         product_family,
-        COUNT(DISTINCT order_number) as previous_orders,
-        SUM(product_service_quantity) as previous_units,
-        SUM(product_service_amount) as previous_sales
-      FROM analytics_mart.fct_order_line_items
+        SUM(line_item_count) as previous_orders,
+        SUM(total_units_sold) as previous_units,
+        SUM(total_revenue) as previous_sales
+      FROM analytics_mart.mart_product_unit_sales
       WHERE product_family IS NOT NULL
-        AND order_date >= ${previousStart}
-        AND order_date <= ${previousEnd}
-        AND product_service_amount IS NOT NULL
+        AND sale_date >= ${previousStart}
+        AND sale_date <= ${previousEnd}
         ${familyCondition}
       GROUP BY product_family
     )
-    SELECT 
+    SELECT
       COALESCE(c.product_family, p.product_family) as product_family,
       COALESCE(c.current_sales, 0) as current_period_sales,
       COALESCE(c.current_orders, 0) as current_period_orders,
