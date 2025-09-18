@@ -41,6 +41,21 @@ export interface WeeklyRevenue {
   orderCount: number;
 }
 
+export interface ProductPriceDistribution {
+  minPrice: string;
+  maxPrice: string;
+  avgPrice: string;
+  medianPrice: string;
+  totalSales: number;
+  priceRanges: Array<{
+    rangeLabel: string;
+    minValue: number;
+    maxValue: number;
+    count: number;
+    percentage: number;
+  }>;
+}
+
 // Get product metrics
 export async function getProductMetrics(): Promise<ProductMetrics> {
   // Get basic product metrics
@@ -302,4 +317,102 @@ export async function getProductMonthlyRevenue(itemName: string, filters?: Produ
     revenue: Number(month.revenue).toFixed(2),
     orderCount: Number(month.order_count || 0),
   }));
+}
+
+// Get product price distribution for the specified period
+export async function getProductPriceDistribution(itemName: string, filters?: ProductDetailFilters): Promise<ProductPriceDistribution> {
+  const dateRange = getDateRange(filters?.period || '1y', false);
+  const startDate = dateRange.start;
+
+  // Get all actual selling prices for this product in the period
+  const priceData = await db.execute(sql`
+    SELECT
+      product_service_rate::numeric as price,
+      product_service_quantity::numeric as quantity
+    FROM analytics_mart.fct_order_line_items
+    WHERE product_service_rate IS NOT NULL
+      AND product_service_rate::numeric > 0
+      AND product_service = ${itemName}
+      AND order_date >= ${startDate}
+    ORDER BY product_service_rate::numeric
+  `);
+
+  const results = priceData as unknown as Array<{ price: string; quantity: string }>;
+
+  if (results.length === 0) {
+    return {
+      minPrice: '0.00',
+      maxPrice: '0.00',
+      avgPrice: '0.00',
+      medianPrice: '0.00',
+      totalSales: 0,
+      priceRanges: []
+    };
+  }
+
+  const prices = results.map(r => Number(r.price));
+  const quantities = results.map(r => Number(r.quantity));
+
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const totalSales = quantities.reduce((sum, qty) => sum + qty, 0);
+  const avgPrice = prices.reduce((sum, price, index) => sum + (price * quantities[index]), 0) / totalSales;
+
+  // Calculate median price (weighted by quantity)
+  const sortedPricesWithQty = results.map(r => ({
+    price: Number(r.price),
+    quantity: Number(r.quantity)
+  })).sort((a, b) => a.price - b.price);
+
+  let cumulativeQty = 0;
+  const halfTotal = totalSales / 2;
+  let medianPrice = avgPrice;
+
+  for (const item of sortedPricesWithQty) {
+    cumulativeQty += item.quantity;
+    if (cumulativeQty >= halfTotal) {
+      medianPrice = item.price;
+      break;
+    }
+  }
+
+  // Create price ranges for histogram
+  const numBuckets = Math.min(10, Math.max(5, Math.ceil(Math.sqrt(results.length))));
+  const bucketSize = (maxPrice - minPrice) / numBuckets;
+
+  const priceRanges = [];
+  for (let i = 0; i < numBuckets; i++) {
+    const rangeMin = minPrice + (i * bucketSize);
+    const rangeMax = i === numBuckets - 1 ? maxPrice : minPrice + ((i + 1) * bucketSize);
+
+    let count = 0;
+    for (const result of results) {
+      const price = Number(result.price);
+      const quantity = Number(result.quantity);
+      if (price >= rangeMin && (i === numBuckets - 1 ? price <= rangeMax : price < rangeMax)) {
+        count += quantity;
+      }
+    }
+
+    const rangeLabel = i === numBuckets - 1
+      ? `$${rangeMin.toFixed(0)} - $${rangeMax.toFixed(0)}`
+      : `$${rangeMin.toFixed(0)} - $${(rangeMax - 0.01).toFixed(0)}`;
+
+    priceRanges.push({
+      rangeLabel,
+      minValue: rangeMin,
+      maxValue: rangeMax,
+      count,
+      percentage: totalSales > 0 ? (count / totalSales) * 100 : 0
+    });
+  }
+
+  return {
+    minPrice: minPrice.toFixed(2),
+    maxPrice: maxPrice.toFixed(2),
+    avgPrice: avgPrice.toFixed(2),
+    medianPrice: medianPrice.toFixed(2),
+    totalSales,
+    priceRanges
+  };
 }

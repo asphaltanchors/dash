@@ -39,8 +39,10 @@ export {
   getProducts,
   getProductByName,
   getProductMonthlyRevenue,
+  getProductPriceDistribution,
   type ProductMetrics,
   type Product,
+  type ProductPriceDistribution,
 } from './products';
 
 // Inventory queries and interfaces
