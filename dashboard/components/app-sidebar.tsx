@@ -11,6 +11,7 @@ import {
   Users,
   TrendingUp,
   DollarSign,
+  Target,
 } from "lucide-react"
 
 import {
@@ -33,7 +34,7 @@ const data = {
       icon: BarChart3,
     },
     {
-      title: "Orders", 
+      title: "Orders",
       url: "/orders",
       icon: ShoppingCart,
     },
@@ -43,13 +44,18 @@ const data = {
       icon: TrendingUp,
     },
     {
+      title: "Marketing Attribution",
+      url: "/marketing-attribution",
+      icon: Target,
+    },
+    {
       title: "Cash Flow",
       url: "/cash-flow",
       icon: DollarSign,
     },
     {
       title: "Products",
-      url: "/products", 
+      url: "/products",
       icon: Package,
     },
     {
