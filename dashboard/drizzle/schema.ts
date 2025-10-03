@@ -1,4 +1,4 @@
-import { pgTable, pgSchema, varchar, date, numeric, text, boolean, bigint, timestamp, integer, doublePrecision, json } from "drizzle-orm/pg-core"
+import { pgSchema, varchar, date, numeric, text, boolean, bigint, timestamp, integer, doublePrecision, json } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const analyticsMart = pgSchema("analytics_mart");

@@ -129,7 +129,7 @@ export function ProductPriceDistributionChart({ data }: ProductPriceDistribution
               <ChartTooltip
                 cursor={{ fill: 'rgba(0, 0, 0, 0.1)' }}
                 content={<ChartTooltipContent
-                  formatter={(value, name, props) => [
+                  formatter={(value) => [
                     `${Number(value).toLocaleString()} units`,
                     ""
                   ]}
