@@ -92,3 +92,16 @@ export {
   type Contact,
   type ContactFilters,
 } from './contacts';
+
+// Reorder planning queries and interfaces
+export {
+  getReorderMetrics,
+  getPriorityBreakdown,
+  getStockoutTimeline,
+  getReorderPlanningData,
+  getProductFamiliesForReorder,
+  type ReorderMetrics,
+  type PriorityBreakdown,
+  type StockoutTimelineItem,
+  type ReorderItem,
+} from './reorder-planning';

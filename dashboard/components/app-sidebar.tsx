@@ -12,6 +12,7 @@ import {
   TrendingUp,
   DollarSign,
   Target,
+  ClipboardList,
 } from "lucide-react"
 
 import {
@@ -57,6 +58,11 @@ const data = {
       title: "Products",
       url: "/products",
       icon: Package,
+    },
+    {
+      title: "Reorder Planning",
+      url: "/reorder-planning",
+      icon: ClipboardList,
     },
     {
       title: "Companies",
