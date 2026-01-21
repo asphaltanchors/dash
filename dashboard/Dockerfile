@@ -17,6 +17,13 @@ RUN \
     else echo "Lockfile not found." && exit 1; \
     fi
 
+# Development stage - use this for dev mode with hot reload
+FROM base AS development
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+# Source code will be mounted at runtime via volume
+CMD ["npm", "run", "dev"]
 
 # Rebuild the source code only when needed
 FROM base AS builder
