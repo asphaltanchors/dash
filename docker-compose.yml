@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: yourdb
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+  importer:
+    build: ./importer
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/yourdb
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/yourdb
+    depends_on:
+      - postgres
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/yourdb
+
+volumes:
+  pgdata:

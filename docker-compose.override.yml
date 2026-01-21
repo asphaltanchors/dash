@@ -1,0 +1,20 @@
+# Development overrides - automatically loaded by docker-compose
+# This file configures services for local development with hot reload
+
+services:
+  importer:
+    # Mount source code for development
+    volumes:
+      - ./importer:/app
+      - ./data:/data
+    # Keep container alive for manual runs during development
+    command: tail -f /dev/null
+
+  dashboard:
+    # Use development build target
+    build:
+      target: development
+    # Mount source code for hot reload (node_modules comes from image)
+    volumes:
+      - ./dashboard:/app
+      - /app/node_modules

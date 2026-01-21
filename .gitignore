@@ -1,0 +1,41 @@
+# Environment variables (secrets)
+.env
+
+# Data directories (Dropbox sync, local data)
+/data/
+/dropbox/
+
+# Docker volumes and build cache
+.docker/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Database dumps
+*.sql
+*.dump
+
+# Python cache (if running scripts locally)
+__pycache__/
+*.pyc
+*.pyo
+
+# Node cache (if running scripts locally)
+node_modules/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
