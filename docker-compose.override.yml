@@ -9,6 +9,9 @@ services:
       - ./data:/data
     # Keep container alive for manual runs during development
     command: tail -f /dev/null
+    # Disable health check in dev mode (cron isn't running)
+    healthcheck:
+      disable: true
 
   dashboard:
     # Use development build target
