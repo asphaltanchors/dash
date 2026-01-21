@@ -105,10 +105,16 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 ```bash
 # Run initial historical data load (one-time setup)
+# In dev: Place files in ./data/seed/ directory first
 docker-compose exec importer python orchestrator.py --seed
 
 # Run incremental load (daily operation)
+# In dev: Place files in ./data/input/ directory first
 docker-compose exec importer python orchestrator.py --incremental
+
+# Run specific source only
+docker-compose exec importer python orchestrator.py --seed --source quickbooks
+docker-compose exec importer python orchestrator.py --incremental --source shopify
 
 # Run DBT tests
 docker-compose exec importer /bin/sh -c "source .venv/bin/activate && dbt test"
@@ -116,6 +122,12 @@ docker-compose exec importer /bin/sh -c "source .venv/bin/activate && dbt test"
 # Interactive shell for debugging
 docker-compose exec importer /bin/sh
 ```
+
+**Development Data Location:**
+- Place your QuickBooks XLSX files in `./data/seed/` (historical) or `./data/input/` (incremental)
+- See `data/README.md` for detailed file structure and usage
+- In dev, `DROPBOX_PATH` points to `/data` (mounted from `./data`)
+- In prod, `DROPBOX_PATH` points to `/dropbox/Dropbox/quickbooks-csv` (actual Dropbox sync)
 
 ### Dashboard Operations
 

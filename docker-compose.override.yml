@@ -7,6 +7,12 @@ services:
     volumes:
       - ./importer:/app
       - ./data:/data
+    # Override environment for local development
+    environment:
+      # Point to local data directory instead of Dropbox
+      DROPBOX_PATH: /data
+      # Use dev DBT target
+      DBT_TARGET: dev
     # Keep container alive for manual runs during development
     command: tail -f /dev/null
     # Disable health check in dev mode (cron isn't running)

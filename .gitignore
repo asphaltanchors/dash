@@ -2,7 +2,15 @@
 .env
 
 # Data directories (Dropbox sync, local data)
-/data/
+# Ignore data files but keep directory structure
+/data/*
+!/data/README.md
+!/data/seed/
+!/data/input/
+/data/seed/*
+!/data/seed/.gitkeep
+/data/input/*
+!/data/input/.gitkeep
 /dropbox/
 
 # Docker volumes and build cache
