@@ -13,6 +13,7 @@ import {
   DollarSign,
   Target,
   ClipboardList,
+  Calendar,
 } from "lucide-react"
 
 import {
@@ -48,6 +49,11 @@ const data = {
       title: "Marketing Attribution",
       url: "/marketing-attribution",
       icon: Target,
+    },
+    {
+      title: "Trade Shows",
+      url: "/trade-shows",
+      icon: Calendar,
     },
     {
       title: "Cash Flow",

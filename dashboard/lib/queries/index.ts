@@ -105,3 +105,13 @@ export {
   type StockoutTimelineItem,
   type ReorderItem,
 } from './reorder-planning';
+
+// Trade show queries and interfaces
+export {
+  getTradeShowMetrics,
+  getTradeShowSummaries,
+  getTradeShowLeads,
+  type TradeShowPerformanceMetrics,
+  type TradeShowSummary,
+  type TradeShowLead,
+} from './trade-shows';
