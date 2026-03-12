@@ -7,10 +7,11 @@ services:
     volumes:
       - ./importer:/app
       - ./data:/data
+      - ~/Insync/oren@teich.net/Dropbox/quickbooks-csv:/dropbox
     # Override environment for local development
     environment:
-      # Point to local data directory instead of Dropbox
-      DROPBOX_PATH: /data
+      # Point to Insync/Dropbox data directory
+      DROPBOX_PATH: /dropbox
       # Use dev DBT target
       DBT_TARGET: dev
       # Pass database credentials for DBT
