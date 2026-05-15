@@ -66,8 +66,8 @@ const data = {
       icon: Package,
     },
     {
-      title: "Reorder Planning",
-      url: "/reorder-planning",
+      title: "Inventory",
+      url: "/inventory",
       icon: ClipboardList,
     },
     {

@@ -1,5 +1,5 @@
-// ABOUTME: Stockout timeline chart showing when products are projected to run out of inventory
-// ABOUTME: Displays next 90 days of projected stockouts grouped by date with SKU counts
+// ABOUTME: Stockout timeline chart showing when estimated inventory reaches zero.
+// ABOUTME: Displays next 90 days of stockouts grouped by date with SKU counts.
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,14 +34,14 @@ export function StockoutTimelineChart({ data }: StockoutTimelineChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Projected Stockouts (Next 90 Days)</CardTitle>
+          <CardTitle>Estimated Stockouts (Next 90 Days)</CardTitle>
           <CardDescription>
             No stockouts projected in the next 90 days
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-[300px] text-sm text-muted-foreground">
-            All active products have sufficient inventory for at least 90 days
+            Stocked products with recent sales have enough estimated inventory for at least 90 days
           </div>
         </CardContent>
       </Card>
@@ -51,9 +51,9 @@ export function StockoutTimelineChart({ data }: StockoutTimelineChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Projected Stockouts (Next 90 Days)</CardTitle>
+        <CardTitle>Estimated Stockouts (Next 90 Days)</CardTitle>
         <CardDescription>
-          {totalSkus} SKUs projected to stock out in the next 90 days
+          {totalSkus} SKUs estimated to reach zero in the next 90 days
         </CardDescription>
       </CardHeader>
       <CardContent>

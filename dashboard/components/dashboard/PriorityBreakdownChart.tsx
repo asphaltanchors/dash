@@ -1,5 +1,5 @@
-// ABOUTME: Priority breakdown chart showing count of SKUs by inventory status
-// ABOUTME: Displays CRITICAL, LOW, MODERATE, and SUFFICIENT status distribution with color coding
+// ABOUTME: Status breakdown chart showing count of SKUs by estimated inventory risk.
+// ABOUTME: Displays current sales-based inventory status distribution with color coding.
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,10 @@ interface PriorityBreakdownChartProps {
 }
 
 const chartConfig = {
+  NEGATIVE_OR_ZERO: {
+    label: "Negative/Zero",
+    color: "hsl(var(--destructive))",
+  },
   CRITICAL: {
     label: "Critical",
     color: "hsl(var(--destructive))",
@@ -28,10 +32,14 @@ const chartConfig = {
     label: "Sufficient",
     color: "hsl(var(--chart-2))",
   },
+  NO_RECENT_SALES: {
+    label: "No Recent Sales",
+    color: "hsl(var(--muted-foreground))",
+  },
 } satisfies ChartConfig
 
 // Define sort order
-const statusOrder = ['CRITICAL', 'LOW', 'MODERATE', 'SUFFICIENT'];
+const statusOrder = ['NEGATIVE_OR_ZERO', 'CRITICAL', 'LOW', 'MODERATE', 'SUFFICIENT', 'NO_RECENT_SALES'];
 
 export function PriorityBreakdownChart({ data }: PriorityBreakdownChartProps) {
   // Sort data by predefined order
@@ -53,7 +61,7 @@ export function PriorityBreakdownChart({ data }: PriorityBreakdownChartProps) {
       <CardHeader>
         <CardTitle>Inventory Status Breakdown</CardTitle>
         <CardDescription>
-          Distribution of {totalSkus} active SKUs by reorder priority
+          Distribution of {totalSkus} stocked SKUs by estimated inventory risk
         </CardDescription>
       </CardHeader>
       <CardContent>

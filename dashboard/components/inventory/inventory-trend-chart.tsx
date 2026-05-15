@@ -1,12 +1,16 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { InventoryTrend } from '@/lib/queries';
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { format } from 'date-fns';
 
 interface InventoryTrendChartProps {
   data: InventoryTrend[];
+}
+
+function formatDate(date: string) {
+  return format(new Date(`${date}T00:00:00`), 'MMM d, yyyy');
 }
 
 export function InventoryTrendChart({ data }: InventoryTrendChartProps) {
@@ -14,7 +18,7 @@ export function InventoryTrendChart({ data }: InventoryTrendChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Inventory Trend (30 Days)</CardTitle>
+          <CardTitle>Inventory Estimate</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center text-muted-foreground py-8">
@@ -26,73 +30,98 @@ export function InventoryTrendChart({ data }: InventoryTrendChartProps) {
   }
 
   const chartData = data.map(item => ({
-    date: format(new Date(item.date), 'MMM d'),
+    date: format(new Date(`${item.date}T00:00:00`), 'MMM d'),
     fullDate: item.date,
-    quantityOnHand: Number(item.quantityOnHand),
-    quantityChange: Number(item.quantityChange),
+    estimatedInventory: Number(item.estimatedEndingInventory),
+    salesQty: Number(item.salesQty),
+    receiptQty: Number(item.receiptQty),
+    adjustmentQty: Number(item.adjustmentQty),
+    netMovement: Number(item.netInventoryMovement),
     inventoryValue: Number(item.inventoryValueAtCost),
+    isAnchorDay: item.isAnchorDay,
+    isProjectedDay: item.isProjectedDay,
   }));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Inventory Trend (All Time)</CardTitle>
+        <CardTitle>Daily Inventory Estimate</CardTitle>
+        <CardDescription>
+          QuickBooks anchors with sales-based depletion between updates
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
+        <div className="h-[320px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <ComposedChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date" 
+              <XAxis
+                dataKey="date"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
+                minTickGap={28}
               />
-              <YAxis 
+              <YAxis
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `${value}`}
+                tickFormatter={(value) => Number(value).toLocaleString()}
               />
-              <Tooltip 
+              <Tooltip
                 content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                      <div className="bg-background border rounded-lg p-3 shadow-md">
-                        <p className="font-medium">{format(new Date(data.fullDate), 'MMM d, yyyy')}</p>
-                        <p className="text-sm">
-                          <span className="text-blue-600">Quantity on Hand: </span>
-                          <span className="font-medium">{data.quantityOnHand}</span>
-                        </p>
-                        <p className="text-sm">
-                          <span className="text-green-600">Inventory Value: </span>
-                          <span className="font-medium">${data.inventoryValue}</span>
-                        </p>
-                        {data.quantityChange !== 0 && (
-                          <p className="text-sm">
-                            <span className="text-purple-600">Change: </span>
-                            <span className={`font-medium ${data.quantityChange > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {data.quantityChange > 0 ? '+' : ''}{data.quantityChange}
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
+                  if (!active || !payload?.length) return null;
+                  const row = payload[0].payload;
+                  return (
+                    <div className="bg-background border rounded-lg p-3 shadow-md">
+                      <p className="font-medium">{formatDate(row.fullDate)}</p>
+                      <p className="text-sm">
+                        <span className="text-blue-600">Estimated inventory: </span>
+                        <span className="font-medium">{row.estimatedInventory.toLocaleString()}</span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-slate-600">Sales/holds: </span>
+                        <span className="font-medium">{row.salesQty.toLocaleString()}</span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-emerald-600">Receipts: </span>
+                        <span className="font-medium">{row.receiptQty.toLocaleString()}</span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-purple-600">Adjustments: </span>
+                        <span className="font-medium">{row.adjustmentQty.toLocaleString()}</span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-green-600">Value at cost: </span>
+                        <span className="font-medium">${row.inventoryValue.toLocaleString()}</span>
+                      </p>
+                      {row.isAnchorDay && <p className="text-xs text-muted-foreground mt-1">QuickBooks anchor day</p>}
+                      {row.isProjectedDay && <p className="text-xs text-muted-foreground mt-1">Includes immediate future-dated depletion</p>}
+                    </div>
+                  );
                 }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="quantityOnHand" 
-                stroke="#3b82f6" 
+              <Area
+                type="monotone"
+                dataKey="estimatedInventory"
+                fill="#dbeafe"
+                stroke="#2563eb"
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, fill: "#3b82f6" }}
               />
-            </LineChart>
+              <Line
+                type="monotone"
+                dataKey="estimatedInventory"
+                stroke="#1d4ed8"
+                strokeWidth={2}
+                dot={(props) => {
+                  const { cx, cy, payload } = props;
+                  if (!payload.isAnchorDay) return <g />;
+                  return <circle cx={cx} cy={cy} r={4} fill="#111827" stroke="#fff" strokeWidth={1.5} />;
+                }}
+                activeDot={{ r: 4, fill: "#2563eb" }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </CardContent>

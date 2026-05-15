@@ -23,7 +23,7 @@ import { StockoutTimelineChart } from '@/components/dashboard/StockoutTimelineCh
 import { ReorderPlanningTable } from '@/components/dashboard/ReorderPlanningTable';
 import { TargetDaysSelector } from '@/components/dashboard/TargetDaysSelector';
 
-async function ReorderMetrics({ targetDays }: { targetDays: number }) {
+async function InventoryMetrics({ targetDays }: { targetDays: number }) {
   const metrics = await getReorderMetrics();
 
   const reorderUnits = targetDays === 90 ? metrics.totalReorderUnits90d : metrics.totalReorderUnits180d;
@@ -32,32 +32,32 @@ async function ReorderMetrics({ targetDays }: { targetDays: number }) {
   return (
     <div className="grid gap-4 md:grid-cols-4">
       <MetricCard
-        title="SKUs Needing Reorder"
+        title="SKUs Needing Attention"
         value={metrics.totalSkusNeedingReorder.toString()}
         icon={AlertTriangle}
         formatValue={(value) => value}
         subtitle={`${metrics.criticalCount} critical, ${metrics.lowCount} low`}
       />
       <MetricCard
-        title="Total Reorder Units"
+        title="Target Reorder Boxes"
         value={reorderUnits}
         icon={Package}
         formatValue={(value) => Number(value).toLocaleString()}
-        subtitle={`for ${targetDays}-day target`}
+        subtitle={`to reach ${targetDays} days`}
       />
       <MetricCard
-        title="Total Reorder Value"
+        title="Target Reorder Value"
         value={reorderValue}
         icon={DollarSign}
         formatValue={(value) => formatCurrency(value, { showCents: false })}
         subtitle="at purchase cost"
       />
       <MetricCard
-        title="Avg Days Until Stockout"
+        title="Avg Days Remaining"
         value={metrics.avgDaysUntilStockout}
         icon={Clock}
         formatValue={(value) => `${value} days`}
-        subtitle="for items needing reorder"
+        subtitle="for attention items"
       />
     </div>
   );
@@ -75,18 +75,18 @@ async function StockoutSection() {
   return <StockoutTimelineChart data={timeline} />;
 }
 
-async function ReorderDataSection({ targetDays }: { targetDays: number }) {
+async function InventoryDataSection({ targetDays }: { targetDays: number }) {
   const data = await getReorderPlanningData();
   const families = await getProductFamiliesForReorder();
 
   return <ReorderPlanningTable data={data} families={families} targetDays={targetDays} />;
 }
 
-interface ReorderPlanningPageProps {
+interface InventoryPageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-export default async function ReorderPlanningPage({ searchParams }: ReorderPlanningPageProps) {
+export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   const params = await searchParams;
   const targetDays = params.target === '180' ? 180 : 90;
 
@@ -102,31 +102,31 @@ export default async function ReorderPlanningPage({ searchParams }: ReorderPlann
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>Reorder Planning</BreadcrumbPage>
+                <BreadcrumbPage>Inventory</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </div>
       </header>
       <div className="flex-1 space-y-4 p-4 md:p-6 pt-6 min-w-0">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Reorder Planning</h2>
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Inventory</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Inventory replenishment recommendations based on demand forecasts
+              Daily levels estimated from QuickBooks anchors and sales depletion
             </p>
           </div>
           <TargetDaysSelector currentTarget={targetDays} />
         </div>
 
-        <ReorderMetrics targetDays={targetDays} />
+        <InventoryMetrics targetDays={targetDays} />
 
         <div className="grid gap-4 md:grid-cols-2">
           <PrioritySection />
           <StockoutSection />
         </div>
 
-        <ReorderDataSection targetDays={targetDays} />
+        <InventoryDataSection targetDays={targetDays} />
       </div>
     </>
   );
