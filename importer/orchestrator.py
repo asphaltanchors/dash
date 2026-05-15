@@ -96,12 +96,18 @@ class PipelineOrchestrator:
         files_to_check = []
         
         if mode in ["seed", "full"]:
-            # Check seed files
+            # Check historical files. Prefer the legacy seed/ layout, but support
+            # the current Dropbox full/ layout when seed/ is not present.
             seed_path = Path(dropbox_path) / "seed"
+            full_path = Path(dropbox_path) / "full"
+            historical_path = seed_path
+            if not any((seed_path / name).exists() for name in ["all_lists.xlsx", "all_transactions.xlsx"]):
+                if any((full_path / name).exists() for name in ["all_lists.xlsx", "all_transactions.xlsx"]):
+                    historical_path = full_path
             seed_files = [
-                seed_path / "all_lists.xlsx",
-                seed_path / "all_transactions.xlsx", 
-                seed_path / "company_enrichment.jsonl"
+                historical_path / "all_lists.xlsx",
+                historical_path / "all_transactions.xlsx",
+                historical_path / "company_enrichment.jsonl"
             ]
             files_to_check.extend([f for f in seed_files if f.exists()])
         
@@ -582,7 +588,7 @@ def main():
     mode_group.add_argument(
         "--seed",
         action="store_true",
-        help="Load all historical data from seed/ directory"
+        help="Load all historical data from seed/ or full/ directory"
     )
     mode_group.add_argument(
         "--incremental",

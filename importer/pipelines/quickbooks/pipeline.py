@@ -40,13 +40,34 @@ if not os.path.isdir(DROPBOX_PATH):
     print(f"ERROR: DROPBOX_PATH is not a directory: {DROPBOX_PATH}")
     exit(1)
 
-# Define paths
+# Define paths. Historical QuickBooks exports used to live under "seed/";
+# current Dropbox layout uses "full/". Prefer seed for backwards compatibility.
 SEED_PATH = os.path.join(DROPBOX_PATH, "seed")
+FULL_PATH = os.path.join(DROPBOX_PATH, "full")
 INPUT_PATH = os.path.join(DROPBOX_PATH, "input")
 
 print(f"Using DROPBOX_PATH: {DROPBOX_PATH}")
 print(f"Seed directory: {SEED_PATH}")
+print(f"Full directory: {FULL_PATH}")
 print(f"Input directory: {INPUT_PATH}")
+
+def historical_path():
+    """Return the directory containing historical QuickBooks exports."""
+    seed_files = [
+        os.path.join(SEED_PATH, "all_lists.xlsx"),
+        os.path.join(SEED_PATH, "all_transactions.xlsx"),
+    ]
+    if any(os.path.exists(path) for path in seed_files):
+        return SEED_PATH
+
+    full_files = [
+        os.path.join(FULL_PATH, "all_lists.xlsx"),
+        os.path.join(FULL_PATH, "all_transactions.xlsx"),
+    ]
+    if any(os.path.exists(path) for path in full_files):
+        return FULL_PATH
+
+    return SEED_PATH
 
 # Define worksheet mappings
 LIST_WORKSHEETS = [
@@ -232,8 +253,10 @@ def xlsx_quickbooks_source(mode="full"):
 
     if mode in ['seed', 'full']:
         # Add seed files
-        seed_lists = os.path.join(SEED_PATH, "all_lists.xlsx")
-        seed_transactions = os.path.join(SEED_PATH, "all_transactions.xlsx")
+        source_path = historical_path()
+        seed_lists = os.path.join(source_path, "all_lists.xlsx")
+        seed_transactions = os.path.join(source_path, "all_transactions.xlsx")
+        print(f"Historical QuickBooks directory: {source_path}")
 
         if os.path.exists(seed_lists):
             files_to_process.append({
@@ -378,7 +401,7 @@ def xlsx_quickbooks_source(mode="full"):
         )
         def extract_company_enrichment():
             """Load pre-enriched company data from JSONL file"""
-            enrichment_file = os.path.join(SEED_PATH, "company_enrichment.jsonl")
+            enrichment_file = os.path.join(historical_path(), "company_enrichment.jsonl")
             print(f"Checking for company enrichment file at: {enrichment_file}")
 
             if os.path.exists(enrichment_file):
@@ -418,7 +441,7 @@ def xlsx_quickbooks_source(mode="full"):
         )
         def import_historical_items():
             """Load historical items data from JSONL file during seed"""
-            historical_items_file = os.path.join(SEED_PATH, "historical_items.jsonl")
+            historical_items_file = os.path.join(historical_path(), "historical_items.jsonl")
             print(f"Checking for historical items file at: {historical_items_file}")
 
             if os.path.exists(historical_items_file):
@@ -467,7 +490,7 @@ def xlsx_quickbooks_source(mode="full"):
             import psycopg2
 
             # Path for historical items JSONL file
-            historical_items_file = os.path.join(SEED_PATH, "historical_items.jsonl")
+            historical_items_file = os.path.join(historical_path(), "historical_items.jsonl")
 
             # Get last exported snapshot date
             last_exported_date = None
