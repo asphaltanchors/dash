@@ -1,116 +1,500 @@
 /*
-  This fact table provides a complete history of inventory levels by item and date.
-  It's designed for dashboard consumption to show inventory trends over time.
-  
-  One row per item per date with inventory quantities and derived metrics.
+ABOUTME: Daily inventory estimate using QuickBooks quantity_on_hand as occasional anchors.
+ABOUTME: Between anchors, inventory moves from receipts, adjustments, and sales; future-dated orders reduce today's estimate.
 */
 
 {{ config(
     materialized = 'table',
-    tags = ['inventory', 'quickbooks', 'history']
+    tags = ['inventory', 'quickbooks', 'sales_based']
 ) }}
 
-WITH inventory_history AS (
-    SELECT * FROM {{ ref('int_quickbooks__inventory_history') }}
+WITH raw_anchors AS (
+    SELECT
+        CASE
+            WHEN item_name = '82-6002 IN' THEN '82-6002'
+            ELSE item_name
+        END AS sku,
+        CAST(load_date AS DATE) AS anchor_date,
+        quantity_on_hand AS anchor_quantity_on_hand,
+        COALESCE(quantity_on_order, 0) AS quantity_on_order,
+        COALESCE(quantity_on_sales_order, 0) AS quantity_on_sales_order,
+        ROW_NUMBER() OVER (
+            PARTITION BY
+                CASE
+                    WHEN item_name = '82-6002 IN' THEN '82-6002'
+                    ELSE item_name
+                END,
+                CAST(load_date AS DATE)
+            ORDER BY load_date DESC
+        ) AS anchor_rank
+    FROM {{ ref('stg_quickbooks__items') }}
+    WHERE item_name IS NOT NULL
+      AND TRIM(item_name) != ''
+      AND quantity_on_hand IS NOT NULL
+      AND load_date IS NOT NULL
+      AND TRIM(load_date) != ''
+      AND load_date ~ '^\d{4}-\d{2}-\d{2}$'
 ),
 
--- Get the latest product details for each item
-latest_product_info AS (
-    SELECT 
-        item_name,
+anchors AS (
+    SELECT
+        sku,
+        anchor_date,
+        anchor_quantity_on_hand,
+        quantity_on_order,
+        quantity_on_sales_order
+    FROM raw_anchors
+    WHERE anchor_rank = 1
+),
+
+inventory_skus AS (
+    SELECT DISTINCT sku
+    FROM anchors
+),
+
+product_details AS (
+    SELECT
+        CASE
+            WHEN item_name = '82-6002 IN' THEN '82-6002'
+            ELSE item_name
+        END AS sku,
         sales_description,
         product_family,
         material_type,
         is_kit,
         item_type,
         item_subtype,
+        packaging_type,
+        units_per_sku,
+        unit_of_measure,
         sales_price,
         purchase_cost,
-        unit_of_measure
-    FROM {{ ref('fct_products') }}
+        status AS item_status
+    FROM {{ ref('int_quickbooks__items_enriched') }}
+    WHERE item_name != '82-6002 IN'
 ),
 
--- Add inventory change calculations
-inventory_with_changes AS (
+sales_movements AS (
     SELECT
-        ih.*,
-        
-        -- Calculate day-over-day inventory changes
-        LAG(quantity_on_hand) OVER (
-            PARTITION BY item_name 
-            ORDER BY snapshot_date
-        ) AS previous_quantity_on_hand,
-        
-        quantity_on_hand - LAG(quantity_on_hand) OVER (
-            PARTITION BY item_name 
-            ORDER BY snapshot_date
-        ) AS quantity_change,
-        
-        -- Calculate available inventory (on hand - committed to sales orders)
-        quantity_on_hand - quantity_on_sales_order AS available_quantity,
-        
-        -- Calculate total inventory visibility (on hand + on order)
-        quantity_on_hand + quantity_on_order AS total_inventory_visibility
-        
-    FROM inventory_history ih
+        CASE
+            WHEN product_service = '82-6002 IN' THEN '82-6002'
+            ELSE product_service
+        END AS sku,
+        LEAST(CAST(order_date AS DATE), CURRENT_DATE) AS movement_date,
+        SUM(COALESCE(product_service_quantity, 0)) AS sales_qty,
+        COUNT(DISTINCT order_number) AS order_count,
+        COUNT(*) AS line_item_count,
+        BOOL_OR(CAST(order_date AS DATE) > CURRENT_DATE) AS includes_future_dated_orders
+    FROM {{ ref('fct_order_line_items') }}
+    WHERE product_service IS NOT NULL
+      AND TRIM(product_service) != ''
+      AND order_date IS NOT NULL
+      AND product_service_quantity IS NOT NULL
+      AND product_service_quantity != 0
+    GROUP BY
+        CASE
+            WHEN product_service = '82-6002 IN' THEN '82-6002'
+            ELSE product_service
+        END,
+        LEAST(CAST(order_date AS DATE), CURRENT_DATE)
 ),
 
--- Final fact table with enriched product information
+receipt_movements AS (
+    SELECT
+        CASE
+            WHEN product_service = '82-6002 IN' THEN '82-6002'
+            ELSE product_service
+        END AS sku,
+        TO_DATE(date, 'MM-DD-YYYY') AS movement_date,
+        SUM(qty) AS receipt_qty,
+        COUNT(*) AS receipt_line_count
+    FROM (
+        SELECT DISTINCT
+            bill_no,
+            vendor,
+            date,
+            product_service,
+            NULLIF(product_service_quantity, '')::NUMERIC AS qty,
+            NULLIF(product_service_rate, '')::NUMERIC AS rate,
+            NULLIF(product_service_amount, '')::NUMERIC AS amount,
+            transxx,
+            quick_books_internal_id
+        FROM {{ source('raw_data', 'xlsx_bill') }}
+        WHERE product_service IS NOT NULL
+          AND TRIM(product_service) != ''
+          AND product_service_quantity IS NOT NULL
+          AND TRIM(product_service_quantity) != ''
+          AND vendor != 'DPC Transfer Inventory'
+          AND date IS NOT NULL
+          AND TRIM(date) != ''
+          AND date ~ '^\d{2}-\d{2}-\d{4}$'
+    ) deduped_bills
+    WHERE qty IS NOT NULL
+      AND TO_DATE(date, 'MM-DD-YYYY') <= CURRENT_DATE
+    GROUP BY
+        CASE
+            WHEN product_service = '82-6002 IN' THEN '82-6002'
+            ELSE product_service
+        END,
+        movement_date
+),
+
+adjustment_movements AS (
+    SELECT
+        CASE
+            WHEN item = '82-6002 IN' THEN '82-6002'
+            ELSE item
+        END AS sku,
+        TO_DATE(adjustment_date, 'MM-DD-YYYY') AS movement_date,
+        SUM(qty) AS adjustment_qty,
+        COUNT(*) AS adjustment_line_count
+    FROM (
+        SELECT DISTINCT
+            reference_no,
+            item,
+            adjustment_date,
+            quantity_difference AS qty,
+            value_difference,
+            transxx,
+            quick_books_internal_id
+        FROM {{ source('raw_data', 'xlsx_inventory_adjustment') }}
+        WHERE item IS NOT NULL
+          AND TRIM(item) != ''
+          AND quantity_difference IS NOT NULL
+          AND adjustment_date IS NOT NULL
+          AND TRIM(adjustment_date) != ''
+          AND adjustment_date ~ '^\d{2}-\d{2}-\d{4}$'
+    ) deduped_adjustments
+    GROUP BY
+        CASE
+            WHEN item = '82-6002 IN' THEN '82-6002'
+            ELSE item
+        END,
+        movement_date
+),
+
+daily_movements AS (
+    SELECT
+        sku,
+        movement_date,
+        SUM(sales_qty) AS sales_qty,
+        SUM(receipt_qty) AS receipt_qty,
+        SUM(adjustment_qty) AS adjustment_qty,
+        SUM(order_count) AS order_count,
+        SUM(line_item_count) AS line_item_count,
+        SUM(receipt_line_count) AS receipt_line_count,
+        SUM(adjustment_line_count) AS adjustment_line_count,
+        BOOL_OR(includes_future_dated_orders) AS includes_future_dated_orders,
+        SUM(receipt_qty + adjustment_qty - sales_qty) AS net_inventory_movement
+    FROM (
+        SELECT
+            sku,
+            movement_date,
+            sales_qty,
+            0::NUMERIC AS receipt_qty,
+            0::NUMERIC AS adjustment_qty,
+            order_count,
+            line_item_count,
+            0::BIGINT AS receipt_line_count,
+            0::BIGINT AS adjustment_line_count,
+            includes_future_dated_orders
+        FROM sales_movements
+
+        UNION ALL
+
+        SELECT
+            sku,
+            movement_date,
+            0::NUMERIC AS sales_qty,
+            receipt_qty,
+            0::NUMERIC AS adjustment_qty,
+            0::BIGINT AS order_count,
+            0::BIGINT AS line_item_count,
+            receipt_line_count,
+            0::BIGINT AS adjustment_line_count,
+            FALSE AS includes_future_dated_orders
+        FROM receipt_movements
+
+        UNION ALL
+
+        SELECT
+            sku,
+            movement_date,
+            0::NUMERIC AS sales_qty,
+            0::NUMERIC AS receipt_qty,
+            adjustment_qty,
+            0::BIGINT AS order_count,
+            0::BIGINT AS line_item_count,
+            0::BIGINT AS receipt_line_count,
+            adjustment_line_count,
+            FALSE AS includes_future_dated_orders
+        FROM adjustment_movements
+    ) movements
+    GROUP BY sku, movement_date
+),
+
+open_purchase_orders AS (
+    SELECT
+        CASE
+            WHEN product = '82-6002 IN' THEN '82-6002'
+            ELSE product
+        END AS sku,
+        SUM(product_quantity) AS open_po_quantity,
+        COUNT(*) AS open_po_line_count,
+        MIN(COALESCE(expected_date_parsed, po_date)) AS next_open_po_date
+    FROM (
+        SELECT DISTINCT
+            purchase_order_no,
+            vendor,
+            product,
+            TO_DATE(date, 'MM-DD-YYYY') AS po_date,
+            CASE
+                WHEN expected_date IS NOT NULL
+                 AND TRIM(expected_date) != ''
+                 AND expected_date ~ '^\d{2}-\d{2}-\d{4}$'
+                THEN TO_DATE(expected_date, 'MM-DD-YYYY')
+                ELSE NULL
+            END AS expected_date_parsed,
+            product_quantity,
+            product_rate,
+            product_amount,
+            fully_received,
+            manually_closed,
+            transxx,
+            quick_books_internal_id
+        FROM {{ source('raw_data', 'xlsx_purchase_order') }}
+        WHERE product IS NOT NULL
+          AND TRIM(product) != ''
+          AND product_quantity IS NOT NULL
+          AND date IS NOT NULL
+          AND TRIM(date) != ''
+          AND date ~ '^\d{2}-\d{2}-\d{4}$'
+          AND COALESCE(fully_received, FALSE) = FALSE
+          AND COALESCE(manually_closed, FALSE) = FALSE
+    ) deduped_open_pos
+    GROUP BY
+        CASE
+            WHEN product = '82-6002 IN' THEN '82-6002'
+            ELSE product
+        END
+),
+
+sku_bounds AS (
+    SELECT
+        i.sku,
+        LEAST(
+            COALESCE(MIN(a.anchor_date), CURRENT_DATE),
+            COALESCE(MIN(dm.movement_date), CURRENT_DATE)
+        ) AS start_date,
+        CURRENT_DATE AS end_date
+    FROM inventory_skus i
+    LEFT JOIN anchors a
+        ON i.sku = a.sku
+    LEFT JOIN daily_movements dm
+        ON i.sku = dm.sku
+    GROUP BY i.sku
+),
+
+date_spine AS (
+    SELECT
+        sku_bounds.sku,
+        generated_date::date AS inventory_date
+    FROM sku_bounds
+    CROSS JOIN LATERAL generate_series(
+        sku_bounds.start_date,
+        sku_bounds.end_date,
+        INTERVAL '1 day'
+    ) AS generated_date
+),
+
+dated_inventory AS (
+    SELECT
+        ds.sku,
+        ds.inventory_date,
+        COALESCE(dm.sales_qty, 0) AS sales_qty,
+        COALESCE(dm.receipt_qty, 0) AS receipt_qty,
+        COALESCE(dm.adjustment_qty, 0) AS adjustment_qty,
+        COALESCE(dm.net_inventory_movement, 0) AS net_inventory_movement,
+        COALESCE(dm.order_count, 0) AS order_count,
+        COALESCE(dm.line_item_count, 0) AS line_item_count,
+        COALESCE(dm.receipt_line_count, 0) AS receipt_line_count,
+        COALESCE(dm.adjustment_line_count, 0) AS adjustment_line_count,
+        COALESCE(dm.includes_future_dated_orders, FALSE) AS includes_future_dated_orders,
+        chosen_anchor.anchor_date,
+        chosen_anchor.anchor_quantity_on_hand,
+        chosen_anchor.quantity_on_order,
+        chosen_anchor.quantity_on_sales_order,
+        COALESCE(opo.open_po_quantity, 0) AS open_po_quantity,
+        COALESCE(opo.open_po_line_count, 0) AS open_po_line_count,
+        opo.next_open_po_date,
+        exact_anchor.anchor_date IS NOT NULL AS is_anchor_day
+    FROM date_spine ds
+    LEFT JOIN daily_movements dm
+        ON ds.sku = dm.sku
+       AND ds.inventory_date = dm.movement_date
+    LEFT JOIN open_purchase_orders opo
+        ON ds.sku = opo.sku
+    LEFT JOIN LATERAL (
+        SELECT
+            a.anchor_date,
+            a.anchor_quantity_on_hand,
+            a.quantity_on_order,
+            a.quantity_on_sales_order
+        FROM anchors a
+        WHERE a.sku = ds.sku
+          AND a.anchor_date <= ds.inventory_date
+        ORDER BY a.anchor_date DESC
+        LIMIT 1
+    ) prior_anchor ON TRUE
+    LEFT JOIN LATERAL (
+        SELECT
+            a.anchor_date,
+            a.anchor_quantity_on_hand,
+            a.quantity_on_order,
+            a.quantity_on_sales_order
+        FROM anchors a
+        WHERE a.sku = ds.sku
+          AND a.anchor_date > ds.inventory_date
+        ORDER BY a.anchor_date ASC
+        LIMIT 1
+    ) next_anchor ON prior_anchor.anchor_date IS NULL
+    LEFT JOIN LATERAL (
+        SELECT
+            COALESCE(prior_anchor.anchor_date, next_anchor.anchor_date) AS anchor_date,
+            COALESCE(prior_anchor.anchor_quantity_on_hand, next_anchor.anchor_quantity_on_hand) AS anchor_quantity_on_hand,
+            COALESCE(prior_anchor.quantity_on_order, next_anchor.quantity_on_order) AS quantity_on_order,
+            COALESCE(prior_anchor.quantity_on_sales_order, next_anchor.quantity_on_sales_order) AS quantity_on_sales_order
+    ) chosen_anchor ON TRUE
+    LEFT JOIN anchors exact_anchor
+        ON ds.sku = exact_anchor.sku
+       AND ds.inventory_date = exact_anchor.anchor_date
+),
+
+estimated_levels AS (
+    SELECT
+        di.*,
+        CASE
+            WHEN di.inventory_date < di.anchor_date THEN
+                di.anchor_quantity_on_hand - COALESCE((
+                    SELECT SUM(dm.net_inventory_movement)
+                    FROM daily_movements dm
+                    WHERE dm.sku = di.sku
+                      AND dm.movement_date > di.inventory_date
+                      AND dm.movement_date <= di.anchor_date
+                ), 0)
+            WHEN di.inventory_date = di.anchor_date THEN
+                di.anchor_quantity_on_hand
+            ELSE
+                di.anchor_quantity_on_hand + COALESCE((
+                    SELECT SUM(dm.net_inventory_movement)
+                    FROM daily_movements dm
+                    WHERE dm.sku = di.sku
+                      AND dm.movement_date > di.anchor_date
+                      AND dm.movement_date <= di.inventory_date
+                ), 0)
+        END AS estimated_ending_inventory
+    FROM dated_inventory di
+),
+
+velocity AS (
+    SELECT
+        *,
+        AVG(CASE WHEN inventory_date >= CURRENT_DATE - INTERVAL '30 days' THEN sales_qty END) OVER (
+            PARTITION BY sku
+        ) AS avg_daily_sales_30d,
+        AVG(CASE WHEN inventory_date >= CURRENT_DATE - INTERVAL '90 days' THEN sales_qty END) OVER (
+            PARTITION BY sku
+        ) AS avg_daily_sales_90d,
+        AVG(CASE WHEN inventory_date >= CURRENT_DATE - INTERVAL '365 days' THEN sales_qty END) OVER (
+            PARTITION BY sku
+        ) AS avg_daily_sales_365d
+    FROM estimated_levels
+),
+
 final AS (
     SELECT
-        -- Business keys
-        iwc.item_name,
-        DATE(iwc.snapshot_date) AS inventory_date,
-        
-        -- Inventory quantities
-        iwc.quantity_on_hand,
-        iwc.quantity_on_order,
-        iwc.quantity_on_sales_order,
-        iwc.available_quantity,
-        iwc.total_inventory_visibility,
-        
-        -- Inventory changes
-        iwc.previous_quantity_on_hand,
-        iwc.quantity_change,
-        
-        -- Product information from latest product data
-        lpi.sales_description AS product_description,
-        lpi.product_family,
-        lpi.material_type,
-        lpi.is_kit,
-        lpi.item_type,
-        lpi.item_subtype,
-        lpi.unit_of_measure,
-        
-        -- Pricing for inventory valuation
-        lpi.sales_price,
-        lpi.purchase_cost,
-        
-        -- Inventory value calculations
-        CASE 
-            WHEN lpi.purchase_cost IS NOT NULL 
-            THEN iwc.quantity_on_hand * lpi.purchase_cost
+        v.sku,
+        v.inventory_date,
+        v.sales_qty,
+        v.receipt_qty,
+        v.adjustment_qty,
+        v.net_inventory_movement,
+        v.order_count,
+        v.line_item_count,
+        v.receipt_line_count,
+        v.adjustment_line_count,
+        v.includes_future_dated_orders,
+
+        COALESCE(
+            LAG(v.estimated_ending_inventory) OVER (
+                PARTITION BY v.sku
+                ORDER BY v.inventory_date
+            ),
+            v.estimated_ending_inventory
+        ) AS estimated_beginning_inventory,
+        v.estimated_ending_inventory,
+        v.estimated_ending_inventory - LAG(v.estimated_ending_inventory) OVER (
+            PARTITION BY v.sku
+            ORDER BY v.inventory_date
+        ) AS inventory_change,
+
+        v.anchor_date,
+        v.anchor_quantity_on_hand,
+        v.is_anchor_day,
+        v.inventory_date >= CURRENT_DATE AS is_projected_day,
+        GREATEST(0, v.inventory_date - v.anchor_date) AS days_since_anchor,
+        'quickbooks_anchor_plus_bills_adjustments_and_sales' AS inventory_basis,
+
+        v.quantity_on_order,
+        v.quantity_on_sales_order,
+        v.open_po_quantity,
+        v.open_po_line_count,
+        v.next_open_po_date,
+        v.open_po_quantity > 0 AS has_open_po_inbound,
+        v.estimated_ending_inventory - v.quantity_on_sales_order AS estimated_available_quantity,
+        v.estimated_ending_inventory + v.quantity_on_order + v.open_po_quantity AS estimated_total_visibility,
+
+        v.avg_daily_sales_30d,
+        v.avg_daily_sales_90d,
+        v.avg_daily_sales_365d,
+        CASE
+            WHEN v.avg_daily_sales_90d > 0
+            THEN v.estimated_ending_inventory / v.avg_daily_sales_90d
             ELSE NULL
-        END AS inventory_value_at_cost,
-        
-        CASE 
-            WHEN lpi.sales_price IS NOT NULL 
-            THEN iwc.quantity_on_hand * lpi.sales_price
+        END AS days_remaining_90d_velocity,
+        CASE
+            WHEN v.estimated_ending_inventory <= 0 THEN v.inventory_date
+            WHEN v.avg_daily_sales_90d > 0 THEN v.inventory_date + CEIL(v.estimated_ending_inventory / v.avg_daily_sales_90d)::int
             ELSE NULL
-        END AS inventory_value_at_sales_price,
-        
-        -- Status and metadata
-        iwc.status AS item_status,
-        iwc.is_seed,
-        iwc.snapshot_date AS original_snapshot_date
-        
-    FROM inventory_with_changes iwc
-    LEFT JOIN latest_product_info lpi ON iwc.item_name = lpi.item_name
-    
-    -- Only include records with meaningful inventory data
-    WHERE iwc.item_name IS NOT NULL 
-    AND iwc.item_name != ''
+        END AS estimated_stockout_date,
+        CASE
+            WHEN v.avg_daily_sales_90d IS NULL OR v.avg_daily_sales_90d = 0 THEN 'NO_RECENT_SALES'
+            WHEN v.estimated_ending_inventory <= 0 THEN 'NEGATIVE_OR_ZERO'
+            WHEN v.estimated_ending_inventory / v.avg_daily_sales_90d <= 30 THEN 'CRITICAL'
+            WHEN v.estimated_ending_inventory / v.avg_daily_sales_90d <= 60 THEN 'LOW'
+            WHEN v.estimated_ending_inventory / v.avg_daily_sales_90d <= 120 THEN 'MODERATE'
+            ELSE 'SUFFICIENT'
+        END AS inventory_status,
+
+        pd.sales_description,
+        pd.product_family,
+        pd.material_type,
+        pd.is_kit,
+        pd.item_type,
+        pd.item_subtype,
+        pd.packaging_type,
+        pd.units_per_sku,
+        pd.unit_of_measure,
+        pd.sales_price,
+        pd.purchase_cost,
+        v.estimated_ending_inventory * pd.purchase_cost AS inventory_value_at_cost,
+        v.estimated_ending_inventory * pd.sales_price AS inventory_value_at_sales_price,
+        pd.item_status
+    FROM velocity v
+    LEFT JOIN product_details pd
+        ON v.sku = pd.sku
 )
 
-SELECT * FROM final
-ORDER BY item_name, inventory_date
+SELECT *
+FROM final
+ORDER BY sku, inventory_date

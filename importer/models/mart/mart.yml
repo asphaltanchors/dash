@@ -935,27 +935,57 @@ models:
 
   - name: fct_inventory_history
     description: >
-      Fact table tracking inventory history and changes over time.
+      Daily sales-based inventory estimate. QuickBooks quantity_on_hand rows are
+      treated as occasional anchors; between anchors, inventory drifts down from
+      sales, bill receipts, and inventory adjustments. Future-dated orders are counted
+      as immediate depletion on the current date. Open unreceived POs are exposed as
+      inbound planning fields, but are not counted as on-hand.
     columns:
-      - name: item_name
-        description: Name of the inventory item
+      - name: sku
+        description: Inventory item/SKU
         tests:
           - not_null
       
       - name: inventory_date
-        description: Date of the inventory snapshot
+        description: Date for the estimated inventory level
         tests:
           - not_null
       
-      - name: quantity_on_hand
-        description: Quantity available in inventory
+      - name: estimated_ending_inventory
+        description: Estimated end-of-day quantity on hand in sellable warehouse boxes
         tests:
           - not_null
+
+      - name: anchor_date
+        description: QuickBooks load date used as the nearest inventory anchor
+        tests:
+          - not_null
+
+      - name: anchor_quantity_on_hand
+        description: QuickBooks quantity_on_hand at the anchor date
+        tests:
+          - not_null
+
+      - name: inventory_status
+        description: Risk bucket based on estimated inventory and trailing 90-day sales velocity
+
+      - name: receipt_qty
+        description: Deduped bill quantity received on this date, excluding DPC Transfer Inventory
+
+      - name: adjustment_qty
+        description: Deduped inventory adjustment quantity on this date
+
+      - name: open_po_quantity
+        description: Quantity on open, unreceived, non-manually-closed purchase orders
+
+      - name: has_open_po_inbound
+        description: Whether this SKU has open PO quantity available for inbound planning
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - item_name
-            - inventory_date
+          arguments:
+            combination_of_columns:
+              - sku
+              - inventory_date
 
   - name: fct_product_pricing_history
     description: >
