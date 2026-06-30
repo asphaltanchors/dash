@@ -7,7 +7,7 @@ services:
     volumes:
       - ./importer:/app
       - ./data:/data
-      - ~/Insync/oren@teich.net/Dropbox/quickbooks-csv:/dropbox
+      - ~/Dropbox/quickbooks-csv:/dropbox
     # Override environment for local development
     environment:
       # Point to Insync/Dropbox data directory
