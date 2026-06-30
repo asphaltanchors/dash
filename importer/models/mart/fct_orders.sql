@@ -89,6 +89,7 @@ customer_primary_contacts AS (
 orders_enriched AS (
     SELECT
         -- Primary key
+        o.order_key,
         o.order_number,
         
         -- Order metadata

@@ -33,14 +33,20 @@ models:
 
   - name: int_quickbooks__orders
     description: >
-      Intermediate model that aggregates order items to order level but still
-      requires additional business logic to be applied.
+      Intermediate model that aggregates order items to QuickBooks transaction level but still
+      requires additional business logic to be applied. Keeps the latest load for each
+      transaction to avoid double-counting records that appear in both seed and incremental loads.
     columns:
-      - name: order_number
-        description: Unique identifier for the order
+      - name: order_key
+        description: Stable transaction-grain key built from source type, QuickBooks internal ID, and transaction ID. Use this as the unique order identifier; printed order_number can be reused.
         tests:
           - not_null
           - unique
+
+      - name: order_number
+        description: Printed QuickBooks order/invoice number. This is useful for display and search but is not globally unique.
+        tests:
+          - not_null
       
       - name: customer
         description: Name of the customer who placed the order

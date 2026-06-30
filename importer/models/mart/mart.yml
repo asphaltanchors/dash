@@ -64,11 +64,16 @@ models:
       Eliminates need for manual date filtering in dashboard queries.
       Use this instead of fct_orders in dashboard applications.
     columns:
-      - name: order_number
-        description: Unique identifier for the order
+      - name: order_key
+        description: Stable transaction-grain key inherited from fct_orders.
         tests:
           - not_null
           - unique
+
+      - name: order_number
+        description: Printed QuickBooks order/invoice number. Useful for display and search but not globally unique.
+        tests:
+          - not_null
       
       - name: order_date
         description: Date when the order was placed (always <= current date)
@@ -76,14 +81,20 @@ models:
           - not_null
   - name: fct_orders
     description: >
-      Order-level fact table aggregated from line items. 
-      One row per order from QuickBooks, containing order metadata and aggregated measures.
+      Order-level fact table aggregated from line items.
+      One row per QuickBooks transaction, containing order metadata and aggregated measures.
+      Printed order numbers are preserved for display but may repeat when QuickBooks reuses a number.
     columns:
-      - name: order_number
-        description: Unique identifier for the order
+      - name: order_key
+        description: Stable transaction-grain key built from source type, QuickBooks internal ID, and transaction ID. Use this as the unique order identifier.
         tests:
           - not_null
           - unique
+
+      - name: order_number
+        description: Printed QuickBooks order/invoice number. Useful for display and search but not globally unique.
+        tests:
+          - not_null
       
       - name: order_date
         description: Date when the order was placed
@@ -304,15 +315,21 @@ models:
       Order line items for frontend invoice recreation. Each row represents a single line item 
       on an order/invoice with complete order context and enriched product information.
       Enables frontend applications to recreate customer invoices with all necessary details.
+      Repeated seed/incremental loads are deduped by keeping the latest load for each order_key.
     columns:
       - name: line_item_id
         description: Unique identifier for each line item (from DLT _dlt_id)
         tests:
           - unique
           - not_null
+
+      - name: order_key
+        description: Stable transaction-grain key shared with fct_orders. Use this for joins to order-level facts.
+        tests:
+          - not_null
       
       - name: order_number
-        description: Order/invoice number this line item belongs to
+        description: Printed QuickBooks order/invoice number this line item belongs to. Useful for display and search but not globally unique.
         tests:
           - not_null
       

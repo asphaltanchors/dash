@@ -7,14 +7,41 @@
 */
 
 WITH order_items AS (
-    SELECT * FROM {{ ref('int_quickbooks__order_items_typed') }}
+    SELECT
+        *,
+        CONCAT_WS(
+            ':',
+            source_type,
+            COALESCE(NULLIF(quickbooks_internal_id, ''), 'missing_qb_id'),
+            COALESCE(transaction_id::TEXT, 'missing_transaction_id')
+        ) AS order_key
+    FROM {{ ref('int_quickbooks__order_items_typed') }}
 ),
 
--- Group by order_number to get order-level data
+latest_order_items AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            DENSE_RANK() OVER (
+                PARTITION BY order_key
+                ORDER BY
+                    CASE
+                        WHEN _dlt_load_id ~ '^[0-9]+(\.[0-9]+)?$' THEN _dlt_load_id::NUMERIC
+                        ELSE NULL
+                    END DESC NULLS LAST
+            ) AS load_rank
+        FROM order_items
+    ) ranked
+    WHERE load_rank = 1
+),
+
+-- Group by stable QuickBooks transaction key to avoid merging reused printed order numbers.
 aggregated_orders AS (
     SELECT
         -- Order identifiers
-        order_number,
+        order_key,
+        MAX(order_number) AS order_number,
         MAX(source_type) AS source_type,
         MAX(transaction_id) AS transaction_id,
         MAX(quickbooks_internal_id) AS quickbooks_internal_id,
@@ -78,8 +105,8 @@ aggregated_orders AS (
         MAX(total_amount) AS total_amount,  -- Use MAX instead of SUM since total_amount is order-level, not line-level
         COUNT(*) AS item_count
         
-    FROM order_items
-    GROUP BY order_number
+    FROM latest_order_items
+    GROUP BY order_key
 ),
 
 -- Add country normalization to orders
