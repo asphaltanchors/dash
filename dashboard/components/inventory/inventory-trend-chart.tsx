@@ -116,7 +116,7 @@ export function InventoryTrendChart({ data }: InventoryTrendChartProps) {
                 strokeWidth={2}
                 dot={(props) => {
                   const { cx, cy, payload } = props;
-                  if (!payload.isAnchorDay) return null;
+                  if (!payload.isAnchorDay) return <circle key={`dot-${payload.fullDate}`} cx={cx} cy={cy} r={0} fill="transparent" />;
                   return <circle key={`anchor-${payload.fullDate}`} cx={cx} cy={cy} r={4} fill="#111827" stroke="#fff" strokeWidth={1.5} />;
                 }}
                 activeDot={{ r: 4, fill: "#2563eb" }}
