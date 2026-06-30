@@ -18,7 +18,8 @@ WITH domain_revenue AS (
     FROM {{ ref('int_quickbooks__customer_company_mapping') }} ccm
     LEFT JOIN {{ ref('int_quickbooks__customer_revenue') }} cr 
         ON ccm.customer_name = cr.customer
-    WHERE ccm.company_domain_key != 'NO_EMAIL_DOMAIN'
+    WHERE ccm.company_domain_key IS NOT NULL
+      AND ccm.company_domain_key != ''
     GROUP BY ccm.company_domain_key
 ),
 
@@ -84,8 +85,9 @@ domain_representatives AS (
         ) as primary_billing_postal_code
         
     FROM {{ ref('int_quickbooks__customer_company_mapping') }} ccm
-    WHERE ccm.domain_type IN ('corporate', 'individual')
-      AND ccm.company_domain_key != 'NO_EMAIL_DOMAIN'
+    WHERE ccm.domain_type IN ('corporate', 'individual', 'no_email', 'skip')
+      AND ccm.company_domain_key IS NOT NULL
+      AND ccm.company_domain_key != ''
 ),
 
 -- Aggregate customer metrics by domain
@@ -111,9 +113,9 @@ company_aggregates AS (
         ) as all_customer_names
         
     FROM {{ ref('int_quickbooks__customer_company_mapping') }} ccm
-    -- Only include corporate domains or individuals with valid domains
-    WHERE ccm.domain_type IN ('corporate', 'individual')
-      AND ccm.company_domain_key != 'NO_EMAIL_DOMAIN'
+    WHERE ccm.domain_type IN ('corporate', 'individual', 'no_email', 'skip')
+      AND ccm.company_domain_key IS NOT NULL
+      AND ccm.company_domain_key != ''
     GROUP BY ccm.company_domain_key, ccm.domain_type
 ),
 
@@ -133,7 +135,7 @@ company_geographic_data AS (
         ) as country_category
     FROM {{ ref('int_quickbooks__customer_company_mapping') }} c
     LEFT JOIN {{ ref('stg_quickbooks__customers') }} s ON c.customer_id = s.quick_books_internal_id
-    WHERE company_domain_key != 'NO_EMAIL_DOMAIN'
+    WHERE company_domain_key IS NOT NULL
       AND company_domain_key != ''
     GROUP BY company_domain_key
 )
@@ -171,6 +173,8 @@ SELECT
     -- Business classification
     CASE 
         WHEN ca.domain_type = 'individual' THEN 'Individual Customer'
+        WHEN ca.domain_type = 'no_email' THEN 'Unresolved Customer'
+        WHEN ca.domain_type = 'skip' THEN 'Skipped Domain Customer'
         WHEN ca.customer_count = 1 THEN 'Single Location'
         WHEN ca.customer_count BETWEEN 2 AND 5 THEN 'Small Multi-Location'
         WHEN ca.customer_count BETWEEN 6 AND 20 THEN 'Medium Multi-Location'

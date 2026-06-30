@@ -54,14 +54,14 @@ customers_with_normalized_domains AS (
             dm_cc.normalized_domain,
             c.cc_email_domain
         ) as normalized_cc_domain,
-        -- Select primary domain for company grouping
+        -- Select raw primary domain before applying MDM-safe grouping.
         COALESCE(
             dm_main.normalized_domain,
             dm_cc.normalized_domain,
             c.main_email_domain,
             c.cc_email_domain,
             'NO_EMAIL_DOMAIN'
-        ) as company_domain_key,
+        ) as raw_company_domain_key,
         -- Use domain type from mapping table
         COALESCE(
             dm_main.domain_type,
@@ -106,7 +106,16 @@ SELECT
     company_name as customer_company_name,
     
     -- Domain mapping
-    company_domain_key,
+    CASE
+        -- Public/personal domains, missing email, and marketplace/skipped domains are
+        -- not true company identifiers. Keep them visible in company analytics without
+        -- merging unrelated customers into gmail.com/yahoo.com/no-email buckets.
+        WHEN domain_type = 'individual' THEN 'individual_customer_' || quick_books_internal_id
+        WHEN domain_type = 'no_email' THEN 'no_email_customer_' || quick_books_internal_id
+        WHEN domain_type = 'skip' THEN 'skipped_domain_customer_' || quick_books_internal_id
+        ELSE raw_company_domain_key
+    END as company_domain_key,
+    raw_company_domain_key,
     domain_type,
     main_email_domain,
     cc_email_domain,
@@ -131,8 +140,8 @@ SELECT
     
     -- Classification flags
     CASE WHEN domain_type = 'individual' THEN TRUE ELSE FALSE END as is_individual_customer,
-    CASE WHEN company_domain_key = 'NO_EMAIL_DOMAIN' THEN TRUE ELSE FALSE END as is_missing_email,
-    CASE WHEN domain_type IN ('corporate', 'individual') THEN TRUE ELSE FALSE END as has_valid_domain,
+    CASE WHEN domain_type = 'no_email' THEN TRUE ELSE FALSE END as is_missing_email,
+    CASE WHEN domain_type = 'corporate' THEN TRUE ELSE FALSE END as has_valid_domain,
     
     -- Metadata
     CURRENT_TIMESTAMP as created_at

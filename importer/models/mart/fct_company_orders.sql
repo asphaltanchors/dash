@@ -92,9 +92,9 @@ company_order_summary AS (
         order_type,
         order_date,
         customer_name,
-        sales_rep,
-        payment_method,
-        terms,
+        MODE() WITHIN GROUP (ORDER BY sales_rep) as sales_rep,
+        MODE() WITHIN GROUP (ORDER BY payment_method) as payment_method,
+        MODE() WITHIN GROUP (ORDER BY terms) as terms,
         
         -- Order-level aggregations
         COUNT(*) as line_item_count,
@@ -120,7 +120,7 @@ company_order_summary AS (
     FROM enriched_orders
     GROUP BY 
         company_domain_key, order_number, order_type, order_date, customer_name,
-        sales_rep, payment_method, terms, order_year, order_quarter, recency_category
+        order_year, order_quarter, recency_category
 )
 
 SELECT 

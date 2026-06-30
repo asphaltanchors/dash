@@ -395,11 +395,11 @@ models:
           - not_null
       
       - name: domain_type
-        description: Type of domain (corporate, individual)
+        description: Type of domain/entity grouping (corporate, individual, no_email, skip)
         tests:
           - not_null
           - accepted_values:
-              values: ['corporate', 'individual']
+              values: ['corporate', 'individual', 'no_email', 'skip']
       
       - name: company_name
         description: Primary company name (best available from consolidated customers)
@@ -429,7 +429,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Individual Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
+              values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
       
       - name: revenue_category
         description: Classification based on total revenue
@@ -721,18 +721,18 @@ models:
               values: ['invoice', 'sales_receipt']
       
       - name: domain_type
-        description: Company domain type (corporate or individual)
+        description: Company domain/entity grouping type
         tests:
           - not_null
           - accepted_values:
-              values: ['corporate', 'individual']
+              values: ['corporate', 'individual', 'no_email', 'skip']
       
       - name: business_size_category
         description: Company size classification
         tests:
           - not_null
           - accepted_values:
-              values: ['Individual Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
+              values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
       
       - name: company_total_revenue
         description: Lifetime company revenue from the company-product base model
