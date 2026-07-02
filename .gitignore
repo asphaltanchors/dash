@@ -50,5 +50,6 @@ temp/
 
 # Generated/private business data artifacts
 growth_target_list.xlsx
+.~lock.*#
 importer/exports/
 reports/whitecap_business_2026-06-30/
