@@ -295,6 +295,48 @@ models:
             - item_name
             - snapshot_date
 
+  - name: int_quickbooks__inventory_movements
+    description: >
+      Normalized inventory-affecting QuickBooks movements at event grain. One row per
+      sales line, vendor bill receipt line, inventory adjustment, build assembly output,
+      or build assembly component consumption. `movement_quantity` is signed so positive
+      values increase inventory and negative values decrease inventory.
+    columns:
+      - name: movement_id
+        description: Stable hash key for the normalized movement row, built from source identifiers and signed quantity.
+        tests:
+          - not_null
+          - unique
+
+      - name: movement_source
+        description: Source worksheet/model that produced the movement row.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['sales_order_line', 'vendor_bill', 'inventory_adjustment', 'build_assembly_header', 'build_assembly_component']
+
+      - name: movement_type
+        description: Inventory business event type used by downstream reconstruction and reorder logic.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['sale', 'receipt', 'adjustment', 'fba_transfer_in', 'fba_transfer_out', 'build_production', 'build_component_consumption']
+
+      - name: sku
+        description: QuickBooks item name after SKU normalization for known aliases such as `82-6002 IN`.
+        tests:
+          - not_null
+
+      - name: movement_date
+        description: Date the movement affected or is expected to affect inventory.
+        tests:
+          - not_null
+
+      - name: movement_quantity
+        description: Signed inventory impact; positive quantities increase inventory and negative quantities decrease inventory.
+        tests:
+          - not_null
+
   - name: int_contact_email_parsing
     description: >
       Intermediate model for parsing and splitting customer contact emails.
