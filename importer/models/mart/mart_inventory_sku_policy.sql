@@ -62,6 +62,20 @@ suppression_rules AS (
             WHEN li.sku = '01-6315.3SK-2' THEN 'customer_special_order_not_inventory'
             WHEN li.sku = '01-6358.5SK-2' THEN 'customer_special_order_not_inventory'
             WHEN li.sku IN ('01-8050', '46-4001', '53-0258.BK', '95-0010', '95-0101') THEN 'obsolete_sku_not_sold'
+            WHEN li.sku IN (
+                '41-4010',
+                '41-4012',
+                '41-4016',
+                '41-4017',
+                '41-4025',
+                '41-4026',
+                '43-0017',
+                '46-3001',
+                '51-6202',
+                '51-6204',
+                '53-0208.WT',
+                '53-0209.WT'
+            ) THEN 'outdated_sku_not_inventory_planning'
             WHEN li.sku = '82-5002.010' THEN 'obsolete_replaced_by_AHD_EPX2'
             WHEN li.sku = '82-5002.020' THEN 'obsolete_or_nonplanning_sku'
             ELSE NULL
