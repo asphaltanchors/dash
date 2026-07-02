@@ -22,7 +22,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/utils';
+import { Info } from 'lucide-react';
 
 interface InventoryPlanningTableProps {
   data: InventoryPlanningItem[];
@@ -105,20 +107,98 @@ function forecastBasis(item: InventoryPlanningItem): string {
   return `${method}; baseline ${formatInteger(item.skuBaselineMonthlyQty)}/mo, seasonality ${item.appliedSeasonalityIndex}x, growth ${item.appliedGrowthFactor}x`;
 }
 
-const WWD_LAYER_MULTIPLES: Record<string, number> = {};
-
-function getWwdLayerMultiple(item: InventoryPlanningItem): number | null {
-  return WWD_LAYER_MULTIPLES[item.sku] ?? null;
+function hasLayerBuyPlan(item: InventoryPlanningItem): boolean {
+  return Number(item.suggestedBuyQty) > 0 && Boolean(item.sixPackUnitsPerLayer);
 }
 
-function getRoundedLayerBuyQty(item: InventoryPlanningItem): string {
-  const suggestedBuyQty = Number(item.suggestedBuyQty || 0);
-  const layerMultiple = getWwdLayerMultiple(item);
+function operationalBuyQty(item: InventoryPlanningItem, useLayerPlan: boolean): number {
+  if (useLayerPlan && hasLayerBuyPlan(item)) {
+    return Number(item.layerRoundedBuyQty || 0);
+  }
 
-  if (suggestedBuyQty <= 0) return '0';
-  if (!layerMultiple) return 'layer TBD';
+  return Number(item.suggestedBuyQty || 0);
+}
 
-  return (Math.ceil(suggestedBuyQty / layerMultiple) * layerMultiple).toFixed(0);
+function operationalBuyCost(item: InventoryPlanningItem, useLayerPlan: boolean): number {
+  if (useLayerPlan && hasLayerBuyPlan(item)) {
+    return operationalBuyQty(item, true) * Number(item.purchaseCost || 0);
+  }
+
+  return Number(item.suggestedBuyCost || 0);
+}
+
+function buyPlanPrimary(item: InventoryPlanningItem, useLayerPlan: boolean): string {
+  if (!useLayerPlan) {
+    return formatInteger(item.suggestedBuyQty);
+  }
+
+  if (Number(item.suggestedBuyQty) <= 0) {
+    return '0';
+  }
+
+  if (!item.sixPackUnitsPerLayer) {
+    return formatInteger(item.suggestedBuyQty);
+  }
+
+  return `${formatInteger(item.reorderLayerCount)} layer${Number(item.reorderLayerCount) === 1 ? '' : 's'}`;
+}
+
+function buyPlanDetail(item: InventoryPlanningItem, useLayerPlan: boolean): string {
+  if (!useLayerPlan) {
+    return 'model quantity';
+  }
+
+  if (Number(item.suggestedBuyQty) <= 0) {
+    return 'no buy recommended';
+  }
+
+  if (!item.sixPackUnitsPerLayer) {
+    return `model calls for ${formatInteger(item.suggestedBuyQty)}; layer multiple TBD`;
+  }
+
+  return `${formatInteger(item.layerRoundedBuyQty)} 6-packs; model calls for ${formatInteger(item.suggestedBuyQty)}, +${formatInteger(item.layerRoundingExtraQty)}`;
+}
+
+function layerBasisDetail(item: InventoryPlanningItem): string {
+  if (!item.sixPackUnitsPerLayer) {
+    return 'Layer multiple TBD';
+  }
+
+  return `Layer multiple ${item.sixPackUnitsPerLayer} 6-packs`;
+}
+
+function PlanningDetailsTooltip({ item }: { item: InventoryPlanningItem }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label={`Show planning details for ${item.sku}`}
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-[360px] bg-popover text-popover-foreground shadow-md">
+        <div className="space-y-1.5 text-xs">
+          <div className="font-medium text-foreground">{item.sku}</div>
+          <div>{forecastBasis(item)}</div>
+          <div>{layerBasisDetail(item)}</div>
+          <div>
+            {item.targetCoverageDays}d target, {item.assumedLeadTimeDays}d lead, safety {formatInteger(item.safetyStockQty)}
+          </div>
+          {Number(item.cappedReductionQty12m) > 0 && (
+            <div>{formatInteger(item.cappedReductionQty12m)} units capped from 12m outliers</div>
+          )}
+          <div>{item.policyAssignmentReason.replaceAll('_', ' ')}</div>
+          {item.policyReviewFlags && (
+            <div className="text-amber-700">{item.policyReviewFlags.replaceAll('_', ' ')}</div>
+          )}
+          <div>{item.recommendationReason}</div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 function isWwd(item: InventoryPlanningItem): boolean {
@@ -156,12 +236,14 @@ function sortItems(items: InventoryPlanningItem[]): InventoryPlanningItem[] {
   });
 }
 
-function sectionSummary(items: InventoryPlanningItem[]): string {
+function sectionSummary(items: InventoryPlanningItem[], options: { useLayerPlan?: boolean } = {}): string {
+  const useLayerPlan = options.useLayerPlan ?? false;
   const buyItems = items.filter((item) => item.shouldReorder);
-  const buyQty = buyItems.reduce((sum, item) => sum + Number(item.suggestedBuyQty), 0);
-  const buyCost = buyItems.reduce((sum, item) => sum + Number(item.suggestedBuyCost), 0);
+  const buyQty = buyItems.reduce((sum, item) => sum + operationalBuyQty(item, useLayerPlan), 0);
+  const buyCost = buyItems.reduce((sum, item) => sum + operationalBuyCost(item, useLayerPlan), 0);
+  const quantityLabel = useLayerPlan ? '6-packs' : 'units';
 
-  return `${items.length} SKUs, ${buyItems.length} buys, ${buyQty.toLocaleString()} units, ${formatCurrency(buyCost, { showCents: false })}`;
+  return `${items.length} SKUs, ${buyItems.length} buys, ${buyQty.toLocaleString()} ${quantityLabel}, ${formatCurrency(buyCost, { showCents: false })}`;
 }
 
 export function ReorderPlanningTable({ data, families }: InventoryPlanningTableProps) {
@@ -184,7 +266,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
     {
       key: 'wwd',
       title: 'WWD Pallet Planning',
-      description: 'WWD vendor SKUs, including WWD brush accessories. Layer multiples are ready to fill in.',
+      description: 'WWD vendor SKUs, including known 6-pack layer multiples for anchor SKUs.',
       items: wwdItems,
       tone: 'primary',
     },
@@ -218,6 +300,72 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
   ];
 
   const sections = sectionCandidates.filter((section) => section.items.length > 0);
+
+  function renderCompactWwdRows(items: InventoryPlanningItem[]) {
+    return items.map((item) => (
+      <TableRow key={item.sku}>
+        <TableCell className="align-top">
+          <Link
+            href={`/products/${encodeURIComponent(item.sku)}`}
+            className="font-mono text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            {item.sku}
+          </Link>
+          <div className="mt-1 flex items-center gap-1">
+            <Badge variant="outline" className={`text-xs ${actionClasses[item.action]}`}>
+              {actionLabels[item.action]}
+            </Badge>
+          </div>
+        </TableCell>
+        <TableCell className="align-top">
+          <div className="max-w-[360px]">
+            <div className="truncate text-sm">{item.salesDescription || '-'}</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              <Badge variant="outline" className="text-xs">
+                {item.productFamily}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {item.confidenceLevel}
+              </Badge>
+              {item.policyValidationStatus === 'review' && (
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-xs text-amber-800">
+                  policy review
+                </Badge>
+              )}
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="align-top text-right font-mono text-sm">
+          <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-600' : 'font-semibold'}>
+            {formatInteger(item.onHandQty)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {item.positionDays || '-'}d position
+          </div>
+        </TableCell>
+        <TableCell className="align-top text-right font-mono text-sm">
+          <div>{inboundLabel(item)}</div>
+          <div className="text-xs text-muted-foreground">{inboundDetail(item)}</div>
+        </TableCell>
+        <TableCell className="align-top text-right font-mono text-sm font-semibold">
+          <div className={operationalBuyQty(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+            {buyPlanPrimary(item, true)}
+          </div>
+          <div className="text-xs font-normal text-muted-foreground">
+            {buyPlanDetail(item, true)}
+          </div>
+        </TableCell>
+        <TableCell className="align-top text-right font-mono text-sm font-semibold">
+          <span className={operationalBuyCost(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+            {formatCurrency(operationalBuyCost(item, true), { showCents: false })}
+          </span>
+        </TableCell>
+        <TableCell className="align-top text-right">
+          <PlanningDetailsTooltip item={item} />
+        </TableCell>
+      </TableRow>
+    ));
+  }
 
   function renderRows(items: InventoryPlanningItem[], options: { showLayerPlanning?: boolean } = {}) {
     return items.map((item) => (
@@ -273,18 +421,16 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
           {item.positionDays || '-'}
         </TableCell>
         <TableCell className="text-right font-mono text-sm font-semibold">
-          <span className={Number(item.suggestedBuyQty) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
-            {formatInteger(item.suggestedBuyQty)}
+          <span className={operationalBuyQty(item, Boolean(options.showLayerPlanning)) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+            {buyPlanPrimary(item, Boolean(options.showLayerPlanning))}
           </span>
-          {options.showLayerPlanning && (
-            <div className="text-xs font-normal text-muted-foreground">
-              layer {getRoundedLayerBuyQty(item)}
-            </div>
-          )}
+          <div className="text-xs font-normal text-muted-foreground">
+            {buyPlanDetail(item, Boolean(options.showLayerPlanning))}
+          </div>
         </TableCell>
         <TableCell className="text-right font-mono text-sm font-semibold hidden lg:table-cell">
-          <span className={Number(item.suggestedBuyCost) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
-            {formatCurrency(item.suggestedBuyCost, { showCents: false })}
+          <span className={operationalBuyCost(item, Boolean(options.showLayerPlanning)) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+            {formatCurrency(operationalBuyCost(item, Boolean(options.showLayerPlanning)), { showCents: false })}
           </span>
         </TableCell>
         <TableCell className="hidden xl:table-cell">
@@ -292,7 +438,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
             <div>{forecastBasis(item)}</div>
             {options.showLayerPlanning && (
               <div>
-                WWD layer multiple {getWwdLayerMultiple(item) ?? 'TBD'}
+                {layerBasisDetail(item)}
               </div>
             )}
             {Number(item.cappedReductionQty12m) > 0 && (
@@ -314,6 +460,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
 
   function renderSection(section: SectionDefinition) {
     const isPrimary = section.tone === 'primary';
+    const showLayerPlanning = section.key === 'wwd';
 
     return (
       <Card key={section.key} className={isPrimary ? 'border-blue-200' : undefined}>
@@ -326,7 +473,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
               </CardDescription>
             </div>
             <Badge variant="outline" className={isPrimary ? 'border-blue-300 bg-blue-50 text-blue-800' : 'text-muted-foreground'}>
-              {sectionSummary(section.items)}
+              {sectionSummary(section.items, { useLayerPlan: showLayerPlanning })}
             </Badge>
           </div>
         </CardHeader>
@@ -334,22 +481,36 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[118px]">SKU</TableHead>
-                  <TableHead className="min-w-[240px]">Item</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead className="text-right">On Hand</TableHead>
-                  <TableHead className="text-right">Inbound</TableHead>
-                  <TableHead className="text-right">Forecast/Day</TableHead>
-                  <TableHead className="text-right">On-Hand Days</TableHead>
-                  <TableHead className="text-right">Position Days</TableHead>
-                  <TableHead className="text-right">Suggested Buy</TableHead>
-                  <TableHead className="text-right hidden lg:table-cell">Buy Cost</TableHead>
-                  <TableHead className="min-w-[300px] hidden xl:table-cell">Basis</TableHead>
-                </TableRow>
+                {showLayerPlanning ? (
+                  <TableRow>
+                    <TableHead className="min-w-[118px]">SKU</TableHead>
+                    <TableHead className="min-w-[260px]">Item</TableHead>
+                    <TableHead className="text-right">Inventory</TableHead>
+                    <TableHead className="text-right">Inbound</TableHead>
+                    <TableHead className="text-right">Buy Plan</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead className="w-[48px] text-right">Details</TableHead>
+                  </TableRow>
+                ) : (
+                  <TableRow>
+                    <TableHead className="min-w-[118px]">SKU</TableHead>
+                    <TableHead className="min-w-[240px]">Item</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead className="text-right">On Hand</TableHead>
+                    <TableHead className="text-right">Inbound</TableHead>
+                    <TableHead className="text-right">Forecast/Day</TableHead>
+                    <TableHead className="text-right">On-Hand Days</TableHead>
+                    <TableHead className="text-right">Position Days</TableHead>
+                    <TableHead className="text-right">Suggested Buy</TableHead>
+                    <TableHead className="text-right hidden lg:table-cell">Buy Cost</TableHead>
+                    <TableHead className="min-w-[300px] hidden xl:table-cell">Basis</TableHead>
+                  </TableRow>
+                )}
               </TableHeader>
               <TableBody>
-                {renderRows(section.items, { showLayerPlanning: section.key === 'wwd' })}
+                {showLayerPlanning
+                  ? renderCompactWwdRows(section.items)
+                  : renderRows(section.items, { showLayerPlanning })}
               </TableBody>
             </Table>
           </div>

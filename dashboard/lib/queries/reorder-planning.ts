@@ -68,6 +68,10 @@ export interface InventoryPlanningItem {
   stockoutDate: string | null;
   reorderByDate: string | null;
   suggestedBuyQty: string;
+  layerRoundedBuyQty: string;
+  reorderLayerCount: string;
+  layerRoundingExtraQty: string;
+  sixPackUnitsPerLayer: number | null;
   suggestedBuyCost: string;
   purchaseCost: string;
   safetyStockQty: string;
@@ -121,6 +125,10 @@ interface InventoryPlanningRow {
   avg_daily_sales_90d: string | number | null;
   avg_daily_sales_365d: string | number | null;
   reorder_qty: string | number | null;
+  layer_rounded_reorder_qty: string | number | null;
+  reorder_layer_count: string | number | null;
+  layer_rounding_extra_qty: string | number | null;
+  six_pack_units_per_layer: number | null;
   reorder_value_at_cost: string | number | null;
   projected_stockout_or_safety_date: string | Date | null;
   reorder_by_date: string | Date | null;
@@ -215,6 +223,10 @@ export async function getInventoryPlanningPageData(): Promise<{
       stockoutDate: formatDate(row.projected_stockout_or_safety_date),
       reorderByDate: formatDate(row.reorder_by_date),
       suggestedBuyQty: formatNumber(row.reorder_qty),
+      layerRoundedBuyQty: formatNumber(row.layer_rounded_reorder_qty),
+      reorderLayerCount: formatNumber(row.reorder_layer_count),
+      layerRoundingExtraQty: formatNumber(row.layer_rounding_extra_qty),
+      sixPackUnitsPerLayer: row.six_pack_units_per_layer == null ? null : Number(row.six_pack_units_per_layer),
       suggestedBuyCost: formatNumber(row.reorder_value_at_cost, 2),
       purchaseCost: formatNumber(row.purchase_cost, 2),
       safetyStockQty: formatNumber(row.safety_stock_qty),
