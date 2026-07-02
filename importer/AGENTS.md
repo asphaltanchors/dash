@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file provides guidance to coding agents working in the `importer/` submodule.
+This file provides guidance to coding agents working in the `importer/` directory.
 
 ## Running DBT In The Importer Container
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a multi-component Business Intelligence system consisting of two git submodules orchestrated via Docker Compose:
+This is a monorepo Business Intelligence system orchestrated via Docker Compose:
 
 1. **Dashboard** (`dashboard/`): Next.js 15 analytics dashboard for e-commerce BI
 2. **Importer** (`importer/`): Multi-source data pipeline combining DLT extraction + DBT transformations
@@ -33,10 +33,13 @@ The system processes data from QuickBooks and Shopify sources, transforms it thr
 3. **DBT Transformations**: Processes through staging → intermediate → mart layers
 4. **Dashboard Consumption**: Next.js app queries `fct_*` tables for analytics
 
-### Submodule Structure
-- `dashboard/` - NextJS dashboard (separate git repo: asphaltanchors/dashboard)
-- `importer/` - Data pipeline (separate git repo: asphaltanchors/importer)
-- Each submodule has its own `CLAUDE.md` with detailed component-specific guidance
+### Repository Structure
+- `dashboard/` - Next.js dashboard
+- `importer/` - DLT + DBT data pipeline
+- `data/` - local development data mount
+- `ops/` - deployment and operations scripts
+- `docs/` - deployment and operational documentation
+- `importer/CLAUDE.md` contains detailed importer-specific guidance
 
 ## Docker Compose Services
 
@@ -56,6 +59,7 @@ The project uses docker-compose override files for dev/prod separation:
 - **`docker-compose.yml`**: Base configuration (shared)
 - **`docker-compose.override.yml`**: Development mode (auto-loaded, has hot reload, volume mounts)
 - **`docker-compose.prod.yml`**: Production mode (explicit, runs cron, no volumes)
+- **`docker-compose.proxmox.yml`**: Proxmox/Tailscale deployment override with Dropbox sync and persistent logs
 
 Create a `.env` file in the root directory:
 
@@ -100,6 +104,20 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # Stop production services
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml down
 ```
+
+### Proxmox Deployment
+
+```bash
+# From the deployed checkout on the VM
+ops/deploy.sh deploy       # rebuild and start
+ops/deploy.sh status       # containers, importer logs, order freshness
+ops/deploy.sh seed         # one-time historical load
+ops/deploy.sh incremental  # manual daily load
+ops/deploy.sh test         # dbt tests
+ops/deploy.sh backup-db    # pg_dump backup
+```
+
+See `docs/proxmox-deploy.md` for VM layout, Dropbox rclone setup, and required `.env` values.
 
 ### Importer Pipeline Operations
 
@@ -155,48 +173,11 @@ docker-compose exec postgres psql -U ${DB_USER} -d yourdb -c "\dt mart.*"
 docker-compose exec postgres psql -U ${DB_USER} -d yourdb -c "SELECT COUNT(*) FROM mart.fct_orders;"
 ```
 
-### Git Submodule Management
-
-```bash
-# Initialize submodules (first time setup)
-git submodule init
-git submodule update
-
-# Update submodules to latest commits
-git submodule update --remote
-
-# Pull latest changes in all submodules
-git submodule foreach git pull origin main
-
-# Check submodule status
-git submodule status
-```
-
 ## Development Workflow
 
-### Working with Submodules
+### Working in the Monorepo
 
-When making changes to dashboard or importer:
-
-1. **Navigate into the submodule directory**:
-   ```bash
-   cd dashboard/  # or importer/
-   ```
-
-2. **Make changes and commit within the submodule**:
-   ```bash
-   git add .
-   git commit -m "Your changes"
-   git push origin main
-   ```
-
-3. **Update parent repo to reference new commits**:
-   ```bash
-   cd ..  # Back to root
-   git add dashboard/  # or importer/
-   git commit -m "Update dashboard submodule"
-   git push
-   ```
+Dashboard and importer code are normal directories in this repository. Make cross-cutting changes in one branch and one commit/PR when that matches the work.
 
 ### Cross-Project Communication
 
@@ -241,8 +222,8 @@ The `DBT_CANDIDATES.md` file exists in both `dashboard/` and `importer/` directo
 ### Initial Setup
 
 ```bash
-# 1. Clone repository with submodules
-git clone --recurse-submodules <repo-url>
+# 1. Clone repository
+git clone <repo-url>
 cd bi
 
 # 2. Create environment file
@@ -295,10 +276,9 @@ docker-compose up -d --build dashboard
 
 ## Important Notes
 
-### Submodule-Specific Guidance
-- Each submodule has its own detailed `CLAUDE.md` file
-- Refer to `dashboard/CLAUDE.md` for dashboard development details
-- Refer to `importer/CLAUDE.md` for pipeline development details
+### Component-Specific Guidance
+- Refer to `importer/CLAUDE.md` for pipeline development details.
+- Dashboard guidance lives in `dashboard/README.md` and colocated docs.
 
 ### Data Pipeline Modes
 - **Seed mode** (`--seed`): Loads historical data from `seed/` directory (one-time)
@@ -315,6 +295,6 @@ docker-compose up -d --build dashboard
 - Importer runs as cron job in production (daily at midnight)
 
 ### Git Workflow
-- Parent repo tracks specific commits of submodules
-- Updating submodules requires explicit commit in parent repo
-- Each submodule can be developed independently
+- This is a single monorepo. Do not use `git submodule` commands.
+- Commit dashboard, importer, DBT, and deployment changes together when they are part of the same behavior.
+- The historical dashboard and importer git logs were merged into this repo under their directory prefixes.
