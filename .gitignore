@@ -47,3 +47,8 @@ node_modules/
 tmp/
 temp/
 *.tmp
+
+# Generated/private business data artifacts
+growth_target_list.xlsx
+importer/exports/
+reports/whitecap_business_2026-06-30/
