@@ -1,94 +1,44 @@
-import {
-  getReorderMetrics,
-  getPriorityBreakdown,
-  getStockoutTimeline,
-  getReorderPlanningData,
-  getProductFamiliesForReorder,
-} from '@/lib/queries';
+import { getInventoryPlanningPageData } from '@/lib/queries';
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { MetricCard } from '@/components/dashboard/MetricCard';
-import { Package, DollarSign, Clock, AlertTriangle } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { PriorityBreakdownChart } from '@/components/dashboard/PriorityBreakdownChart';
-import { StockoutTimelineChart } from '@/components/dashboard/StockoutTimelineChart';
+} from '@/components/ui/breadcrumb';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ReorderPlanningTable } from '@/components/dashboard/ReorderPlanningTable';
-import { TargetDaysSelector } from '@/components/dashboard/TargetDaysSelector';
+import { AlertTriangle, ClipboardList, PackageCheck, Truck } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
-async function InventoryMetrics({ targetDays }: { targetDays: number }) {
-  const metrics = await getReorderMetrics();
-
-  const reorderUnits = targetDays === 90 ? metrics.totalReorderUnits90d : metrics.totalReorderUnits180d;
-  const reorderValue = targetDays === 90 ? metrics.totalReorderValue90d : metrics.totalReorderValue180d;
-
+function SummaryCard({
+  title,
+  value,
+  detail,
+  icon: Icon,
+}: {
+  title: string;
+  value: string;
+  detail: string;
+  icon: typeof AlertTriangle;
+}) {
   return (
-    <div className="grid gap-4 md:grid-cols-4">
-      <MetricCard
-        title="SKUs Needing Attention"
-        value={metrics.totalSkusNeedingReorder.toString()}
-        icon={AlertTriangle}
-        formatValue={(value) => value}
-        subtitle={`${metrics.criticalCount} critical, ${metrics.lowCount} low`}
-      />
-      <MetricCard
-        title="Target Reorder Boxes"
-        value={reorderUnits}
-        icon={Package}
-        formatValue={(value) => Number(value).toLocaleString()}
-        subtitle={`to reach ${targetDays} days`}
-      />
-      <MetricCard
-        title="Target Reorder Value"
-        value={reorderValue}
-        icon={DollarSign}
-        formatValue={(value) => formatCurrency(value, { showCents: false })}
-        subtitle="at purchase cost"
-      />
-      <MetricCard
-        title="Avg Days Remaining"
-        value={metrics.avgDaysUntilStockout}
-        icon={Clock}
-        formatValue={(value) => `${value} days`}
-        subtitle="for attention items"
-      />
-    </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{detail}</p>
+      </CardContent>
+    </Card>
   );
 }
 
-async function PrioritySection() {
-  const breakdown = await getPriorityBreakdown();
-
-  return <PriorityBreakdownChart data={breakdown} />;
-}
-
-async function StockoutSection() {
-  const timeline = await getStockoutTimeline();
-
-  return <StockoutTimelineChart data={timeline} />;
-}
-
-async function InventoryDataSection({ targetDays }: { targetDays: number }) {
-  const data = await getReorderPlanningData();
-  const families = await getProductFamiliesForReorder();
-
-  return <ReorderPlanningTable data={data} families={families} targetDays={targetDays} />;
-}
-
-interface InventoryPageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}
-
-export default async function InventoryPage({ searchParams }: InventoryPageProps) {
-  const params = await searchParams;
-  const targetDays = params.target === '180' ? 180 : 90;
+export default async function InventoryPage() {
+  const { summary, items, families } = await getInventoryPlanningPageData();
 
   return (
     <>
@@ -108,25 +58,44 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex-1 space-y-4 p-4 md:p-6 pt-6 min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Inventory</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Daily levels estimated from QuickBooks anchors and sales depletion
-            </p>
-          </div>
-          <TargetDaysSelector currentTarget={targetDays} />
+
+      <div className="flex-1 space-y-4 p-4 pt-6 md:p-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Inventory</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Stock position, inbound supply, demand forecast, and buy recommendations
+            {summary.inventoryAsOfDate ? ` as of ${summary.inventoryAsOfDate}` : ''}.
+          </p>
         </div>
 
-        <InventoryMetrics targetDays={targetDays} />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <PrioritySection />
-          <StockoutSection />
+        <div className="grid gap-4 md:grid-cols-4">
+          <SummaryCard
+            title="Out Of Stock"
+            value={summary.outOfStockCount.toLocaleString()}
+            detail={`${summary.totalSkus.toLocaleString()} active planning SKUs`}
+            icon={AlertTriangle}
+          />
+          <SummaryCard
+            title="Suggested Buys"
+            value={summary.buyCount.toLocaleString()}
+            detail={`${Number(summary.suggestedBuyQty).toLocaleString()} boxes recommended`}
+            icon={ClipboardList}
+          />
+          <SummaryCard
+            title="Buy Cost"
+            value={formatCurrency(summary.suggestedBuyCost, { showCents: false })}
+            detail={`${summary.reviewCount.toLocaleString()} SKUs need review`}
+            icon={PackageCheck}
+          />
+          <SummaryCard
+            title="Inbound Supply"
+            value={Number(summary.inboundQty).toLocaleString()}
+            detail={`${Number(summary.futureReceiptQty).toLocaleString()} future-dated receipts separated`}
+            icon={Truck}
+          />
         </div>
 
-        <InventoryDataSection targetDays={targetDays} />
+        <ReorderPlanningTable data={items} families={families} />
       </div>
     </>
   );

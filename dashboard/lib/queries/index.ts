@@ -49,6 +49,7 @@ export {
 export {
   getProductInventoryStatus,
   getProductInventoryTrend,
+  getInventoryHistoryMaxDate,
   type InventorySnapshot,
   type InventoryTrend,
 } from './inventory';
@@ -95,15 +96,13 @@ export {
 
 // Reorder planning queries and interfaces
 export {
-  getReorderMetrics,
-  getPriorityBreakdown,
-  getStockoutTimeline,
+  getInventoryPlanningPageData,
   getReorderPlanningData,
   getProductFamiliesForReorder,
-  type ReorderMetrics,
+  type InventoryPlanningSummary,
+  type InventoryPlanningItem,
   type PriorityBreakdown,
   type StockoutTimelineItem,
-  type ReorderItem,
 } from './reorder-planning';
 
 // Trade show queries and interfaces

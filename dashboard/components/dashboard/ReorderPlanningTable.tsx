@@ -1,13 +1,19 @@
-// ABOUTME: Inventory levels table showing sales-based estimates and reorder target quantities.
-// ABOUTME: Uses QuickBooks anchor age and sales velocity to prioritize SKUs needing attention.
+// ABOUTME: Inventory planning table for stock, inbound, forecast, and buy decisions.
+// ABOUTME: Prioritizes operational actions over chart-style summary metrics.
 'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { ReorderItem } from '@/lib/queries';
+import type { InventoryPlanningItem } from '@/lib/queries';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -16,60 +22,105 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { format, parseISO } from "date-fns";
+import { formatCurrency } from '@/lib/utils';
 
-interface ReorderPlanningTableProps {
-  data: ReorderItem[];
+interface InventoryPlanningTableProps {
+  data: InventoryPlanningItem[];
   families: string[];
-  targetDays: number;
 }
 
-const statusColors = {
-  NEGATIVE_OR_ZERO: 'bg-red-100 text-red-800 border-red-300',
-  CRITICAL: 'bg-red-100 text-red-800 border-red-300',
-  LOW: 'bg-orange-100 text-orange-800 border-orange-300',
-  MODERATE: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  SUFFICIENT: 'bg-green-100 text-green-800 border-green-300',
-  NO_RECENT_SALES: 'bg-slate-100 text-slate-800 border-slate-300',
+const actionLabels = {
+  OUT_OF_STOCK: 'Out',
+  BUY: 'Buy',
+  REVIEW: 'Review',
+  WATCH: 'Watch',
+  OK: 'OK',
 };
 
-export function ReorderPlanningTable({ data, families, targetDays }: ReorderPlanningTableProps) {
-  const [familyFilter, setFamilyFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+const actionClasses = {
+  OUT_OF_STOCK: 'bg-red-100 text-red-800 border-red-300',
+  BUY: 'bg-blue-100 text-blue-800 border-blue-300',
+  REVIEW: 'bg-amber-100 text-amber-800 border-amber-300',
+  WATCH: 'bg-orange-100 text-orange-800 border-orange-300',
+  OK: 'bg-green-100 text-green-800 border-green-300',
+};
+
+function formatInteger(value: string): string {
+  return Number(value || 0).toLocaleString();
+}
+
+function formatDaily(value: string): string {
+  return Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+function inboundLabel(item: InventoryPlanningItem): string {
+  const labels = [];
+
+  if (Number(item.inboundOpenPoQty) > 0) {
+    labels.push(`${formatInteger(item.inboundOpenPoQty)} PO`);
+  }
+
+  if (Number(item.futureReceiptQty) > 0) {
+    labels.push(`${formatInteger(item.futureReceiptQty)} future receipt`);
+  }
+
+  return labels.length > 0 ? labels.join(' + ') : 'none';
+}
+
+function inboundDetail(item: InventoryPlanningItem): string {
+  const details = [];
+
+  if (item.openPoLineCount > 0) {
+    details.push(`${item.openPoLineCount} open PO line${item.openPoLineCount === 1 ? '' : 's'}`);
+  }
+
+  if (item.futureReceiptLineCount > 0) {
+    details.push(`${item.futureReceiptLineCount} future receipt line${item.futureReceiptLineCount === 1 ? '' : 's'}`);
+  }
+
+  if (item.nextOpenPoDate) {
+    details.push(`next ${item.nextOpenPoDate}`);
+  }
+
+  return details.join(', ');
+}
+
+function forecastBasis(item: InventoryPlanningItem): string {
+  const method = item.forecastModelDetail
+    .replaceAll('_', ' ')
+    .replace('sku ', 'SKU ')
+    .replace('family material', 'family/material');
+
+  return `${method}; baseline ${formatInteger(item.skuBaselineMonthlyQty)}/mo, seasonality ${item.appliedSeasonalityIndex}x, growth ${item.appliedGrowthFactor}x`;
+}
+
+export function ReorderPlanningTable({ data, families }: InventoryPlanningTableProps) {
+  const [familyFilter, setFamilyFilter] = useState('all');
+  const [actionFilter, setActionFilter] = useState('all');
 
   const filteredData = data.filter((item) => {
     if (familyFilter !== 'all' && item.productFamily !== familyFilter) return false;
-    if (statusFilter !== 'all' && item.inventoryStatus !== statusFilter) return false;
+    if (actionFilter !== 'all' && item.action !== actionFilter) return false;
     return true;
   });
-
-  const reorderQty = (item: ReorderItem) =>
-    targetDays === 90 ? item.reorderQtyFor90DTarget : item.reorderQtyFor180DTarget;
-
-  const reorderValue = (item: ReorderItem) =>
-    targetDays === 90 ? item.reorderValueFor90DTarget : item.reorderValueFor180DTarget;
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle>Inventory Levels</CardTitle>
+            <CardTitle>Inventory Worklist</CardTitle>
             <CardDescription>
-              {filteredData.length} stocked SKUs sorted by inventory risk
+              {filteredData.length} SKUs ordered by stock risk, buy need, and recommendation value
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Select value={familyFilter} onValueChange={setFamilyFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by family" />
+                <SelectValue placeholder="Family" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Families</SelectItem>
@@ -80,18 +131,17 @@ export function ReorderPlanningTable({ data, families, targetDays }: ReorderPlan
                 ))}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
+            <Select value={actionFilter} onValueChange={setActionFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Action" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="NEGATIVE_OR_ZERO">Negative or Zero</SelectItem>
-                <SelectItem value="CRITICAL">Critical</SelectItem>
-                <SelectItem value="LOW">Low</SelectItem>
-                <SelectItem value="MODERATE">Moderate</SelectItem>
-                <SelectItem value="SUFFICIENT">Sufficient</SelectItem>
-                <SelectItem value="NO_RECENT_SALES">No Recent Sales</SelectItem>
+                <SelectItem value="all">All Actions</SelectItem>
+                <SelectItem value="OUT_OF_STOCK">Out</SelectItem>
+                <SelectItem value="BUY">Buy</SelectItem>
+                <SelectItem value="REVIEW">Review</SelectItem>
+                <SelectItem value="WATCH">Watch</SelectItem>
+                <SelectItem value="OK">OK</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -102,24 +152,23 @@ export function ReorderPlanningTable({ data, families, targetDays }: ReorderPlan
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[120px]">SKU</TableHead>
-                <TableHead className="min-w-[200px]">Description</TableHead>
-                <TableHead className="hidden sm:table-cell">Family</TableHead>
-                <TableHead className="text-right hidden md:table-cell">Est. Boxes</TableHead>
-                <TableHead className="text-right hidden md:table-cell">Inbound PO</TableHead>
-                <TableHead className="text-right hidden lg:table-cell">90D Daily Sales</TableHead>
-                <TableHead className="text-right">Days Left</TableHead>
-                <TableHead className="hidden xl:table-cell">Stockout Date</TableHead>
-                <TableHead className="text-right font-semibold">Target Qty</TableHead>
-                <TableHead className="text-right font-semibold hidden lg:table-cell">Target Value</TableHead>
-                <TableHead className="hidden lg:table-cell">Status</TableHead>
-                <TableHead className="hidden xl:table-cell">Notes</TableHead>
+                <TableHead className="min-w-[118px]">SKU</TableHead>
+                <TableHead className="min-w-[240px]">Item</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead className="text-right">On Hand</TableHead>
+                <TableHead className="text-right">Inbound</TableHead>
+                <TableHead className="text-right">Forecast/Day</TableHead>
+                <TableHead className="text-right">On-Hand Days</TableHead>
+                <TableHead className="text-right">Position Days</TableHead>
+                <TableHead className="text-right">Suggested Buy</TableHead>
+                <TableHead className="text-right hidden lg:table-cell">Buy Cost</TableHead>
+                <TableHead className="min-w-[300px] hidden xl:table-cell">Basis</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredData.map((item) => (
                 <TableRow key={item.sku}>
-                  <TableCell className="font-medium font-mono text-sm">
+                  <TableCell className="font-mono text-sm font-medium">
                     <Link
                       href={`/products/${encodeURIComponent(item.sku)}`}
                       className="text-blue-600 hover:text-blue-800 hover:underline"
@@ -127,85 +176,72 @@ export function ReorderPlanningTable({ data, families, targetDays }: ReorderPlan
                       {item.sku}
                     </Link>
                   </TableCell>
-                  <TableCell className="min-w-[200px]">
-                    <div className="flex flex-col gap-1">
-                      <div className="text-sm">{item.salesDescription || '-'}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {item.packagingType}
+                  <TableCell>
+                    <div className="max-w-[320px]">
+                      <div className="truncate text-sm">{item.salesDescription || '-'}</div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        <Badge variant="outline" className="text-xs">
+                          {item.productFamily}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {item.confidenceLevel}
+                        </Badge>
+                        {item.policyValidationStatus === 'review' && (
+                          <Badge variant="outline" className="border-amber-300 bg-amber-50 text-xs text-amber-800">
+                            policy review
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <Badge variant="outline" className="text-xs">
-                      {item.productFamily}
+                  <TableCell>
+                    <Badge variant="outline" className={`text-xs ${actionClasses[item.action]}`}>
+                      {actionLabels[item.action]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm hidden md:table-cell">
-                    {Number(item.quantityOnHand).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm hidden md:table-cell">
-                    <div>{Number(item.openPoQuantity).toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {item.nextOpenPoDate ? item.nextOpenPoDate : 'none'}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm hidden lg:table-cell">
-                    {Number(item.forecastDailyQty).toLocaleString()}
+                  <TableCell className="text-right font-mono text-sm">
+                    {formatInteger(item.onHandQty)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm">
-                    {item.daysRemainingAvailable ? (
-                      <span
-                        className={`font-medium ${
-                          Number(item.daysRemainingAvailable) < 30
-                          ? 'text-red-600'
-                          : Number(item.daysRemainingAvailable) < 60
-                          ? 'text-orange-600'
-                          : 'text-green-600'
-                        }`}
-                      >
-                        {Number(item.daysRemainingAvailable).toFixed(0)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
+                    <div>{inboundLabel(item)}</div>
+                    <div className="text-xs text-muted-foreground">{inboundDetail(item)}</div>
                   </TableCell>
-                  <TableCell className="text-sm hidden xl:table-cell">
-                    {item.estimatedStockoutDate
-                      ? format(parseISO(item.estimatedStockoutDate), 'MMM d, yyyy')
-                      : '-'}
+                  <TableCell className="text-right font-mono text-sm">
+                    {formatDaily(item.forecastDailyQty)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    <span className={Number(item.onHandDays) <= 0 ? 'font-semibold text-red-600' : ''}>
+                      {item.onHandDays || '-'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    {item.positionDays || '-'}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm font-semibold">
-                    <span
-                      className={`${
-                        Number(reorderQty(item)) > 0 ? 'text-blue-600' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {Number(reorderQty(item)).toLocaleString()}
+                    <span className={Number(item.suggestedBuyQty) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                      {formatInteger(item.suggestedBuyQty)}
                     </span>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm font-semibold hidden lg:table-cell">
-                    <span
-                      className={`${
-                        Number(reorderValue(item)) > 0 ? 'text-blue-600' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {formatCurrency(reorderValue(item), { showCents: false })}
+                    <span className={Number(item.suggestedBuyCost) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                      {formatCurrency(item.suggestedBuyCost, { showCents: false })}
                     </span>
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    <Badge
-                      variant="outline"
-                      className={`text-xs ${statusColors[item.inventoryStatus as keyof typeof statusColors]}`}
-                    >
-                      {item.inventoryStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden xl:table-cell text-xs text-muted-foreground">
-                    {item.hasOpenPoInbound
-                      ? `${item.openPoLineCount} open PO line${item.openPoLineCount === 1 ? '' : 's'}`
-                      : item.includesFutureDatedOrders
-                        ? 'Future-dated orders held today'
-                        : `Anchor ${item.anchorDate}`}
+                  <TableCell className="hidden xl:table-cell">
+                    <div className="text-xs text-muted-foreground">
+                      <div>{forecastBasis(item)}</div>
+                      {Number(item.cappedReductionQty12m) > 0 && (
+                        <div>{formatInteger(item.cappedReductionQty12m)} units capped from 12m outliers</div>
+                      )}
+                      <div>
+                        {item.targetCoverageDays}d target, {item.assumedLeadTimeDays}d lead, safety {formatInteger(item.safetyStockQty)}
+                      </div>
+                      <div>{item.policyAssignmentReason.replaceAll('_', ' ')}</div>
+                      {item.policyReviewFlags && (
+                        <div className="text-amber-700">{item.policyReviewFlags.replaceAll('_', ' ')}</div>
+                      )}
+                      <div>{item.recommendationReason}</div>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
