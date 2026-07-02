@@ -1,0 +1,440 @@
+version: 2
+
+models:
+  - name: int_quickbooks__order_items_typed
+    description: >
+      Intermediate model that handles type casting and data quality for order items
+      before aggregation. Ensures proper data types for all fields.
+    columns:
+      - name: _dlt_id
+        description: Unique identifier for the line item (DLT generated)
+        tests:
+          - not_null
+          - unique
+      
+      - name: order_number
+        description: Unique identifier for the order
+        tests:
+          - not_null
+      
+      - name: total_tax
+        description: Total tax amount for the line item (properly cast to NUMERIC). NULL for individual line items, populated only for order header/summary rows.
+      
+      - name: product_service_amount
+        description: Amount for the individual line item (properly cast to NUMERIC)
+        tests:
+          - not_null
+      
+      - name: total_amount
+        description: Total amount for the order line (properly cast to NUMERIC). NULL for individual line items, populated only for order header/summary rows.
+      
+      - name: is_tax_exempt
+        description: Boolean flag indicating if the item is tax exempt
+
+  - name: int_quickbooks__orders
+    description: >
+      Intermediate model that aggregates order items to QuickBooks transaction level but still
+      requires additional business logic to be applied. Keeps the latest load for each
+      transaction to avoid double-counting records that appear in both seed and incremental loads.
+    columns:
+      - name: order_key
+        description: Stable transaction-grain key built from source type, QuickBooks internal ID, and transaction ID. Use this as the unique order identifier; printed order_number can be reused.
+        tests:
+          - not_null
+          - unique
+
+      - name: order_number
+        description: Printed QuickBooks order/invoice number. This is useful for display and search but is not globally unique.
+        tests:
+          - not_null
+      
+      - name: customer
+        description: Name of the customer who placed the order
+      
+      - name: order_date
+        description: Date when the order was placed
+        tests:
+          - not_null
+      
+      - name: total_amount
+        description: Total monetary value of the order
+        tests:
+          - not_null
+      
+      - name: is_tax_exempt
+        description: Boolean flag indicating if the order is tax exempt
+      
+      - name: item_count
+        description: Number of items in the order
+        tests:
+          - not_null
+
+  - name: int_quickbooks__product_family
+    description: >
+      Intermediate model that derives product family from item attributes.
+      It uses pattern matching on item_name and sales_description to assign product families.
+      Ensures one row per item_name by selecting the most recent record.
+    columns:
+      - name: item_name
+        description: Name of the item
+        tests:
+          - not_null
+          - unique
+      
+      - name: sales_description
+        description: Description of the item used for sales
+      
+      - name: product_family
+        description: Derived product family based on item name and sales description patterns
+        tests:
+          - not_null
+
+  - name: int_quickbooks__material_type
+    description: >
+      Intermediate model that derives material type from item attributes.
+      It uses pattern matching on item_name to assign material types.
+      Ensures one row per item_name by selecting the most recent record.
+    columns:
+      - name: item_name
+        description: Name of the item
+        tests:
+          - not_null
+          - unique
+      
+      - name: sales_description
+        description: Description of the item used for sales
+      
+      - name: material_type
+        description: Derived material type based on item_name patterns
+        tests:
+          - not_null
+
+  - name: int_quickbooks__item_kits
+    description: >
+      Intermediate model that identifies which items are kits based on specific item_name patterns.
+      Items with specific naming patterns or in a predefined list are flagged as kits.
+      Ensures one row per item_name by selecting the most recent record.
+    columns:
+      - name: item_name
+        description: Name of the item
+        tests:
+          - not_null
+          - unique
+      
+      - name: item_type
+        description: Type of the item (e.g., Inventory, Service)
+      
+      - name: item_subtype
+        description: Subtype of the item (e.g., ItemInventory, ItemGroup)
+      
+      - name: is_kit
+        description: Boolean flag indicating if the item is a kit (TRUE) or not (FALSE)
+        tests:
+          - not_null
+
+  - name: int_quickbooks__customer_person_mapping
+    description: >
+      CRITICAL TESTING: Person-company mapping with email deduplication across customer records.
+      WARNING: Contains unstable surrogate keys that include email_position, causing relationship breakage.
+    columns:
+      - name: person_company_id
+        description: Unique relationship identifier between person and company
+        tests:
+          - unique
+          - not_null
+      
+      - name: person_id
+        description: "Contact ID from staging (WARNING: includes unstable email_position in hash)"
+        tests:
+          - not_null
+      
+      - name: company_domain_key
+        description: Company domain key for consolidation
+        tests:
+          - not_null
+          # Ensure no orphaned NO_EMAIL_DOMAIN records
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "!= 'NO_EMAIL_DOMAIN'"
+      
+      - name: main_email
+        description: "Person's email address (should be unique across all persons after deduplication)"
+        tests:
+          - not_null
+          - unique  # CRITICAL: This tests the core email deduplication logic
+      
+      - name: contact_role
+        description: Role classification for the contact
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['primary_contact', 'primary_with_cc', 'cc_contact_only', 'name_only_contact', 'minimal_contact']
+      
+      - name: company_contact_rank
+        description: Ranking within the company (1 = primary contact)
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 1"
+      
+      - name: is_primary_company_contact
+        description: "Flag for primary contact (should match company_contact_rank = 1)"
+        tests:
+          - not_null
+          # Test consistency between rank and flag
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "= (company_contact_rank = 1)"
+      
+      - name: contact_data_quality
+        description: Data quality assessment
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['complete', 'partial', 'minimal']
+      
+      - name: source_customer_id
+        description: Original customer ID for traceability
+        tests:
+          - not_null
+
+  - name: int_quickbooks__customer_company_mapping
+    description: >
+      Intermediate model for customer-company domain mapping and normalization.
+      Handles email domain extraction, domain normalization, and customer name standardization.
+    columns:
+      - name: customer_id
+        description: Customer identifier from QuickBooks
+        tests:
+          - not_null
+          - unique
+      
+      - name: customer_name
+        description: Original customer name
+        tests:
+          - not_null
+      
+      - name: company_domain_key
+        description: Consolidated domain key for company grouping
+        tests:
+          - not_null
+
+  - name: int_quickbooks__customer_revenue
+    description: >
+      Intermediate model aggregating customer-level revenue metrics from order data.
+      Combines invoice and sales receipt data to calculate total customer value and activity.
+    columns:
+      - name: customer
+        description: Customer name
+        tests:
+          - not_null
+          - unique
+      
+      - name: customer_total_revenue
+        description: Total revenue generated by customer
+        tests:
+          - not_null
+      
+      - name: customer_total_orders
+        description: Total number of orders placed by customer
+        tests:
+          - not_null
+
+  - name: int_quickbooks__company_consolidation
+    description: >
+      Intermediate model for consolidating customer data by company domain.
+    columns:
+      - name: company_domain_key
+        description: Unique company domain identifier
+        tests:
+          - not_null
+          - unique
+
+  - name: int_contact_name_enrichment
+    description: >
+      Intermediate model for contact name enrichment and parsing.
+    columns:
+      - name: email_contact_id
+        description: Unique email contact identifier
+        tests:
+          - not_null
+          - unique
+
+  - name: int_contact_quality_scoring
+    description: >
+      Intermediate model for scoring contact data quality.
+    columns:
+      - name: email_contact_id
+        description: Email contact identifier
+        tests:
+          - not_null
+          - unique
+      
+      - name: completeness_score
+        description: Data completeness score for the contact
+        tests:
+          - not_null
+
+  - name: int_quickbooks__inventory_history
+    description: >
+      Intermediate model for tracking inventory history and changes.
+    columns:
+      - name: item_name
+        description: Name of the inventory item
+        tests:
+          - not_null
+      
+      - name: snapshot_date
+        description: Date of the inventory snapshot
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - item_name
+            - snapshot_date
+
+  - name: int_quickbooks__inventory_movements
+    description: >
+      Normalized inventory-affecting QuickBooks movements at event grain. One row per
+      sales line, vendor bill receipt line, inventory adjustment, build assembly output,
+      or build assembly component consumption. `movement_quantity` is signed so positive
+      values increase inventory and negative values decrease inventory.
+    columns:
+      - name: movement_id
+        description: Stable hash key for the normalized movement row, built from source identifiers and signed quantity.
+        tests:
+          - not_null
+          - unique
+
+      - name: movement_source
+        description: Source worksheet/model that produced the movement row.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['sales_order_line', 'vendor_bill', 'inventory_adjustment', 'build_assembly_header', 'build_assembly_component']
+
+      - name: movement_type
+        description: Inventory business event type used by downstream reconstruction and reorder logic.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['sale', 'receipt', 'adjustment', 'fba_transfer_in', 'fba_transfer_out', 'build_production', 'build_component_consumption']
+
+      - name: sku
+        description: QuickBooks item name after SKU normalization for known aliases such as `82-6002 IN`.
+        tests:
+          - not_null
+
+      - name: movement_date
+        description: Date the movement affected or is expected to affect inventory.
+        tests:
+          - not_null
+
+      - name: movement_quantity
+        description: Signed inventory impact; positive quantities increase inventory and negative quantities decrease inventory.
+        tests:
+          - not_null
+
+  - name: int_contact_email_parsing
+    description: >
+      Intermediate model for parsing and splitting customer contact emails.
+      Handles semicolon-separated emails and creates individual contact records.
+    columns:
+      - name: email_contact_id
+        description: Unique identifier for each email contact
+        tests:
+          - not_null
+          - unique
+      
+      - name: customer_id
+        description: Customer identifier from QuickBooks
+        tests:
+          - not_null
+      
+      - name: individual_email
+        description: Individual email address after parsing
+        tests:
+          - not_null
+
+  - name: int_customer_person_mapping_fixed
+    description: >
+      Fixed person-company mapping with stable surrogate keys and proper deduplication.
+      Replaces broken version that included email_position in hash causing key instability.
+    columns:
+      - name: person_id
+        description: Unique identifier for each person (stable)
+        tests:
+          - not_null
+          - unique
+      
+      - name: source_customer_id
+        description: Customer identifier from QuickBooks
+        tests:
+          - not_null
+      
+      - name: main_email
+        description: Primary email address for the person
+        tests:
+          - not_null
+
+  - name: int_quickbooks__items_enriched
+    description: >
+      Comprehensive intermediate model that enriches item data with all derived attributes.
+      Consolidates product family, material type, kit classifications, and packaging logic to prevent rejoining violations.
+      Replaces direct staging access pattern and eliminates need for separate packaging model.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - item_name
+    columns:
+      - name: quick_books_internal_id
+        description: Unique identifier for the item in QuickBooks
+        tests:
+          - not_null
+      
+      - name: item_name
+        description: Name of the item (deduplicated to most recent)
+        tests:
+          - not_null
+          - unique
+      
+      - name: product_family
+        description: Derived product family based on item patterns
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['SP10', 'SP12', 'SP18', 'SP58', 'AM625', 'Kits', 'Adhesives', 'Accessories', 'Uncategorized']
+      
+      - name: material_type
+        description: Derived material type based on item attributes
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Stainless Steel', 'Zinc Plated', 'Dacromet', 'Adhesives', 'Plastic', 'Tools', 'Uncategorized']
+      
+      - name: is_kit
+        description: Boolean flag indicating if the item is a kit/bundle
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+      - name: packaging_type
+        description: Type of packaging (kit, master_carton, 6-pack, individual)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['kit', 'master_carton', '6-pack', 'individual']
+
+      - name: units_per_sku
+        description: Number of units per SKU based on packaging type
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+      - name: parsed_unit_count
+        description: Parsed unit count from product descriptions (nullable for debugging)

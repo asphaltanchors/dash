@@ -1,0 +1,13 @@
+dlt[filesystem,postgres]==1.24.0
+python-dotenv>=0.21.0
+dbt-core==1.11.7
+dbt-adapters==1.22.10
+dbt-postgres==1.10.0
+PyYAML>=6.0
+psycopg2-binary>=2.9.0
+openpyxl>=3.1.0
+xlrd>=2.0.1
+pandas>=2.0.0
+rich>=13.0.0
+textual>=0.45.0
+pip>=25.3

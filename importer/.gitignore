@@ -1,0 +1,49 @@
+# ignore secrets, virtual environments and typical python compilation artifacts
+secrets.toml
+# ignore basic python artifacts
+.env
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+# ignore duckdb
+*.duckdb
+*.wal
+
+# dbt specific
+logs/
+dbt_packages/
+dbt_modules/
+target/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# IDE and Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS-specific Files
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# User-specific files
+.user.yaml
+# profiles.yml  # Uncomment if you want to exclude profiles.yml with credentials

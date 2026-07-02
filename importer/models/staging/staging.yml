@@ -1,0 +1,336 @@
+version: 2
+
+models:
+  - name: base_quickbooks__order_items
+    description: >
+      Base model that unions order items data from invoices and sales receipts in QuickBooks.
+      Standardizes field names and types across different source tables.
+    columns:
+      - name: _dlt_id
+        description: Unique identifier for the line item (DLT generated)
+        tests:
+          - not_null
+          - unique
+      
+      - name: order_number
+        description: Unique identifier for the order (invoice_no or sales_receipt_no)
+        tests:
+          - not_null
+      
+      - name: customer
+        description: Name of the customer associated with the order
+      
+      - name: order_date
+        description: Date when the order was created
+      
+      - name: payment_method
+        description: Method of payment for the order
+      
+      - name: status
+        description: Current status of the order
+      
+      - name: source_type
+        description: Source of the order data (invoice or sales_receipt)
+        tests:
+          - accepted_values:
+              values: ['invoice', 'sales_receipt']
+  
+  - name: stg_quickbooks__order_items_tax_status
+    description: >
+      Enriched order items with tax exemption status derived from customer_sales_tax_code.
+    columns:
+      - name: _dlt_id
+        description: Unique identifier for the line item (DLT generated)
+        tests:
+          - not_null
+          - unique
+      
+      - name: order_number
+        description: Unique identifier for the order
+        tests:
+          - not_null
+      
+      - name: is_tax_exempt
+        description: Boolean flag indicating if the order is tax exempt (TRUE) or not (FALSE)
+  
+  - name: stg_quickbooks__items
+    description: >
+      Staging model that cleans and standardizes the raw items data from QuickBooks.
+      Selects only the necessary columns for downstream models and casts data types appropriately.
+    columns:
+      - name: quick_books_internal_id
+        description: Unique identifier for the item in QuickBooks
+        tests:
+          - not_null
+      
+      - name: item_name
+        description: Name of the item
+      
+      - name: item_type
+        description: Type of the item (e.g., Inventory, Service)
+      
+      - name: item_subtype
+        description: Subtype of the item (e.g., ItemInventory, ItemGroup)
+      
+      - name: sales_description
+        description: Description of the item used for sales
+      
+      - name: purchase_description
+        description: Description of the item used for purchasing
+      
+      - name: class
+        description: Classification of the item
+      
+      - name: sales_price
+        description: Price at which the item is sold
+      
+      - name: purchase_cost
+        description: Cost at which the item is purchased
+      
+      - name: quantity_on_hand
+        description: Current quantity of the item in inventory
+      
+      - name: unit_of_measure
+        description: Unit of measure for the item
+      
+      - name: status
+        description: Current status of the item
+      
+      - name: snapshot_date
+        description: Date of the item snapshot
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - item_name
+            - snapshot_date
+
+  - name: stg_quickbooks__customers
+    description: >
+      Staging model that normalizes customer data with country inference logic.
+      Applies country standardization based on state/province codes and cleans address data.
+    columns:
+      - name: customer_name
+        description: Original customer name from QuickBooks
+      
+      - name: normalized_customer_name
+        description: Normalized customer name with fallback logic
+        tests:
+          - not_null
+      
+      - name: quick_books_internal_id
+        description: Unique identifier for the customer in QuickBooks
+        tests:
+          - not_null
+          - unique
+      
+      - name: billing_address_country
+        description: Normalized billing country (inferred from state if not explicit)
+        tests:
+          - not_null
+      
+      - name: shipping_address_country
+        description: Normalized shipping country (inferred from state if not explicit)
+        tests:
+          - not_null
+      
+      - name: primary_country
+        description: Primary country for the customer (billing preferred, shipping fallback)
+        tests:
+          - not_null
+      
+      - name: country_category
+        description: Country category for reporting (United States, Canada, International)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['United States', 'Canada', 'International']
+      
+      - name: region
+        description: Regional grouping (North America, International)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['North America', 'International']
+  
+  - name: stg_quickbooks__customer_contacts
+    description: >
+      CRITICAL TESTING: Staging model for extracting person-level contact information from QuickBooks customer data.
+      Handles name parsing, email extraction, and phone number normalization for individual contacts.
+      WARNING: This model contains complex business logic that belongs in intermediate layer.
+    columns:
+      - name: contact_id
+        description: Unique identifier for each contact (includes customer_id, email, source, position)
+        tests:
+          - unique
+          - not_null
+      
+      - name: customer_id  
+        description: Original QuickBooks customer ID
+        tests:
+          - not_null
+      
+      - name: main_email
+        description: "Individual email address (split from main_email or cc_email fields)"
+        tests:
+          - not_null
+          # Test for basic email format
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "LIKE '%@%'"
+          # Ensure no Amazon marketplace emails pass through
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "IS NULL OR LOWER(main_email) NOT LIKE '%@marketplace.amazon.com'"
+      
+      - name: main_email_domain
+        description: Domain extracted from email address
+        tests:
+          - not_null
+          # Ensure domain extraction is consistent
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "= LOWER(SPLIT_PART(main_email, '@', 2))"
+      
+      - name: full_name
+        description: Constructed full name (from original data or derived from email)
+        tests:
+          - not_null
+      
+      - name: email_source
+        description: Source of the email (main or cc)  
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['main', 'cc']
+      
+      - name: email_position
+        description: "Position of email in the original field (1, 2, 3...)"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 1"
+      
+      - name: contact_priority
+        description: Priority classification of the contact
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['primary', 'additional_main', 'cc']
+      
+      - name: contact_data_quality
+        description: Data quality assessment for the contact
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['complete', 'partial', 'minimal']
+      
+      - name: has_person_data
+        description: Flag indicating if contact has meaningful person information
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+      
+      - name: primary_contact_method
+        description: Primary method to contact this person
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['email', 'phone', 'cc_email', 'none']
+
+  - name: stg_quickbooks__domain_mapping
+    description: >
+      Staging model for email domain to company consolidation mapping created by domain_consolidation.py.
+      Cleans and standardizes the domain mapping lookup table used for customer company grouping.
+    columns:
+      - name: original_domain
+        description: Original email domain from customer data (cleaned and lowercased)
+        tests:
+          - not_null
+          - unique
+      
+      - name: normalized_domain
+        description: Consolidated domain key for company grouping (cleaned and lowercased)
+        tests:
+          - not_null
+      
+      - name: domain_type
+        description: Type classification for the domain
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['corporate', 'individual', 'skip']
+      
+      - name: mapping_created_date
+        description: When the domain mapping was created by the Python script
+        tests:
+          - not_null
+      
+      - name: staged_at
+        description: When the data was staged in DBT
+        tests:
+          - not_null
+
+  - name: stg_quickbooks__customer_name_mapping
+    description: >
+      Staging model for customer name standardization mapping created by domain_consolidation.py.
+      Cleans and standardizes the customer name lookup table used for name normalization.
+    columns:
+      - name: original_name
+        description: Original customer name from QuickBooks data (cleaned and trimmed)
+        tests:
+          - not_null
+          - unique
+      
+      - name: normalized_name
+        description: Standardized customer name with suffixes removed (cleaned and trimmed)
+        tests:
+          - not_null
+      
+      - name: normalization_type
+        description: Type of normalization applied to the name
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['explicit', 'automatic', 'no_change']
+      
+      - name: mapping_created_date
+        description: When the name mapping was created by the Python script
+        tests:
+          - not_null
+      
+      - name: staged_at
+        description: When the data was staged in DBT
+        tests:
+          - not_null
+
+  - name: stg_quickbooks__company_enrichment
+    description: >
+      Staging model for company enrichment data from external APIs.
+    columns:
+      - name: company_domain
+        description: Company domain used for matching
+        tests:
+          - not_null
+          - unique
+      
+      - name: company_name
+        description: Company name from enrichment source
+        tests:
+          - not_null
+
+  - name: stg_quickbooks__customer_contacts_clean
+    description: >
+      Staging model for cleaned customer contact data.
+    columns:
+      - name: customer_id
+        description: Customer identifier
+        tests:
+          - not_null
+          - unique
+      
+      - name: main_email
+        description: Primary email field from the cleaned QuickBooks customer record

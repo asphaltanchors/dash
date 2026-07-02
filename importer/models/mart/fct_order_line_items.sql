@@ -1,0 +1,249 @@
+/*
+  This fact table model provides order line items for frontend invoice recreation.
+  Each row represents a single line item on an order/invoice, with complete order context
+  and enriched product information for displaying customer invoices.
+*/
+
+{{ config(
+    materialized = 'table',
+    tags = ['orders', 'line_items', 'quickbooks']
+) }}
+
+WITH typed_order_items AS (
+    SELECT
+        *,
+        CONCAT_WS(
+            ':',
+            source_type,
+            COALESCE(NULLIF(quickbooks_internal_id, ''), 'missing_qb_id'),
+            COALESCE(transaction_id::TEXT, 'missing_transaction_id')
+        ) AS order_key
+    FROM {{ ref('int_quickbooks__order_items_typed') }}
+),
+
+latest_typed_order_items AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            DENSE_RANK() OVER (
+                PARTITION BY order_key
+                ORDER BY
+                    CASE
+                        WHEN _dlt_load_id ~ '^[0-9]+(\.[0-9]+)?$' THEN _dlt_load_id::NUMERIC
+                        ELSE NULL
+                    END DESC NULLS LAST
+            ) AS load_rank
+        FROM typed_order_items
+    ) ranked
+    WHERE load_rank = 1
+),
+
+-- Add the line-item specific fields for invoice display
+enriched_order_items AS (
+    SELECT
+        -- Line item identifier
+        _dlt_id as line_item_id,
+        
+        -- Order identifiers and metadata (already typed in intermediate)
+        order_key,
+        order_number,
+        source_type,
+        order_date,
+        customer,
+        payment_method,
+        status,
+        due_date,
+        
+        -- Product/service information (already typed in intermediate)
+        product_service,
+        product_service_description,
+        product_service_quantity,
+        product_service_rate,
+        product_service_amount,
+        product_service_class,
+        unit_of_measure,
+        
+        -- Tax information
+        customer_sales_tax_code,
+        is_tax_exempt,
+        product_service_sales_tax_code,
+        
+        -- Address information (formatted for display)
+        CONCAT_WS(', ',
+            NULLIF(billing_address_line_1, ''),
+            NULLIF(billing_address_line_2, ''),
+            NULLIF(billing_address_line_3, '')
+        ) AS billing_address,
+        billing_address_city,
+        billing_address_state,
+        billing_address_postal_code,
+        billing_address_country,
+        
+        CONCAT_WS(', ',
+            NULLIF(shipping_address_line_1, ''),
+            NULLIF(shipping_address_line_2, ''),
+            NULLIF(shipping_address_line_3, '')
+        ) AS shipping_address,
+        shipping_address_city,
+        shipping_address_state,
+        shipping_address_postal_code,
+        shipping_address_country,
+        
+        -- Country fields for reporting (from intermediate model)
+        primary_country,
+        country_category,
+        region,
+        
+        -- Shipping information
+        shipping_method,
+        ship_date,
+        
+        -- Order details
+        memo,
+        message_to_customer,
+        terms,
+        sales_rep,
+        class,
+        
+        -- Service dates and inventory
+        product_service_service_date,
+        inventory_site,
+        inventory_bin,
+        serial_no,
+        lot_no,
+        
+        -- Other fields that might be useful for invoice display
+        external_id,
+        quickbooks_internal_id,
+        currency,
+        exchange_rate,
+        
+        -- Metadata
+        created_date,
+        modified_date
+        
+    FROM latest_typed_order_items
+),
+
+-- Filter to actual line items (exclude description-only rows and empty product rows)
+filtered_line_items AS (
+    SELECT *
+    FROM enriched_order_items
+    WHERE order_number IS NOT NULL
+    AND TRIM(order_number) != ''
+    AND product_service_amount IS NOT NULL
+    AND (
+        -- Include rows with actual products/services
+        (NULLIF(TRIM(product_service), '') IS NOT NULL)
+        OR 
+        -- Include shipping and other service lines that have amounts
+        (NULLIF(TRIM(product_service_description), '') IS NOT NULL AND product_service_amount != 0)
+    )
+),
+
+-- Get primary contacts for linking line items to persons
+customer_primary_contacts AS (
+    SELECT 
+        source_customer_name,
+        contact_id,
+        full_name as primary_contact_name,
+        primary_email as primary_contact_email,
+        primary_phone as primary_contact_phone,
+        contact_role,
+        company_domain_key
+    FROM {{ ref('dim_customer_contacts') }}
+    WHERE is_primary_company_contact = TRUE
+),
+
+-- Join with products and contacts for enrichment
+final_line_items AS (
+    SELECT
+        li.*,
+        
+        -- Product enrichment from fct_products
+        p.product_family,
+        p.material_type,
+        p.is_kit,
+        p.item_type,
+        p.item_subtype,
+        p.sales_description as product_sales_description,
+        p.sales_price as standard_sales_price,
+        p.purchase_cost as standard_purchase_cost,
+        p.margin_percentage,
+        p.margin_amount,
+
+        -- Packaging and unit information
+        p.packaging_type,
+        p.units_per_sku,
+
+        -- Unit calculations for sales tracking
+        li.product_service_quantity as sku_quantity,
+        COALESCE(p.units_per_sku, 1) * COALESCE(li.product_service_quantity, 0) as total_units_sold,
+
+        -- Actual margin calculations
+        COALESCE(
+            CASE
+                WHEN li.product_service_rate IS NOT NULL
+                THEN CAST(li.product_service_rate AS NUMERIC)
+                ELSE NULL
+            END,
+            0
+        ) as actual_unit_price,
+
+        -- Actual margin amount (actual price - purchase cost)
+        CASE
+            WHEN li.product_service_rate IS NOT NULL AND COALESCE(p.purchase_cost, 0) > 0
+            THEN CAST(li.product_service_rate AS NUMERIC) - COALESCE(p.purchase_cost, 0)
+            ELSE NULL
+        END as actual_margin_amount,
+
+        -- Actual margin percentage
+        CASE
+            WHEN li.product_service_rate IS NOT NULL
+                AND CAST(li.product_service_rate AS NUMERIC) > 0
+                AND COALESCE(p.purchase_cost, 0) > 0
+            THEN ROUND(
+                CAST(
+                    ((CAST(li.product_service_rate AS NUMERIC) - COALESCE(p.purchase_cost, 0)) / CAST(li.product_service_rate AS NUMERIC)) * 100
+                AS NUMERIC),
+                2
+            )
+            ELSE NULL
+        END as actual_margin_percentage,
+
+        -- Price discount from standard (how much discount was given)
+        CASE
+            WHEN li.product_service_rate IS NOT NULL AND COALESCE(p.sales_price, 0) > 0
+            THEN COALESCE(p.sales_price, 0) - CAST(li.product_service_rate AS NUMERIC)
+            ELSE NULL
+        END as price_discount_amount,
+
+        -- Price discount percentage
+        CASE
+            WHEN li.product_service_rate IS NOT NULL
+                AND COALESCE(p.sales_price, 0) > 0
+            THEN ROUND(
+                CAST(
+                    ((COALESCE(p.sales_price, 0) - CAST(li.product_service_rate AS NUMERIC)) / p.sales_price) * 100
+                AS NUMERIC),
+                2
+            )
+            ELSE NULL
+        END as price_discount_percentage,
+
+        -- Person/contact information
+        cpc.contact_id as primary_contact_id,
+        cpc.primary_contact_name,
+        cpc.primary_contact_email,
+        cpc.primary_contact_phone,
+        cpc.contact_role as primary_contact_role
+        
+    FROM filtered_line_items li
+    LEFT JOIN {{ ref('fct_products') }} p
+        ON li.product_service = p.item_name
+    LEFT JOIN customer_primary_contacts cpc 
+        ON li.customer = cpc.source_customer_name
+)
+
+SELECT * FROM final_line_items

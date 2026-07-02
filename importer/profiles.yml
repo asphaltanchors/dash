@@ -1,0 +1,23 @@
+dqi:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: postgres
+      host: postgres
+      port: 5432
+      user: "{{ env_var('DB_USER', 'test') }}"
+      password: "{{ env_var('DB_PASSWORD', 'test') }}"
+      dbname: yourdb
+      schema: analytics
+      threads: 4
+      connect_timeout: 15
+    prod:
+      type: postgres
+      host: postgres
+      port: 5432
+      user: "{{ env_var('DB_USER', 'postgres') }}"
+      password: "{{ env_var('DB_PASSWORD', 'postgres') }}"
+      dbname: yourdb
+      schema: analytics
+      threads: 4
+      connect_timeout: 15

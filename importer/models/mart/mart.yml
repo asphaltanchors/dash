@@ -1,0 +1,1445 @@
+version: 2
+
+models:
+  - name: dim_accounts_receivable_aging
+    description: >
+      Comprehensive accounts receivable aging analysis for cash flow management.
+      Provides individual invoice details, customer summaries, and aging bucket analysis
+      for collection efficiency tracking and risk assessment.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - analysis_level
+            - order_number
+            - customer
+            - customer_segment
+    columns:
+      - name: analysis_level
+        description: Type of analysis (Individual Invoices, Customer Summary, Aging Summary)
+        tests:
+          - not_null
+      - name: aging_bucket
+        description: Age classification (Current, Past Due, Overdue, Severely Overdue)
+      - name: collection_risk
+        description: Risk assessment (Low, Medium, High, Critical Risk)
+      - name: days_outstanding
+        description: Number of days since invoice was created
+      - name: days_past_due
+        description: Number of days past the due date (0 if not past due)
+      - name: payment_pattern
+        description: Customer payment behavior classification
+
+  - name: fct_dso_metrics
+    description: >
+      Key Days Sales Outstanding (DSO) metrics and performance indicators.
+      Calculates DSO over multiple time periods, collection efficiency,
+      and segment-level receivables analysis for cash flow monitoring.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - metric_category
+            - period
+            - customer_segment
+    columns:
+      - name: metric_category
+        description: Type of DSO metric (Overall DSO Metrics, Segment AR Breakdown)
+        tests:
+          - not_null
+      - name: dso_days
+        description: Days Sales Outstanding calculation
+      - name: collection_efficiency_pct
+        description: Collection efficiency as percentage of sales
+      - name: dso_assessment
+        description: Performance rating (Excellent, Good, Fair, Poor)
+        tests:
+          - accepted_values:
+              values: ['Excellent', 'Good', 'Fair', 'Poor', 'Good Payer', 'Slow Payer', 'Problem Segment']
+      - name: total_accounts_receivable
+        description: Total outstanding receivables amount
+        tests:
+          - not_null
+
+  - name: mart_inventory_sku_policy
+    description: >
+      SKU-level inventory planning policy table. One row per SKU in the latest inventory
+      snapshot, routing each SKU to the reorder/forecasting approach its history can support
+      before any automatic reorder quantity is calculated.
+    columns:
+      - name: sku
+        description: QuickBooks item name for the tracked inventory SKU.
+        tests:
+          - not_null
+          - unique
+
+      - name: inventory_as_of_date
+        description: Latest inventory snapshot date used for this policy classification.
+        tests:
+          - not_null
+
+      - name: policy_bucket
+        description: Forecasting or review policy chosen from demand history, item type, assembly usage, and FBA signals.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - SKU_SEASONAL_TREND_MODEL
+                - SKU_BASELINE_VARIANT_SEASONAL_MODEL
+                - ASSEMBLY_FINISHED_GOOD_MODEL
+                - FBA_REPLENISHMENT_MODEL
+                - COMPONENT_PACKAGING_MODEL
+                - SPARSE_OR_NEW_SKU_REVIEW
+                - STOCKED_NO_RECENT_DEMAND_REVIEW
+                - NO_ACTION_OR_ARCHIVE
+
+      - name: policy_assignment_reason
+        description: Compact reason code for the rule that assigned the SKU to its policy bucket.
+        tests:
+          - not_null
+
+      - name: policy_validation_status
+        description: Whether the assigned policy bucket passed the current validation checks or should be reviewed.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ok', 'review']
+
+      - name: policy_review_flags
+        description: Semicolon-delimited validation flags explaining why the SKU classification should be reviewed.
+
+      - name: forecast_method
+        description: Human-readable method hint for the forecast or review workflow assigned to the SKU.
+        tests:
+          - not_null
+
+      - name: confidence_level
+        description: Coarse confidence level for whether the SKU can be forecast automatically or needs manual review.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['high', 'medium', 'manual_review', 'exclude']
+
+      - name: requires_manual_review
+        description: Boolean flag for SKUs that should not receive a blind automatic reorder recommendation.
+        tests:
+          - not_null
+
+      - name: current_on_hand_qty
+        description: Latest adjusted sellable quantity on hand from `fct_inventory_history`, after removing future-dated receipts embedded in the QuickBooks export.
+
+      - name: is_suppressed_from_inventory_planning
+        description: Flag for SKUs deliberately hidden from inventory planning because they are obsolete, pricing artifacts, or otherwise not actionable inventory.
+
+      - name: inventory_suppression_reason
+        description: Compact reason code explaining why a SKU is suppressed from inventory planning.
+
+      - name: months_with_sales_since_2023
+        description: Count of months since 2023 with non-future sales demand, used to decide whether SKU-level seasonality is supportable.
+
+      - name: component_consumed_qty_since_2024
+        description: Quantity consumed by build assembly component rows since 2024, used for component and packaging planning.
+
+      - name: build_produced_qty_since_2024
+        description: Quantity produced by build assembly headers since 2024, used for assembly finished-good planning.
+
+      - name: fba_transfer_in_qty_since_2024
+        description: Positive FBA-like adjustment quantity since 2024, used to identify Amazon replenishment behavior.
+
+      - name: largest_sales_line_share_2025
+        description: Share of 2025 SKU sales represented by the largest single sales line, used to flag outlier-driven demand.
+
+      - name: component_to_sales_qty_ratio_since_2024
+        description: Ratio of build component consumption to sales demand since 2024, used to identify dual-use SKUs whose replenishment should be driven by assembly consumption.
+
+  - name: mart_inventory_reorder_recommendations
+    description: >
+      First-pass SKU reorder recommendations from latest trusted stock, SKU policy, recent demand,
+      committed future demand, inbound purchase quantities, lead-time-aware expected receipt date,
+      and safety stock.
+      One row per tracked SKU in the latest inventory snapshot. Manual-review policy buckets are
+      still shown, but their `should_reorder` flag is deliberately conservative.
+    columns:
+      - name: sku
+        description: QuickBooks item name for the tracked inventory SKU.
+        tests:
+          - not_null
+          - unique
+
+      - name: inventory_as_of_date
+        description: Latest inventory snapshot date used to anchor the recommendation.
+        tests:
+          - not_null
+
+      - name: policy_bucket
+        description: Forecasting or review policy inherited from `mart_inventory_sku_policy`.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - SKU_SEASONAL_TREND_MODEL
+                - SKU_BASELINE_VARIANT_SEASONAL_MODEL
+                - ASSEMBLY_FINISHED_GOOD_MODEL
+                - FBA_REPLENISHMENT_MODEL
+                - COMPONENT_PACKAGING_MODEL
+                - SPARSE_OR_NEW_SKU_REVIEW
+                - STOCKED_NO_RECENT_DEMAND_REVIEW
+                - NO_ACTION_OR_ARCHIVE
+
+      - name: policy_assignment_reason
+        description: Reason code inherited from `mart_inventory_sku_policy` for the rule that assigned the policy bucket.
+        tests:
+          - not_null
+
+      - name: policy_validation_status
+        description: Policy classification validation status inherited from `mart_inventory_sku_policy`.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ok', 'review']
+
+      - name: policy_review_flags
+        description: Semicolon-delimited policy validation flags inherited from `mart_inventory_sku_policy`.
+
+      - name: confidence_level
+        description: Coarse confidence level for automatic reorder suitability.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['high', 'medium', 'manual_review', 'exclude']
+
+      - name: requires_manual_review
+        description: Boolean flag for SKUs that should be reviewed before an automatic order is placed.
+        tests:
+          - not_null
+
+      - name: should_reorder
+        description: Conservative boolean recommendation after applying policy, stock position, demand, and manual-review gates.
+        tests:
+          - not_null
+
+      - name: reorder_qty
+        description: Suggested quantity to order or replenish for target coverage after receipt. This excludes uncovered lead-time demand that replenishment cannot arrive in time to satisfy.
+        tests:
+          - not_null
+
+      - name: six_pack_units_per_layer
+        description: Configured WWD layer multiple for anchor 6-pack SKUs, when known. Null means no layer rounding rule has been configured for the SKU.
+
+      - name: layer_rounded_reorder_qty
+        description: Suggested reorder quantity rounded up to the configured 6-pack layer multiple when one exists; otherwise equal to `reorder_qty`.
+
+      - name: reorder_layer_count
+        description: Number of configured layers represented by `layer_rounded_reorder_qty`, when a SKU has a configured 6-pack layer multiple.
+
+      - name: layer_rounding_extra_qty
+        description: Extra quantity added by rounding `reorder_qty` up to the configured 6-pack layer multiple.
+
+      - name: reorder_value_at_cost
+        description: Suggested reorder quantity multiplied by current QuickBooks purchase cost.
+
+      - name: reorder_by_date
+        description: Estimated latest date to trigger replenishment before available position reaches the reorder point.
+
+      - name: projected_stockout_or_safety_date
+        description: Estimated date current on-hand reaches safety stock or zero under the current demand rate.
+
+      - name: expected_receipt_date
+        description: Date replenishment is expected to arrive if ordered from the inventory snapshot date using the selected lead time.
+
+      - name: preferred_vendor
+        description: Vendor selected for planning from configured SKU/vendor override or latest observed SKU purchase/receipt activity.
+
+      - name: assumed_lead_time_days
+        description: Lead time used for forecast month, lead-time demand, and expected receipt date, selected from configured SKU/vendor override, observed SKU/vendor median, observed vendor median, or policy default.
+        tests:
+          - not_null
+
+      - name: lead_time_source
+        description: >
+          Source of the selected lead time: configured SKU/vendor, observed SKU/vendor median,
+          observed vendor median, or policy bucket default.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['configured_sku_vendor', 'observed_sku_vendor_median', 'observed_vendor_median', 'policy_bucket_default']
+
+      - name: planning_override_reason
+        description: Reason code for a configured SKU/vendor planning override when one was used.
+
+      - name: configured_lead_time_days
+        description: SKU/vendor configured lead time in days, when an explicit planning override exists.
+
+      - name: observed_sku_vendor_lead_time_days
+        description: Median days from purchase order date to next observed bill receipt for the selected SKU/vendor, when enough history exists.
+
+      - name: observed_sku_vendor_lead_time_count
+        description: Count of SKU/vendor PO-to-receipt observations supporting the observed median lead time.
+
+      - name: observed_vendor_lead_time_days
+        description: Median days from purchase order date to next observed bill receipt for the selected vendor across SKUs.
+
+      - name: observed_vendor_lead_time_count
+        description: Count of vendor PO-to-receipt observations supporting the observed vendor median lead time.
+
+      - name: default_policy_lead_time_days
+        description: Fallback lead time from the SKU policy bucket when no configured or observed lead time is usable.
+
+      - name: target_coverage_days
+        description: Target days of coverage used to size the first-pass reorder quantity.
+        tests:
+          - not_null
+
+      - name: default_target_coverage_days
+        description: Fallback target coverage days from the SKU policy bucket before any configured planning override.
+
+      - name: available_position_qty
+        description: Current on hand plus inbound quantity, using the greater of parsed open PO quantity and QuickBooks quantity on order to avoid double-counting, minus committed future demand.
+
+      - name: committed_demand_before_expected_receipt_qty
+        description: Future committed demand dated on or before the expected replenishment receipt date.
+
+      - name: inbound_qty_by_expected_receipt_date
+        description: Existing inbound quantity counted as available by the expected receipt date when the next open PO date is on or before that date.
+
+      - name: is_suppressed_from_inventory_planning
+        description: Flag inherited from `mart_inventory_sku_policy` for SKUs deliberately excluded from the inventory worklist.
+
+      - name: inventory_suppression_reason
+        description: Reason code inherited from `mart_inventory_sku_policy` for inventory planning suppression.
+
+      - name: open_po_line_count
+        description: Count of parsed QuickBooks purchase order lines that are not fully received and not manually closed.
+
+      - name: future_receipt_line_count_after_anchor
+        description: Count of future-dated vendor bill receipt lines removed from QuickBooks-reported quantity_on_hand.
+
+      - name: forecast_model_detail
+        description: Specific forecast model path used after policy routing, including seasonality fallback and capped-demand choices.
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - sku_seasonality_with_growth
+                - family_material_seasonality_with_growth
+                - capped_trailing_sku_baseline
+                - sparse_capped_recent_demand
+                - component_consumption_since_2024
+                - no_automatic_forecast
+
+      - name: forecast_daily_qty
+        description: Daily demand forecast chosen from capped SKU demand, SKU seasonality, family/material seasonality fallback, growth trend, sparse/new SKU recent velocity, or component consumption.
+
+      - name: sku_baseline_monthly_qty
+        description: Capped monthly SKU demand baseline before seasonality and growth are applied.
+
+      - name: applied_seasonality_index
+        description: Seasonality multiplier used by the selected forecast model; 1.0 means no seasonal adjustment was applied.
+
+      - name: applied_growth_factor
+        description: Growth multiplier used by the selected forecast model after conservative clamping; 1.0 means no trend adjustment was applied.
+
+      - name: capped_sales_qty_12m
+        description: Last 12 complete months of sales demand after line-level outlier capping.
+
+      - name: uncapped_sales_qty_12m
+        description: Last 12 complete months of raw sales demand before line-level outlier capping.
+
+      - name: capped_reduction_qty_12m
+        description: Quantity removed from last-12-month demand by line-level outlier capping.
+
+      - name: sku_seasonality_index
+        description: SKU-level seasonal index for the forecast month, when the SKU has enough monthly history.
+
+      - name: family_material_seasonality_index
+        description: Family/material seasonal fallback index for the forecast month.
+
+      - name: demand_growth_factor
+        description: SKU-level growth factor from recent 12-month demand compared with the previous 12 months, conservatively clamped.
+
+      - name: forecast_lead_time_qty
+        description: Forecast demand during the selected lead time.
+
+      - name: projected_position_at_expected_receipt_qty
+        description: Projected stock position at expected receipt date before adding a new reorder, after lead-time forecast demand and committed demand due before receipt. Negative values are exposed as stockout risk but are floored to zero for reorder sizing.
+
+      - name: uncovered_lead_time_demand_qty
+        description: Units of expected lead-time demand that current stock plus inbound due by receipt date may not cover before replenishment arrives.
+
+      - name: stockout_gap_qty
+        description: >
+          Alias for uncovered lead-time demand quantity, exposed for dashboard language such as
+          "we may miss X units before replenishment arrives."
+
+      - name: safety_stock_qty
+        description: Initial safety stock buffer calculated from demand and policy confidence.
+
+      - name: reorder_point_qty
+        description: Lead-time demand plus safety stock.
+
+      - name: recommendation_reason
+        description: Compact explanation of why the SKU is or is not recommended for reorder.
+        tests:
+          - not_null
+
+  - name: base_fct_orders_current
+    description: >
+      Base view that filters fct_orders to exclude future-dated orders.
+      Eliminates need for manual date filtering in dashboard queries.
+      Use this instead of fct_orders in dashboard applications.
+    columns:
+      - name: order_key
+        description: Stable transaction-grain key inherited from fct_orders.
+        tests:
+          - not_null
+          - unique
+
+      - name: order_number
+        description: Printed QuickBooks order/invoice number. Useful for display and search but not globally unique.
+        tests:
+          - not_null
+      
+      - name: order_date
+        description: Date when the order was placed (always <= current date)
+        tests:
+          - not_null
+  - name: fct_orders
+    description: >
+      Order-level fact table aggregated from line items.
+      One row per QuickBooks transaction, containing order metadata and aggregated measures.
+      Printed order numbers are preserved for display but may repeat when QuickBooks reuses a number.
+    columns:
+      - name: order_key
+        description: Stable transaction-grain key built from source type, QuickBooks internal ID, and transaction ID. Use this as the unique order identifier.
+        tests:
+          - not_null
+          - unique
+
+      - name: order_number
+        description: Printed QuickBooks order/invoice number. Useful for display and search but not globally unique.
+        tests:
+          - not_null
+      
+      - name: order_date
+        description: Date when the order was placed
+        tests:
+          - not_null
+      
+      - name: customer
+        description: Name of the customer who placed the order
+      
+      - name: total_amount
+        description: Total monetary value of the order
+        tests:
+          - not_null
+      
+      - name: is_tax_exempt
+        description: Boolean flag indicating if the order is tax exempt
+      
+      - name: item_count
+        description: Count of line items in the order
+        tests:
+          - not_null
+      
+      - name: source_type
+        description: Source of the order (invoice or sales_receipt)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['invoice', 'sales_receipt']
+      
+      - name: sales_channel
+        description: >
+          Sales channel attribution based on transaction patterns.
+          Indicates HOW the customer purchased (Amazon, Website, Invoice).
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Amazon', 'Website', 'Invoice', 'Other']
+      
+      - name: customer_segment
+        description: >
+          Customer segment attribution based on business relationship and transaction patterns.
+          Indicates WHO the customer is (OEM, Distributor, Direct Consumer, etc.).
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['OEM', 'Distributor', 'Export', 'Direct Consumer', 'B2B Direct', 'Other']
+      
+      - name: billing_address_country
+        description: Normalized billing country (inferred from state if not explicit)
+        tests:
+          - not_null
+      
+      - name: shipping_address_country
+        description: Normalized shipping country (inferred from state if not explicit)
+        tests:
+          - not_null
+      
+      - name: primary_country
+        description: Primary country for the order (billing preferred, shipping fallback)
+        tests:
+          - not_null
+      
+      - name: country_category
+        description: Country category for reporting (United States, Canada, International)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['United States', 'Canada', 'International']
+      
+      - name: region
+        description: Regional grouping (North America, International)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['North America', 'International']
+
+  - name: dim_company_health
+    description: >
+      Company health dimension providing activity indicators, health scoring, and engagement metrics
+      for consolidated companies. Enables business intelligence on account management and growth opportunities.
+    columns:
+      - name: company_domain_key
+        description: Unique identifier for the consolidated company (normalized email domain)
+        tests:
+          - not_null
+          - unique
+      
+      - name: health_score
+        description: Calculated health score from 0-100 based on recency, frequency, growth, and engagement
+        tests:
+          - not_null
+      
+      - name: activity_status
+        description: Current activity classification (Highly Active, Active, Moderately Active, Dormant, Inactive)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Highly Active', 'Active', 'Moderately Active', 'Dormant', 'Inactive']
+      
+      - name: growth_trend_direction
+        description: Year-over-year growth trend (Growing, Declining, Stable, New Customer, Lost Customer)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Growing', 'Declining', 'Stable', 'New Customer', 'Lost Customer']
+      
+      - name: days_since_last_order
+        description: Number of days since the company's most recent order
+        tests:
+          - not_null
+
+  - name: fct_company_orders_time_series
+    description: >
+      Company orders aggregated by quarter for temporal analysis and growth tracking.
+      Enables year-over-year comparisons, trend analysis, and company lifecycle management.
+    columns:
+      - name: company_domain_key
+        description: Unique identifier for the consolidated company
+        tests:
+          - not_null
+      
+      - name: order_year
+        description: Year of the orders in this period
+        tests:
+          - not_null
+      
+      - name: order_quarter
+        description: Quarter of the orders in this period (1-4)
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4]
+      
+      - name: period_key
+        description: Unique period identifier (YYYY-QN format)
+        tests:
+          - not_null
+      - name: order_count
+        description: Number of orders in this period
+        tests:
+          - not_null
+      
+      - name: total_revenue
+        description: Total revenue for this company in this period
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - company_domain_key
+            - order_year
+            - order_quarter
+
+  - name: fct_products
+    description: >
+      Product-level fact table combining data from multiple intermediate models.
+      One row per unique product item_name from QuickBooks, containing product details and derived attributes.
+      Ensures one row per item_name by selecting the most recent record.
+    columns:
+      - name: quick_books_internal_id
+        description: Unique identifier for the product in QuickBooks
+        tests:
+          - not_null
+      
+      - name: item_name
+        description: Name of the product
+        tests:
+          - not_null
+          - unique
+      
+      - name: sales_description
+        description: Description of the product used for sales
+      
+      - name: product_family
+        description: Derived product family based on item name and sales description patterns
+        tests:
+          - not_null
+      
+      - name: material_type
+        description: Derived material type based on item_name patterns
+        tests:
+          - not_null
+      
+      - name: is_kit
+        description: Boolean flag indicating if the product is a kit (TRUE) or not (FALSE)
+        tests:
+          - not_null
+      
+      - name: item_type
+        description: Type of the product (e.g., Inventory, Service)
+      
+      - name: item_subtype
+        description: Subtype of the product (e.g., ItemInventory, ItemGroup)
+      
+      - name: purchase_description
+        description: Description of the product used for purchasing
+      
+      - name: sales_price
+        description: Price at which the product is sold
+      
+      - name: purchase_cost
+        description: Cost at which the product is purchased
+      
+      - name: manufacturer_s_part_number
+        description: Manufacturer's part number for the product
+      
+      - name: unit_of_measure
+        description: Unit of measure for the product
+      
+      - name: load_date
+        description: Date when the record was loaded
+      
+      - name: snapshot_date
+        description: Date when the snapshot was taken
+
+  - name: fct_order_line_items
+    description: >
+      Order line items for frontend invoice recreation. Each row represents a single line item 
+      on an order/invoice with complete order context and enriched product information.
+      Enables frontend applications to recreate customer invoices with all necessary details.
+      Repeated seed/incremental loads are deduped by keeping the latest load for each order_key.
+    columns:
+      - name: line_item_id
+        description: Unique identifier for each line item (from DLT _dlt_id)
+        tests:
+          - unique
+          - not_null
+
+      - name: order_key
+        description: Stable transaction-grain key shared with fct_orders. Use this for joins to order-level facts.
+        tests:
+          - not_null
+      
+      - name: order_number
+        description: Printed QuickBooks order/invoice number this line item belongs to. Useful for display and search but not globally unique.
+        tests:
+          - not_null
+      
+      - name: source_type
+        description: Source of the order (invoice or sales_receipt)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['invoice', 'sales_receipt']
+      
+      - name: product_service
+        description: Product/service code
+      
+      - name: product_service_description
+        description: Description of the product or service
+      
+      - name: product_service_amount
+        description: Line item amount
+        tests:
+          - not_null
+      
+      - name: customer
+        description: Customer name
+        tests:
+          - not_null
+      
+      - name: order_date
+        description: Order date
+        tests:
+          - not_null
+      
+      - name: status
+        description: Order status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['PAID', 'OPEN', 'PARTIALLY_PAID', 'CANCELLED', 'OVERDUE']
+      
+      - name: billing_address
+        description: Formatted billing address for invoice display
+      
+      - name: shipping_address
+        description: Formatted shipping address for invoice display
+      
+      - name: product_family
+        description: Product family from enriched product data
+      
+      - name: material_type
+        description: Material type from enriched product data
+      
+      - name: primary_country
+        description: Primary country for the line item (billing preferred, shipping fallback)
+        tests:
+          - not_null
+      
+      - name: country_category
+        description: Country category for reporting (United States, Canada, International)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['United States', 'Canada', 'International']
+      
+      - name: region
+        description: Regional grouping (North America, International)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['North America', 'International']
+
+  - name: fct_companies
+    description: >
+      Consolidated company master table based on email domain consolidation.
+      One row per company domain with aggregated customer and revenue metrics.
+      Enables analysis of who buys from us by consolidating messy QuickBooks customer names.
+    columns:
+      - name: company_domain_key
+        description: Normalized email domain serving as unique company identifier
+        tests:
+          - unique
+          - not_null
+      
+      - name: domain_type
+        description: Type of domain/entity grouping (corporate, individual, no_email, skip)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['corporate', 'individual', 'no_email', 'skip']
+      
+      - name: company_name
+        description: Primary company name (best available from consolidated customers)
+        tests:
+          - not_null
+      
+      - name: primary_email
+        description: Primary email address for the company
+      
+      - name: customer_count
+        description: Number of QuickBooks customer records consolidated into this company
+        tests:
+          - not_null
+      
+      - name: total_revenue
+        description: Total revenue across all customers for this company
+        tests:
+          - not_null
+      
+      - name: total_orders
+        description: Total number of orders/invoices across all customers
+        tests:
+          - not_null
+      
+      - name: business_size_category
+        description: Classification based on number of customer records
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
+      
+      - name: revenue_category
+        description: Classification based on total revenue
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['No Revenue', 'Low Value (<$5K)', 'Growing Value ($5K-$25K)', 'Medium Value ($25K-$100K)', 'High Value ($100K+)']
+      
+      - name: primary_country
+        description: Primary country for the company (aggregated from order data using MODE())
+        tests:
+          - accepted_values:
+              values: ['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France', 'Mexico', 'Netherlands', 'Sweden', 'Japan', 'Italy', 'Spain', 'Brazil', 'China', 'India', 'Singapore', 'South Korea', 'Norway', 'Denmark', 'Belgium', 'Switzerland', 'Austria', 'Finland', 'Greece', 'Portugal', 'Israel', 'Ireland', 'New Zealand', 'Poland', 'Czech Republic', 'Hungary', 'Romania', 'Bulgaria', 'Croatia', 'Slovenia', 'Estonia', 'Latvia', 'Lithuania', 'Cyprus', 'Malta', 'Luxembourg', 'Iceland', 'Turkey', 'South Africa', 'Egypt', 'Kenya', 'Nigeria', 'Ghana', 'Morocco', 'Tunisia', 'Argentina', 'Chile', 'Colombia', 'Peru', 'Venezuela', 'Uruguay', 'Paraguay', 'Bolivia', 'Ecuador', 'Guatemala', 'Costa Rica', 'Panama', 'Nicaragua', 'Honduras', 'El Salvador', 'Jamaica', 'Trinidad and Tobago', 'Trinidad', 'Barbados', 'Dominican Republic', 'Puerto Rico', 'Cuba', 'Haiti', 'Thailand', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam', 'Cambodia', 'Laos', 'Myanmar', 'Bangladesh', 'Pakistan', 'Sri Lanka', 'Nepal', 'Bhutan', 'Maldives', 'Afghanistan', 'Iran', 'Iraq', 'Jordan', 'Lebanon', 'Syria', 'Yemen', 'Oman', 'Kuwait', 'Qatar', 'Bahrain', 'United Arab Emirates', 'UAE', 'Saudi Arabia', 'Russia', 'Ukraine', 'Belarus', 'Moldova', 'Georgia', 'Armenia', 'Azerbaijan', 'Kazakhstan', 'Uzbekistan', 'Turkmenistan', 'Tajikistan', 'Kyrgyzstan', 'Mongolia', 'North Korea']
+              severity: warn  # Warn instead of error since new countries might be added
+      
+      - name: region
+        description: Regional grouping (North America, International)
+        tests:
+          - accepted_values:
+              values: ['North America', 'International']
+      
+      - name: country_category
+        description: Country category for reporting (United States, Canada, International)
+        tests:
+          - accepted_values:
+              values: ['United States', 'Canada', 'International']
+
+  - name: bridge_customer_company
+    description: >
+      Bridge table linking individual QuickBooks customers to consolidated companies.
+      Enables drill-down analysis from company level to customer level while preserving
+      customer-specific metrics and classifications.
+    columns:
+      - name: customer_id
+        description: QuickBooks internal ID for the individual customer
+        tests:
+          - unique
+          - not_null
+      
+      - name: company_domain_key
+        description: Links to fct_companies.company_domain_key for consolidated company
+        tests:
+          - not_null
+      
+      - name: customer_name
+        description: Individual customer name from QuickBooks
+        tests:
+          - not_null
+      
+      - name: standardized_customer_name
+        description: Standardized customer name with common suffixes removed (from Python normalization)
+      
+      - name: customer_name_normalization_type
+        description: Type of normalization applied to customer name
+        tests:
+          - accepted_values:
+              values: ['explicit', 'automatic', 'no_change']
+      
+      - name: customer_total_revenue
+        description: Total revenue attributed to this specific customer
+        tests:
+          - not_null
+      
+      - name: customer_total_orders
+        description: Total number of orders placed by this customer
+        tests:
+          - not_null
+      
+      - name: customer_value_tier
+        description: Value classification for this specific customer
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['No Revenue', 'Low Value Customer (<$1K)', 'Regular Customer ($1K-$10K)', 'Medium Value Customer ($10K-$50K)', 'High Value Customer ($50K+)']
+      
+      - name: customer_activity_status
+        description: Activity classification based on latest order date
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['No Orders', 'Inactive (2+ Years)', 'Dormant (1-2 Years)', 'Recent (Last Year)', 'Active (Last 90 Days)']
+      
+      - name: domain_type
+        description: Type of email domain (corporate, individual, no_email)
+        tests:
+          - not_null
+      
+      - name: is_individual_customer
+        description: Flag indicating if customer uses individual email domain
+        tests:
+          - not_null
+      
+      - name: has_revenue
+        description: Flag indicating if customer has any revenue
+        tests:
+          - not_null
+
+  - name: fct_company_orders
+    description: >
+      Company-level order analytics enabling analysis of ordering patterns,
+      order sizes, product mix, and purchasing behavior by consolidated company.
+      Each row represents one order from a company.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - company_domain_key
+            - order_number
+            - order_date
+            - customer_name
+    columns:
+      - name: company_domain_key
+        description: Links to fct_companies.company_domain_key
+        tests:
+          - not_null
+      
+      - name: order_number
+        description: Unique order/invoice number
+        tests:
+          - not_null
+      
+      - name: order_date
+        description: Date the order was placed
+        tests:
+          - not_null
+      
+      - name: calculated_order_total
+        description: Sum of line items for this order
+        tests:
+          - not_null
+      
+      - name: order_size_category
+        description: Classification based on order total amount
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Micro Order (<$500)', 'Small Order ($500-$2.5K)', 'Medium Order ($2.5K-$10K)', 'Large Order ($10K+)']
+      
+      - name: product_diversity
+        description: Classification based on number of unique products in order
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Single Product', 'Low Diversity (2-4 products)', 'Medium Diversity (5-9 products)', 'High Diversity (10+ products)']
+      
+      - name: recency_category
+        description: Classification based on how recent the order is
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Recent', 'Last Year', 'Historical', 'Old']
+
+  - name: fct_company_products
+    description: >
+      Company-product analytics showing what each company buys, with quantities,
+      frequencies, pricing, and purchasing patterns. Enables "who buys what" analysis
+      at the product level.
+    columns:
+      - name: company_domain_key
+        description: Links to fct_companies.company_domain_key
+        tests:
+          - not_null
+      
+      - name: product_service
+        description: Product/service code
+        tests:
+          - not_null
+      
+      - name: total_amount_spent
+        description: Total amount this company has spent on this product
+        tests:
+          - not_null
+      
+      - name: total_transactions
+        description: Number of times this company has purchased this product
+        tests:
+          - not_null
+      
+      - name: buyer_status
+        description: Classification based on recency of last purchase
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Active Buyer', 'Recent Buyer', 'Dormant Buyer', 'Inactive Buyer']
+      
+      - name: purchase_volume_category
+        description: Classification based on total amount spent on this product
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Occasional (<$500)', 'Low Volume ($500-$2.5K)', 'Medium Volume ($2.5K-$10K)', 'High Volume ($10K+)']
+      
+      - name: purchase_frequency_category
+        description: Classification based on number of transactions
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Rare Buyer (<5 orders)', 'Occasional Buyer (5-9 orders)', 'Regular Buyer (10-19 orders)', 'Frequent Buyer (20+ orders)']
+      
+      - name: product_service_description
+        description: Most recent product description for this company-product combination (critical field from correlated subquery)
+        tests:
+          - not_null
+      
+      - name: first_purchase_date
+        description: First date this company purchased this product
+        tests:
+          - not_null
+      
+      - name: latest_purchase_date
+        description: Most recent date this company purchased this product
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - company_domain_key
+            - product_service
+
+  - name: mart_product_company_period_spending
+    description: >
+      Product-company period-based spending analytics for dashboard queries.
+      Pre-calculates spending metrics across multiple time periods (30d, 90d, 1y, all_time)
+      to eliminate complex runtime joins. Enables "top companies for product X in period Y" queries.
+      Each row represents one product-company-period combination with spending > 0.
+    columns:
+      - name: product_service
+        description: Product/service code
+        tests:
+          - not_null
+      
+      - name: company_domain_key
+        description: Links to fct_companies.company_domain_key
+        tests:
+          - not_null
+      
+      - name: company_name
+        description: Company name
+        tests:
+          - not_null
+      
+      - name: period_type
+        description: Time period for the aggregation
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['trailing_30d', 'trailing_90d', 'trailing_1y', 'all_time']
+      
+      - name: total_amount_spent
+        description: Total amount spent by this company on this product in this period
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      
+      - name: total_transactions
+        description: Number of transactions for this product-company-period
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      
+      - name: total_quantity_purchased
+        description: Total quantity purchased in this period (defaults to 0 for NULL quantities)
+        tests:
+          - not_null
+      
+      - name: avg_unit_price
+        description: Average unit price paid in this period
+      
+      - name: first_purchase_date
+        description: First purchase date for this product-company combination (across all time)
+        tests:
+          - not_null
+      
+      - name: last_purchase_date
+        description: Most recent purchase date for this product-company combination (across all time)
+        tests:
+          - not_null
+      
+      - name: latest_customer
+        description: Customer name from most recent transaction
+      
+      - name: latest_source_type
+        description: Source type from most recent transaction (invoice or sales_receipt)
+        tests:
+          - accepted_values:
+              values: ['invoice', 'sales_receipt']
+      
+      - name: domain_type
+        description: Company domain/entity grouping type
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['corporate', 'individual', 'no_email', 'skip']
+      
+      - name: business_size_category
+        description: Company size classification
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
+      
+      - name: company_total_revenue
+        description: Lifetime company revenue from the company-product base model
+      
+      - name: product_family
+        description: Product family from fct_products (may be NULL for products not in fct_products)
+      
+      - name: material_type
+        description: Material type from fct_products (may be NULL for products not in fct_products)
+      
+      - name: is_kit
+        description: Boolean flag if product is a kit (may be NULL for products not in fct_products)
+      
+      - name: lifetime_buyer_status
+        description: Buyer status from fct_company_products (lifetime perspective, may be NULL for new products)
+        tests:
+          - accepted_values:
+              values: ['Active Buyer', 'Recent Buyer', 'Dormant Buyer', 'Inactive Buyer']
+      
+      - name: lifetime_volume_category
+        description: Purchase volume category from fct_company_products (lifetime perspective, may be NULL for new products)
+        tests:
+          - accepted_values:
+              values: ['Occasional (<$500)', 'Low Volume ($500-$2.5K)', 'Medium Volume ($2.5K-$10K)', 'High Volume ($10K+)']
+      
+      - name: period_buyer_status
+        description: Buyer status classification based on period recency
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Recent Buyer (30d)', 'Active Buyer (90d)', 'Past Year Buyer', 'Historical Buyer']
+      
+      - name: period_spending_category
+        description: Spending classification for this specific period
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['No Period Spending', 'Minimal Spender (<$500)', 'Low Spender ($500-$2.5K)', 'Medium Spender ($2.5K-$10K)', 'High Spender ($10K+)']
+      
+      - name: price_variance_percentage
+        description: Percentage variance between period average price and standard sales price
+      
+      - name: period_share_of_lifetime_spending
+        description: What percentage of lifetime spending on this product occurred in this period
+        tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0 AND period_share_of_lifetime_spending <= 100"
+      
+      - name: days_since_last_purchase
+        description: Days since last purchase of this product by this company
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - product_service
+            - company_domain_key
+            - period_type
+
+  - name: dim_customer_contacts
+    description: >
+      CRITICAL TESTING: Customer contacts dimension table providing person-level information for CRM and analytics.
+      WARNING: Uses string-based joins in fact tables instead of stable surrogate keys.
+    columns:
+      - name: contact_dim_key
+        description: Surrogate key for change detection
+        tests:
+          - unique
+          - not_null
+      
+      - name: contact_id
+        description: Contact identifier (same as person_id from intermediate)
+        tests:
+          - unique
+          - not_null
+      
+      - name: primary_email
+        description: Primary email address for the contact
+        tests:
+          - not_null
+          - unique  # Ensures email deduplication worked
+      
+      - name: company_domain_key
+        description: Link to company consolidation
+        tests:
+          - not_null
+      
+      - name: company_name
+        description: Consolidated company name
+        tests:
+          - not_null
+      
+      - name: contact_role
+        description: Role within the company
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['primary_contact', 'primary_with_cc', 'cc_contact_only', 'name_only_contact', 'minimal_contact']
+      
+      - name: is_primary_company_contact
+        description: Flag for primary company contact
+        tests:
+          - not_null
+      
+      - name: contact_tier
+        description: Contact tier based on data quality and role
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['high_value_contact', 'complete_contact', 'email_contact', 'phone_contact', 'basic_contact']
+      
+      - name: email_marketable
+        description: Flag indicating if contact can be emailed
+        tests:
+          - not_null
+      
+      - name: phone_contactable
+        description: Flag indicating if contact can be called
+        tests:
+          - not_null
+      
+      - name: key_account_contact
+        description: Flag for key account contacts
+        tests:
+          - not_null
+
+  - name: dim_customer_contacts_fixed
+    description: >
+      FIXED: Customer contacts dimension table with stable surrogate keys and proper DBT architecture.
+      Replaces broken version with proper layering and dimensional modeling principles.
+    columns:
+      - name: contact_dim_key
+        description: Surrogate key for change detection (stable)
+        tests:
+          - unique
+          - not_null
+      
+      - name: contact_id
+        description: "Primary contact identifier (stable - NO email_position in hash)"
+        tests:
+          - unique
+          - not_null
+      
+      - name: primary_email
+        description: Primary email address for the contact
+        tests:
+          - not_null
+          - unique  # Ensures email deduplication worked
+      
+      - name: company_domain_key
+        description: Link to company consolidation
+        tests:
+          - not_null
+      
+      - name: company_name
+        description: Consolidated company name
+        tests:
+          - not_null
+      
+      - name: contact_role
+        description: Role within the company
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['primary_contact', 'secondary_contact', 'email_contact', 'phone_contact', 'name_only_contact', 'minimal_contact']
+      
+      - name: is_primary_company_contact
+        description: Flag for primary company contact
+        tests:
+          - not_null
+      
+      - name: contact_tier
+        description: Contact tier based on data quality and role
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['high_value_contact', 'complete_contact', 'email_contact', 'phone_contact', 'basic_contact']
+      
+      - name: completeness_score
+        description: Data completeness score from 0-100
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0 and completeness_score <= 100"
+      
+      - name: email_marketable
+        description: Flag indicating if contact can be emailed
+        tests:
+          - not_null
+      
+      - name: phone_contactable
+        description: Flag indicating if contact can be called
+        tests:
+          - not_null
+
+  - name: fct_inventory_history
+    description: >
+      Daily sales-based inventory estimate. QuickBooks quantity_on_hand rows are
+      treated as occasional anchors; between anchors, inventory moves according to
+      `int_quickbooks__inventory_movements`, including sales, bill receipts, inventory
+      adjustments, build assembly production, and build component consumption.
+      Future-dated committed demand is kept out of actual stock movement. Open
+      unreceived POs are exposed as inbound planning fields, but are not counted as
+      on-hand.
+    columns:
+      - name: sku
+        description: Inventory item/SKU
+        tests:
+          - not_null
+      
+      - name: inventory_date
+        description: Date for the estimated inventory level
+        tests:
+          - not_null
+      
+      - name: estimated_ending_inventory
+        description: Estimated end-of-day quantity on hand in sellable warehouse boxes
+        tests:
+          - not_null
+
+      - name: anchor_date
+        description: QuickBooks load date used as the nearest inventory anchor
+        tests:
+          - not_null
+
+      - name: anchor_quantity_on_hand
+        description: Adjusted sellable quantity on hand at the anchor date after subtracting future-dated vendor bill receipts that QuickBooks includes in quantity_on_hand before physical receipt.
+        tests:
+          - not_null
+
+      - name: quickbooks_quantity_on_hand
+        description: Raw QuickBooks quantity_on_hand reported in the item export before future-dated receipt adjustment.
+
+      - name: future_receipt_qty_after_anchor
+        description: Vendor bill receipt quantity dated after the anchor date that was removed from the QuickBooks-reported quantity_on_hand.
+
+      - name: future_receipt_line_count_after_anchor
+        description: Count of future-dated vendor bill receipt lines removed from the QuickBooks-reported quantity_on_hand.
+
+      - name: inventory_status
+        description: Risk bucket based on estimated inventory and trailing 90-day sales velocity
+
+      - name: receipt_qty
+        description: Deduped bill quantity received on this date, excluding DPC Transfer Inventory
+
+      - name: adjustment_qty
+        description: Deduped inventory adjustment quantity on this date
+
+      - name: open_po_quantity
+        description: Quantity on open, unreceived, non-manually-closed purchase orders
+
+      - name: has_open_po_inbound
+        description: Whether this SKU has open PO quantity available for inbound planning
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - sku
+              - inventory_date
+
+  - name: fct_product_pricing_history
+    description: >
+      Fact table tracking product pricing changes and history.
+    columns:
+      - name: product_service
+        description: Name of the product or service
+        tests:
+          - not_null
+      
+      - name: order_date
+        description: Transaction date for the observed price point
+        tests:
+          - not_null
+      
+      - name: avg_unit_price
+        description: Average unit price observed for the product on that date
+        tests:
+          - not_null
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - product_service
+            - order_date
+
+  - name: mart_company_period_metrics
+    description: >
+      Company period-based metrics mart for dashboard analytics.
+      Pre-calculates revenue and order metrics by company across multiple time periods.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - company_domain_key
+            - period_type
+    columns:
+      - name: company_domain_key
+        description: Unique identifier for the consolidated company
+        tests:
+          - not_null
+
+      - name: period_type
+        description: Time period type (trailing_7d, trailing_30d, trailing_90d, trailing_1y, all_time)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['trailing_7d', 'trailing_30d', 'trailing_90d', 'trailing_1y', 'all_time']
+
+      - name: total_revenue
+        description: Total revenue for this company in this period
+        tests:
+          - not_null
+
+  - name: mart_product_margin_analytics
+    description: >
+      Time-series margin analytics by product/SKU for dashboard consumption.
+      Provides aggregated actual vs standard margins with temporal dimensions.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - sku
+            - time_period
+            - period_date
+    columns:
+      - name: sku
+        description: Product/service code (SKU)
+        tests:
+          - not_null
+
+      - name: time_period
+        description: Time period aggregation level (daily, monthly)
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['daily', 'monthly']
+
+      - name: period_date
+        description: Date for the period (sale_date for daily, order_month for monthly)
+        tests:
+          - not_null
+
+  - name: mart_product_unit_sales
+    description: >
+      This mart table provides aggregated unit sales data for frontend consumption and analytics.
+      Enables queries like "5,234 UNITS of SP10 sold in last 30 days" by aggregating individual unit sales by product and time period.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - product_name
+            - sale_date
+    columns:
+      - name: product_name
+        description: Product name
+        tests:
+          - not_null
+
+      - name: sale_date
+        description: Date of the sales transaction
+        tests:
+          - not_null
+
+      - name: total_units_sold
+        description: Total units sold on this date for this product
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"

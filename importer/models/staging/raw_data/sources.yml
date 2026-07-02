@@ -1,0 +1,155 @@
+version: 2
+
+sources:
+  - name: raw_data
+    schema: raw
+    tables:
+      # Core business entities (XLSX worksheets)
+      - name: xlsx_customer
+        description: "Customer data from QuickBooks XLSX Customer worksheet"
+      - name: xlsx_item
+        description: "Item/Product data from QuickBooks XLSX Item worksheet"
+      - name: xlsx_sales_receipt
+        description: "Sales receipt transaction data from QuickBooks XLSX Sales Receipt worksheet"
+      - name: xlsx_invoice
+        description: "Invoice transaction data from QuickBooks XLSX Invoice worksheet"
+      
+      # Additional list entities
+      - name: xlsx_account
+        description: "Chart of accounts from QuickBooks XLSX Account worksheet"
+      - name: xlsx_vendor
+        description: "Vendor data from QuickBooks XLSX Vendor worksheet"
+      - name: xlsx_employee
+        description: "Employee data from QuickBooks XLSX Employee worksheet"
+      - name: xlsx_item_discount
+        description: "Item discount data from QuickBooks XLSX Item Discount worksheet"
+        
+      # Additional transaction entities
+      - name: xlsx_sales_order
+        description: "Sales order data from QuickBooks XLSX Sales Order worksheet"
+      - name: xlsx_estimate
+        description: "Estimate/Quote data from QuickBooks XLSX Estimate worksheet"
+      - name: xlsx_credit_memo
+        description: "Credit memo data from QuickBooks XLSX Credit Memo worksheet"
+      - name: xlsx_payment
+        description: "Payment data from QuickBooks XLSX Payment worksheet"
+      - name: xlsx_purchase_order
+        description: "Purchase order data from QuickBooks XLSX Purchase Order worksheet"
+      - name: xlsx_bill
+        description: "Bill data from QuickBooks XLSX Bill worksheet"
+      - name: xlsx_bill_payment
+        description: "Bill payment data from QuickBooks XLSX Bill Payment worksheet"
+      - name: xlsx_check
+        description: "Check data from QuickBooks XLSX Check worksheet"
+      - name: xlsx_credit_card_charge
+        description: "Credit card charge data from QuickBooks XLSX Credit Card Charge worksheet"
+      - name: xlsx_trial_balance
+        description: "Trial balance data from QuickBooks XLSX Trial Balance worksheet"
+      - name: xlsx_deposit
+        description: "Deposit data from QuickBooks XLSX Deposit worksheet"
+      - name: xlsx_inventory_adjustment
+        description: "Inventory adjustment data from QuickBooks XLSX Inventory Adjustment worksheet"
+      - name: xlsx_journal_entry
+        description: "Journal entry data from QuickBooks XLSX Journal Entry worksheet"
+      - name: xlsx_build_assembly
+        description: "Build assembly data from QuickBooks XLSX Build Assembly worksheet"
+      - name: xlsx_custom_txn_detail
+        description: "Custom transaction detail data from QuickBooks XLSX Custom Txn Detail worksheet"
+      
+      # Domain consolidation and enrichment tables
+      - name: domain_mapping
+        description: "Email domain to company consolidation mapping created by domain_consolidation.py"
+        columns:
+          - name: original_domain
+            description: "Original email domain from customer data"
+          - name: normalized_domain
+            description: "Consolidated domain key for company grouping"
+          - name: domain_type
+            description: "Type: corporate, individual, or skip"
+      - name: customer_name_mapping
+        description: "Customer name standardization mapping created by domain_consolidation.py"
+        columns:
+          - name: original_name
+            description: "Original customer name from QuickBooks data"
+          - name: normalized_name
+            description: "Standardized customer name with suffixes removed"
+          - name: normalization_type
+            description: "Type: explicit, automatic, or no_change"
+      - name: company_enrichment
+        description: "Company enrichment data from external APIs (CoreSignal, etc.)"
+        columns:
+          - name: company_domain
+            description: "Company domain used for matching with fct_companies"
+          - name: company_name
+            description: "Company name from enrichment source"
+          - name: enrichment_source
+            description: "API provider (e.g., coresignal.com)"
+          - name: enrichment_date
+            description: "When the enrichment data was retrieved"
+          - name: enrichment_raw_data
+            description: "Full JSON response from API - stored as JSONB"
+          - name: load_date
+            description: "When the data was loaded into pipeline"
+          - name: is_manual_load
+            description: "True for manual CSV loads, false for automated API calls"
+
+      # Shopify e-commerce data (DLT verified source)
+      - name: customers
+        description: "Shopify customer records with marketing consent and contact details"
+        columns:
+          - name: id
+            description: "Shopify customer ID (primary key)"
+          - name: email
+            description: "Customer email for matching with QuickBooks customers"
+          - name: created_at
+            description: "Customer account creation timestamp"
+
+      - name: orders
+        description: "Shopify order transactions with financial and attribution data"
+        columns:
+          - name: id
+            description: "Shopify order ID (primary key)"
+          - name: order_number
+            description: "Sequential order number (matches QuickBooks as S-{order_number})"
+          - name: created_at
+            description: "Order creation timestamp"
+          - name: financial_status
+            description: "Payment status (paid, pending, refunded, etc.)"
+
+      - name: orders__line_items
+        description: "Shopify order line items (nested child table)"
+        columns:
+          - name: id
+            description: "Line item ID"
+          - name: _dlt_parent_id
+            description: "Foreign key to parent order"
+
+      - name: orders__fulfillments
+        description: "Shopify fulfillment records with tracking information"
+        columns:
+          - name: id
+            description: "Fulfillment ID"
+          - name: _dlt_parent_id
+            description: "Foreign key to parent order"
+          - name: tracking_number
+            description: "Shipment tracking number"
+
+      - name: products
+        description: "Shopify product catalog"
+        columns:
+          - name: id
+            description: "Shopify product ID (primary key)"
+          - name: title
+            description: "Product title/name"
+
+      - name: products__variants
+        description: "Shopify product variants with SKUs and pricing"
+        columns:
+          - name: id
+            description: "Variant ID"
+          - name: product_id
+            description: "Foreign key to parent product"
+          - name: sku
+            description: "Product SKU (matches QuickBooks item_name)"
+          - name: _dlt_parent_id
+            description: "DLT parent relationship key"
