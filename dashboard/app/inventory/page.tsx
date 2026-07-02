@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ReorderPlanningTable } from '@/components/dashboard/ReorderPlanningTable';
-import { AlertTriangle, ClipboardList, PackageCheck, Truck } from 'lucide-react';
+import { AlertTriangle, ClipboardList, PackageCheck, ShipWheel } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 function SummaryCard({
@@ -70,10 +70,10 @@ export default async function InventoryPage() {
 
         <div className="grid gap-4 md:grid-cols-4">
           <SummaryCard
-            title="Out Of Stock"
-            value={summary.outOfStockCount.toLocaleString()}
-            detail={`${summary.totalSkus.toLocaleString()} active planning SKUs`}
-            icon={AlertTriangle}
+            title="WWD Planning"
+            value={summary.wwdBuyCount.toLocaleString()}
+            detail={`${Number(summary.wwdSuggestedBuyQty).toLocaleString()} units, ${formatCurrency(summary.wwdSuggestedBuyCost, { showCents: false })}`}
+            icon={ShipWheel}
           />
           <SummaryCard
             title="Suggested Buys"
@@ -88,10 +88,10 @@ export default async function InventoryPage() {
             icon={PackageCheck}
           />
           <SummaryCard
-            title="Inbound Supply"
-            value={Number(summary.inboundQty).toLocaleString()}
-            detail={`${Number(summary.futureReceiptQty).toLocaleString()} future-dated receipts separated`}
-            icon={Truck}
+            title="Out Of Stock"
+            value={summary.outOfStockCount.toLocaleString()}
+            detail={`${summary.totalSkus.toLocaleString()} active planning SKUs`}
+            icon={AlertTriangle}
           />
         </div>
 

@@ -20,6 +20,10 @@ export interface InventoryPlanningSummary {
   outOfStockCount: number;
   buyCount: number;
   reviewCount: number;
+  wwdSkuCount: number;
+  wwdBuyCount: number;
+  wwdSuggestedBuyQty: string;
+  wwdSuggestedBuyCost: string;
   suggestedBuyQty: string;
   suggestedBuyCost: string;
   inboundQty: string;
@@ -28,6 +32,7 @@ export interface InventoryPlanningSummary {
 
 export interface InventoryPlanningItem {
   sku: string;
+  preferredVendor: string;
   salesDescription: string;
   productFamily: string;
   materialType: string;
@@ -87,6 +92,7 @@ export interface StockoutTimelineItem {
 
 interface InventoryPlanningRow {
   sku: string | null;
+  preferred_vendor: string | null;
   inventory_as_of_date: string | Date | null;
   policy_bucket: string | null;
   policy_assignment_reason: string | null;
@@ -173,6 +179,7 @@ export async function getInventoryPlanningPageData(): Promise<{
 
     return {
       sku: row.sku || '',
+      preferredVendor: row.preferred_vendor || 'Unassigned',
       salesDescription: row.sales_description || '',
       productFamily: row.product_family || 'Uncategorized',
       materialType: row.material_type || 'Uncategorized',
@@ -222,6 +229,8 @@ export async function getInventoryPlanningPageData(): Promise<{
   const outOfStock = items.filter((item) => item.action === 'OUT_OF_STOCK');
   const buyItems = items.filter((item) => item.shouldReorder);
   const reviewItems = items.filter((item) => item.requiresManualReview);
+  const wwdItems = items.filter((item) => item.preferredVendor === 'WWD');
+  const wwdBuyItems = wwdItems.filter((item) => item.shouldReorder);
   const families = Array.from(new Set(items.map((item) => item.productFamily).filter((family) => family !== 'Uncategorized'))).sort();
 
   return {
@@ -231,6 +240,10 @@ export async function getInventoryPlanningPageData(): Promise<{
       outOfStockCount: outOfStock.length,
       buyCount: buyItems.length,
       reviewCount: reviewItems.length,
+      wwdSkuCount: wwdItems.length,
+      wwdBuyCount: wwdBuyItems.length,
+      wwdSuggestedBuyQty: wwdBuyItems.reduce((sum, item) => sum + Number(item.suggestedBuyQty), 0).toFixed(0),
+      wwdSuggestedBuyCost: wwdBuyItems.reduce((sum, item) => sum + Number(item.suggestedBuyCost), 0).toFixed(2),
       suggestedBuyQty: buyItems.reduce((sum, item) => sum + Number(item.suggestedBuyQty), 0).toFixed(0),
       suggestedBuyCost: buyItems.reduce((sum, item) => sum + Number(item.suggestedBuyCost), 0).toFixed(2),
       inboundQty: items.reduce((sum, item) => sum + Number(item.inboundOpenPoQty), 0).toFixed(0),
