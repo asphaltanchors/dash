@@ -1,0 +1,44 @@
+# Proxmox/Tailscale production configuration.
+# Use with docker-compose.yml and docker-compose.prod.yml.
+
+services:
+  postgres:
+    restart: unless-stopped
+
+  importer:
+    restart: unless-stopped
+    environment:
+      DROPBOX_PATH: /dropbox/Dropbox/quickbooks-csv
+      DBT_TARGET: prod
+      TZ: ${TZ:-America/Los_Angeles}
+    volumes:
+      - ${DROPBOX_SYNC_DIR:-/srv/aac-bi/dropbox/Dropbox/quickbooks-csv}:/dropbox/Dropbox/quickbooks-csv:ro
+      - ${CRON_LOG_DIR:-/srv/aac-bi/logs/importer}:/var/log/cron
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dropbox-sync:
+        condition: service_started
+
+  dashboard:
+    restart: unless-stopped
+
+  dropbox-sync:
+    image: rclone/rclone:latest
+    restart: unless-stopped
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        while true; do
+          date
+          rclone sync "$$RCLONE_REMOTE" /data --create-empty-src-dirs --log-level INFO
+          sleep "$$RCLONE_SYNC_INTERVAL_SECONDS"
+        done
+    environment:
+      RCLONE_REMOTE: ${RCLONE_REMOTE:-dropbox:quickbooks-csv}
+      RCLONE_SYNC_INTERVAL_SECONDS: ${RCLONE_SYNC_INTERVAL_SECONDS:-900}
+      TZ: ${TZ:-America/Los_Angeles}
+    volumes:
+      - ${RCLONE_CONFIG_DIR:-/srv/aac-bi/rclone}:/config/rclone
+      - ${DROPBOX_SYNC_DIR:-/srv/aac-bi/dropbox/Dropbox/quickbooks-csv}:/data
