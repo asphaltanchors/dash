@@ -221,6 +221,18 @@ models:
         tests:
           - not_null
 
+      - name: six_pack_units_per_layer
+        description: Configured WWD layer multiple for anchor 6-pack SKUs, when known. Null means no layer rounding rule has been configured for the SKU.
+
+      - name: layer_rounded_reorder_qty
+        description: Suggested reorder quantity rounded up to the configured 6-pack layer multiple when one exists; otherwise equal to `reorder_qty`.
+
+      - name: reorder_layer_count
+        description: Number of configured layers represented by `layer_rounded_reorder_qty`, when a SKU has a configured 6-pack layer multiple.
+
+      - name: layer_rounding_extra_qty
+        description: Extra quantity added by rounding `reorder_qty` up to the configured 6-pack layer multiple.
+
       - name: reorder_value_at_cost
         description: Suggested reorder quantity multiplied by current QuickBooks purchase cost.
 
@@ -314,7 +326,7 @@ models:
                 - no_automatic_forecast
 
       - name: forecast_daily_qty
-        description: Daily demand forecast chosen from capped SKU demand, SKU seasonality, family/material seasonality fallback, growth trend, or component consumption.
+        description: Daily demand forecast chosen from capped SKU demand, SKU seasonality, family/material seasonality fallback, growth trend, sparse/new SKU recent velocity, or component consumption.
 
       - name: sku_baseline_monthly_qty
         description: Capped monthly SKU demand baseline before seasonality and growth are applied.

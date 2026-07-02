@@ -2,6 +2,21 @@
 
 This file provides guidance to coding agents working in the `importer/` submodule.
 
+## Running DBT In The Importer Container
+
+The running importer container has `dbt` installed globally at `/usr/local/bin/dbt`.
+
+- Use `docker-compose exec importer dbt ...` for dbt commands.
+- Do not wrap dbt commands with `/bin/sh -c "source .venv/bin/activate && ..."`.
+- `/bin/sh` in the container is POSIX sh and does not support `source`.
+- The expected `.venv/bin/activate` path is not present in the running container.
+
+Example:
+
+```bash
+docker-compose exec importer dbt build --select mart_inventory_sku_policy mart_inventory_reorder_recommendations
+```
+
 ## QuickBooks Order Number Caveat
 
 QuickBooks `order_number` values are not globally unique in this dataset.

@@ -352,12 +352,29 @@ planning_overrides AS (
     ) AS overrides(sku, preferred_vendor, configured_lead_time_days, configured_target_coverage_days, planning_override_reason)
 ),
 
+layer_pack_overrides AS (
+    SELECT *
+    FROM (
+        VALUES
+            ('01-6310.38K', 135::INT),
+            ('01-6310.3SK', 135::INT),
+            ('01-6315.38K', 81::INT),
+            ('01-6315.3SK', 81::INT),
+            ('01-6315.3SK-2', 81::INT),
+            ('01-6318.71K', 81::INT),
+            ('01-6318.7SK', 81::INT),
+            ('01-6358.58K', 48::INT),
+            ('01-6358.5SK', 48::INT)
+    ) AS overrides(sku, six_pack_units_per_layer)
+),
+
 planning_inputs AS (
     SELECT
         p.*,
         COALESCE(po.preferred_vendor, lsv.vendor) AS preferred_vendor,
         po.configured_lead_time_days,
         po.configured_target_coverage_days,
+        lpo.six_pack_units_per_layer,
         osvl.observed_sku_vendor_lead_time_days,
         osvl.observed_sku_vendor_lead_time_count,
         ovl.observed_vendor_lead_time_days,
@@ -387,6 +404,8 @@ planning_inputs AS (
     FROM policy p
     LEFT JOIN planning_overrides po
         ON p.sku = po.sku
+    LEFT JOIN layer_pack_overrides lpo
+        ON p.sku = lpo.sku
     LEFT JOIN latest_sku_vendor lsv
         ON p.sku = lsv.sku
        AND lsv.vendor_rank = 1
@@ -561,7 +580,7 @@ forecast AS (
                 (sku_baseline_monthly_qty * applied_seasonality_index * applied_growth_factor) / 30.4375
             WHEN forecast_model_detail = 'capped_trailing_sku_baseline' THEN
                 sku_baseline_monthly_qty / 30.4375
-            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN GREATEST(calc_avg_daily_sales_90d, calc_avg_daily_sales_365d)
+            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN GREATEST(calc_avg_daily_sales_30d, calc_avg_daily_sales_90d, calc_avg_daily_sales_365d)
             WHEN policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN GREATEST(
                 component_consumed_qty_since_2024 / NULLIF((inventory_as_of_date - DATE '2024-01-01')::NUMERIC, 0),
                 0
@@ -689,6 +708,28 @@ final AS (
             ELSE reorder_qty > 0
         END AS should_reorder,
         reorder_qty,
+        six_pack_units_per_layer,
+        CASE
+            WHEN six_pack_units_per_layer IS NOT NULL
+             AND six_pack_units_per_layer > 0
+             AND reorder_qty > 0
+            THEN CEIL(reorder_qty / six_pack_units_per_layer) * six_pack_units_per_layer
+            ELSE reorder_qty
+        END AS layer_rounded_reorder_qty,
+        CASE
+            WHEN six_pack_units_per_layer IS NOT NULL
+             AND six_pack_units_per_layer > 0
+             AND reorder_qty > 0
+            THEN CEIL(reorder_qty / six_pack_units_per_layer)
+            ELSE NULL
+        END AS reorder_layer_count,
+        CASE
+            WHEN six_pack_units_per_layer IS NOT NULL
+             AND six_pack_units_per_layer > 0
+             AND reorder_qty > 0
+            THEN (CEIL(reorder_qty / six_pack_units_per_layer) * six_pack_units_per_layer) - reorder_qty
+            ELSE 0
+        END AS layer_rounding_extra_qty,
         reorder_qty * COALESCE(purchase_cost, 0) AS reorder_value_at_cost,
         reorder_by_date,
         projected_stockout_or_safety_date,

@@ -58,6 +58,7 @@ suppression_rules AS (
             WHEN li.sku LIKE '%(W)' THEN 'china_ordering_artifact_not_inventory'
             WHEN li.sku = '01-7010.MCC' THEN 'customer_special_order_not_inventory'
             WHEN li.sku = '01-7014.wwd' THEN 'unused_wwd_artifact_not_inventory'
+            WHEN li.sku = '01-7625.K' THEN 'deprecated_sell_through_do_not_reorder'
             WHEN li.sku = '01-6315.3SK-2' THEN 'customer_special_order_not_inventory'
             WHEN li.sku = '01-6358.5SK-2' THEN 'customer_special_order_not_inventory'
             WHEN li.sku IN ('01-8050', '46-4001', '53-0258.BK', '95-0010', '95-0101') THEN 'obsolete_sku_not_sold'
@@ -273,6 +274,10 @@ validated AS (
             CASE
                 WHEN fba_transfer_in_qty_since_2024 > 0
                  AND policy_bucket != 'FBA_REPLENISHMENT_MODEL'
+                 AND (
+                    COALESCE(sales_qty_since_2024, 0) = 0
+                    OR fba_transfer_in_qty_since_2024 >= GREATEST(25::NUMERIC, COALESCE(sales_qty_since_2024, 0) * 0.02)
+                 )
                 THEN 'fba_transfer_signal_outside_fba_bucket'
             END,
             CASE

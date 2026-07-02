@@ -131,6 +131,7 @@ Final reorder model grain: one row per reorder-relevant SKU per latest inventory
 - [x] Calculate reorder quantity against projected stock at expected receipt date rather than today’s stock position.
 - [x] Surface uncovered lead-time demand / stockout gap for dashboard messaging.
 - [ ] Add SKU/vendor planning inputs for MOQ, order multiple, case pack, and broader preferred vendor coverage.
+- [x] Add simple WWD layer multiples for key 6-pack anchor SKUs and expose layer-rounded suggested buy quantities.
 - [ ] Replace remaining hard-coded target coverage assumptions with SKU/family/vendor overrides.
 - [ ] Apply order multiple and MOQ rounding to reorder quantities.
 - [ ] Surface vendor and order constraint context in the worklist.
