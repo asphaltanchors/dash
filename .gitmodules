@@ -1,6 +1,0 @@
-[submodule "dashboard"]
-	path = dashboard
-	url = https://github.com/asphaltanchors/dashboard
-[submodule "importer"]
-	path = importer
-	url = https://github.com/asphaltanchors/importer
