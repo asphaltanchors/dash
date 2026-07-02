@@ -347,7 +347,8 @@ planning_overrides AS (
     SELECT *
     FROM (
         VALUES
-            ('01-6358.58K', 'WWD', 93::NUMERIC, NULL::NUMERIC, 'configured_sku_vendor_observed_wwd_timing')
+            ('01-6358.58K', 'WWD', 93::NUMERIC, NULL::NUMERIC, 'configured_sku_vendor_observed_wwd_timing'),
+            ('01-7014', 'In-house assembly', NULL::NUMERIC, NULL::NUMERIC, 'configured_in_house_kit_not_wwd_order')
     ) AS overrides(sku, preferred_vendor, configured_lead_time_days, configured_target_coverage_days, planning_override_reason)
 ),
 
