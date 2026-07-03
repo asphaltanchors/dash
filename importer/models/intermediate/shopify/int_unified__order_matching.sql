@@ -19,6 +19,7 @@ qb_orders as (
         customer as qb_customer
     from {{ ref('int_quickbooks__orders') }}
     where order_number like 'S-%'
+      and sales_channel = 'Website'
 ),
 
 matched as (

@@ -80,7 +80,13 @@ customer_contacts_dimension AS (
         
         -- Company relationship
         company_domain_key,
-        COALESCE(consolidated_company_name, source_company_name) as company_name,
+        COALESCE(
+            NULLIF(TRIM(consolidated_company_name), ''),
+            NULLIF(TRIM(source_company_name), ''),
+            NULLIF(TRIM(source_customer_name), ''),
+            NULLIF(TRIM(person_name), ''),
+            company_domain_key
+        ) as company_name,
         contact_role,
         company_contact_rank,
         is_primary_company_contact,
