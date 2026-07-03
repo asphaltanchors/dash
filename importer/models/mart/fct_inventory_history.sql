@@ -5,6 +5,7 @@ ABOUTME: Between anchors, inventory moves from normalized sales, receipts, adjus
 
 {{ config(
     materialized = 'table',
+    post_hook = ["analyze {{ this }}"],
     tags = ['inventory', 'quickbooks', 'sales_based']
 ) }}
 
@@ -397,30 +398,39 @@ dated_inventory AS (
        AND ds.inventory_date = exact_anchor.anchor_date
 ),
 
-estimated_levels AS (
+running_inventory AS (
     SELECT
         di.*,
-        CASE
-            WHEN di.inventory_date < di.anchor_date THEN
-                di.anchor_quantity_on_hand - COALESCE((
-                    SELECT SUM(dm.net_inventory_movement)
-                    FROM daily_movements dm
-                    WHERE dm.sku = di.sku
-                      AND dm.movement_date > di.inventory_date
-                      AND dm.movement_date <= di.anchor_date
-                ), 0)
-            WHEN di.inventory_date = di.anchor_date THEN
-                di.anchor_quantity_on_hand
-            ELSE
-                di.anchor_quantity_on_hand + COALESCE((
-                    SELECT SUM(dm.net_inventory_movement)
-                    FROM daily_movements dm
-                    WHERE dm.sku = di.sku
-                      AND dm.movement_date > di.anchor_date
-                      AND dm.movement_date <= di.inventory_date
-                ), 0)
-        END AS estimated_ending_inventory
+        SUM(di.net_inventory_movement) OVER (
+            PARTITION BY di.sku
+            ORDER BY di.inventory_date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS cumulative_net_inventory_movement
     FROM dated_inventory di
+),
+
+anchor_running_totals AS (
+    SELECT
+        sku,
+        inventory_date AS anchor_date,
+        cumulative_net_inventory_movement AS anchor_cumulative_net_inventory_movement
+    FROM running_inventory
+    WHERE is_anchor_day
+),
+
+estimated_levels AS (
+    SELECT
+        ri.*,
+        ri.anchor_quantity_on_hand
+            + ri.cumulative_net_inventory_movement
+            - COALESCE(
+                art.anchor_cumulative_net_inventory_movement,
+                ri.cumulative_net_inventory_movement
+            ) AS estimated_ending_inventory
+    FROM running_inventory ri
+    LEFT JOIN anchor_running_totals art
+        ON ri.sku = art.sku
+       AND ri.anchor_date = art.anchor_date
 ),
 
 velocity AS (

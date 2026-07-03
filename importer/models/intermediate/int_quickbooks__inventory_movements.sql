@@ -5,6 +5,7 @@ ABOUTME: Uses signed quantities so downstream inventory models can reconstruct b
 
 {{ config(
     materialized = 'table',
+    post_hook = ["analyze {{ this }}"],
     tags = ['inventory', 'quickbooks', 'reorder_planning']
 ) }}
 

@@ -5,6 +5,7 @@ ABOUTME: Routes each tracked SKU to the forecasting/replenishment method its his
 
 {{ config(
     materialized = 'table',
+    post_hook = ["analyze {{ this }}"],
     tags = ['inventory', 'reorder_planning', 'forecasting']
 ) }}
 
