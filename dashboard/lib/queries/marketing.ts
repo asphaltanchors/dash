@@ -90,7 +90,7 @@ export async function getAttributionMetrics(filters: DashboardFilters = {}): Pro
   // Get total customer count for percentage
   const totalCustomersData = await db.execute(sql`
     SELECT COUNT(DISTINCT customer) as total_customers
-    FROM analytics_mart.fct_orders
+    FROM analytics_mart.base_fct_orders_current
     WHERE order_date >= ${startDate}
       AND order_date <= ${endDate}
       AND total_amount IS NOT NULL

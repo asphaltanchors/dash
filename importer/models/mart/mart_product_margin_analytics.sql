@@ -54,7 +54,7 @@ WITH line_items_with_margins AS (
             ELSE NULL
         END as line_total_margin_amount
 
-    FROM {{ ref('fct_order_line_items') }}
+    FROM {{ ref('base_fct_order_line_items_current') }}
     WHERE product_service IS NOT NULL
     AND TRIM(product_service) != ''
     AND order_date IS NOT NULL

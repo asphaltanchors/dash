@@ -14,9 +14,7 @@ WITH current_ar AS (
         SUM(total_amount) AS total_accounts_receivable,
         COUNT(*) AS open_invoice_count,
         AVG(total_amount) AS avg_open_invoice
-    FROM {{ ref('fct_orders') }}
-    WHERE sales_channel = 'Invoice' 
-        AND status = 'OPEN'
+    FROM {{ ref('mart_ar_invoice_aging') }}
 ),
 
 recent_sales AS (
@@ -30,17 +28,18 @@ recent_sales AS (
         SELECT 
             30 AS period_days,
             total_amount
-        FROM {{ ref('fct_orders') }}
-        WHERE sales_channel = 'Invoice' 
+        FROM {{ ref('base_fct_orders_current') }}
+        WHERE sales_channel = 'Invoice'
             AND order_date >= CURRENT_DATE - INTERVAL '30 days'
+            AND order_date <= CURRENT_DATE
         
         UNION ALL
         
         SELECT 
             60 AS period_days,
             total_amount
-        FROM {{ ref('fct_orders') }}
-        WHERE sales_channel = 'Invoice' 
+        FROM {{ ref('base_fct_orders_current') }}
+        WHERE sales_channel = 'Invoice'
             AND order_date >= CURRENT_DATE - INTERVAL '60 days'
             
         UNION ALL
@@ -48,8 +47,8 @@ recent_sales AS (
         SELECT 
             90 AS period_days,
             total_amount
-        FROM {{ ref('fct_orders') }}
-        WHERE sales_channel = 'Invoice' 
+        FROM {{ ref('base_fct_orders_current') }}
+        WHERE sales_channel = 'Invoice'
             AND order_date >= CURRENT_DATE - INTERVAL '90 days'
     ) recent_periods
     GROUP BY period_days
@@ -78,9 +77,7 @@ segment_ar AS (
         SUM(total_amount) AS segment_ar,
         AVG(total_amount) AS avg_invoice,
         ROUND(AVG(CURRENT_DATE - order_date), 1) AS avg_days_outstanding
-    FROM {{ ref('fct_orders') }}
-    WHERE sales_channel = 'Invoice' 
-        AND status = 'OPEN'
+    FROM {{ ref('mart_ar_invoice_aging') }}
     GROUP BY customer_segment
 ),
 
@@ -92,7 +89,7 @@ monthly_trends AS (
         SUM(total_amount) AS monthly_invoice_sales,
         -- Calculate month-end AR for trend analysis
         SUM(CASE WHEN status = 'OPEN' THEN total_amount ELSE 0 END) AS month_end_ar
-    FROM {{ ref('fct_orders') }}
+    FROM {{ ref('base_fct_orders_current') }}
     WHERE sales_channel = 'Invoice'
         AND order_date >= CURRENT_DATE - INTERVAL '6 months'
     GROUP BY DATE_TRUNC('month', order_date)

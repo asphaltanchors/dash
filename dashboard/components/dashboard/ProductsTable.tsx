@@ -25,11 +25,13 @@ export function ProductsTable({ products }: ProductsTableProps) {
             <TableHead className="hidden lg:table-cell w-auto max-w-60">Description</TableHead>
             <TableHead className="hidden sm:table-cell">Family</TableHead>
             <TableHead className="hidden lg:table-cell">Material</TableHead>
-            <TableHead className="text-right">Price</TableHead>
+            <TableHead className="text-right">Revenue</TableHead>
             <TableHead className="text-right">Margin %</TableHead>
-            <TableHead className="text-right hidden md:table-cell">Period Sales</TableHead>
-            <TableHead className="text-right hidden lg:table-cell">Units Sold</TableHead>
-            <TableHead className="text-right hidden xl:table-cell">Orders</TableHead>
+            <TableHead className="text-right hidden md:table-cell">Margin $</TableHead>
+            <TableHead className="text-right hidden lg:table-cell">Discount</TableHead>
+            <TableHead className="text-right hidden lg:table-cell">Units</TableHead>
+            <TableHead className="text-right hidden xl:table-cell">Customers</TableHead>
+            <TableHead className="hidden xl:table-cell">Inventory</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -71,7 +73,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 {product.materialType}
               </TableCell>
               <TableCell className="text-right font-mono">
-                {formatCurrency(product.salesPrice)}
+                {formatCurrency(product.periodSales, { showCents: false })}
               </TableCell>
               <TableCell className="text-right font-mono">
                 <span
@@ -87,7 +89,10 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden md:table-cell">
-                {formatCurrency(product.periodSales)}
+                {product.grossMarginAmount ? formatCurrency(product.grossMarginAmount, { showCents: false }) : 'n/a'}
+              </TableCell>
+              <TableCell className="text-right font-mono hidden lg:table-cell">
+                {formatCurrency(product.discountLeakageAmount || '0', { showCents: false })}
               </TableCell>
               <TableCell className="text-right font-mono hidden lg:table-cell">
                 <span className={`${product.periodUnits > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
@@ -95,9 +100,16 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden xl:table-cell">
-                <span className={`${product.periodOrders > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
-                  {product.periodOrders}
+                <span className={`${product.customerCount && product.customerCount > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
+                  {product.customerCount || 0}
                 </span>
+              </TableCell>
+              <TableCell className="hidden xl:table-cell">
+                <div className="flex gap-1">
+                  {product.inventoryStatus && <Badge variant="outline" className="text-xs">{product.inventoryStatus}</Badge>}
+                  {product.shouldReorder && <Badge variant="secondary" className="text-xs">buy</Badge>}
+                  {product.requiresManualReview && <Badge variant="outline" className="text-xs">review</Badge>}
+                </div>
               </TableCell>
             </TableRow>
           ))}

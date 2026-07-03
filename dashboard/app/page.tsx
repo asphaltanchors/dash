@@ -1,5 +1,6 @@
-import { Suspense } from 'react'
-import { DollarSign, ShoppingCart, TrendingUp, CreditCard } from 'lucide-react'
+import Link from 'next/link'
+import type { ComponentType, ReactNode } from 'react'
+import { AlertTriangle, Boxes, CreditCard, Database, DollarSign, Package, TrendingUp, Users } from 'lucide-react'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,108 +11,48 @@ import { Separator } from "@/components/ui/separator"
 import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { MetricCard } from '@/components/dashboard/MetricCard'
-import { RevenueChart } from '@/components/dashboard/RevenueChart'
-import { RecentOrders } from '@/components/dashboard/RecentOrders'
-import { getDashboardMetrics, getRecentOrders, getWeeklyRevenue } from '@/lib/queries'
-import { parseFilters, getPeriodLabel, type DashboardFilters } from '@/lib/filter-utils'
-import { PeriodSelector } from '@/components/dashboard/PeriodSelector'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { getBusinessCockpitData } from '@/lib/queries'
 import { formatCurrency, formatNumber } from '@/lib/utils'
 
-async function DashboardMetrics({ filters }: { filters: DashboardFilters }) {
-  const metrics = await getDashboardMetrics(filters)
-  const periodLabel = getPeriodLabel(filters.period || '1y')
+function Delta({ value }: { value: string | null }) {
+  if (value == null) return <span className="text-xs text-muted-foreground">n/a</span>
+  const numeric = Number(value)
+  const tone = numeric >= 0 ? 'text-emerald-700' : 'text-red-700'
+  return <span className={`text-xs font-medium ${tone}`}>{numeric >= 0 ? '+' : ''}{value}%</span>
+}
 
+function SummaryTile({
+  title,
+  value,
+  detail,
+  icon: Icon,
+}: {
+  title: string
+  value: string
+  detail: ReactNode
+  icon: ComponentType<{ className?: string }>
+}) {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <MetricCard
-        title={`${periodLabel} Sales`}
-        value={metrics.totalRevenue}
-        change={metrics.revenueGrowth}
-        icon={DollarSign}
-        formatValue={(value) => formatCurrency(value)}
-      />
-      <MetricCard
-        title={`${periodLabel} Orders`}
-        value={metrics.totalOrders.toString()}
-        change={metrics.orderGrowth}
-        icon={ShoppingCart}
-        formatValue={(value) => formatNumber(value, 0)}
-      />
-      <MetricCard
-        title="Average Order Value"
-        value={metrics.averageOrderValue}
-        icon={TrendingUp}
-        formatValue={(value) => formatCurrency(value)}
-      />
-      <MetricCard
-        title="Accounts Receivable"
-        value={metrics.accountsReceivable}
-        subtitle={`${metrics.arOrders} unpaid orders`}
-        icon={CreditCard}
-        formatValue={(value) => formatCurrency(value)}
-      />
-    </div>
-  )
-}
-
-async function DashboardChart({ filters }: { filters: DashboardFilters }) {
-  const weeklyRevenue = await getWeeklyRevenue(filters)
-  return <RevenueChart data={weeklyRevenue} period={filters.period} />
-}
-
-async function DashboardOrders() {
-  const orders = await getRecentOrders(15)
-  return <RecentOrders orders={orders} />
-}
-
-function LoadingCard() {
-  return (
-    <div className="rounded-lg border bg-card p-6 animate-pulse">
-      <div className="h-4 bg-muted rounded w-24 mb-2"></div>
-      <div className="h-8 bg-muted rounded w-32"></div>
-    </div>
-  )
-}
-
-function LoadingChart() {
-  return (
-    <div className="rounded-lg border bg-card p-6 animate-pulse">
-      <div className="h-4 bg-muted rounded w-48 mb-6"></div>
-      <div className="h-64 bg-muted rounded"></div>
-    </div>
-  )
-}
-
-function LoadingTable() {
-  return (
-    <div className="rounded-lg border bg-card p-6 animate-pulse">
-      <div className="h-4 bg-muted rounded w-32 mb-6"></div>
-      <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex space-x-4">
-            <div className="h-4 bg-muted rounded flex-1"></div>
-            <div className="h-4 bg-muted rounded w-24"></div>
-            <div className="h-4 bg-muted rounded w-20"></div>
+    <Card>
+      <CardContent className="p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">{title}</p>
+            <p className="truncate text-xl font-semibold tabular-nums">{value}</p>
           </div>
-        ))}
-      </div>
-    </div>
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">{detail}</div>
+      </CardContent>
+    </Card>
   )
 }
 
-interface HomePageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const params = await searchParams;
-  const filters = parseFilters<DashboardFilters>(params);
-  
-  // Default to 1 year period if no period specified
-  if (!filters.period) {
-    filters.period = '1y';
-  }
+export default async function HomePage() {
+  const { summary, dataQualityFlags, accountQueue, productQuality } = await getBusinessCockpitData()
 
   return (
     <>
@@ -131,40 +72,169 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex-1 space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Overview of your e-commerce performance
-            </p>
+      <div className="flex-1 space-y-4 p-4 pt-2 md:p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">Business Cockpit</h1>
+            <p className="text-sm text-muted-foreground">As of {summary?.asOfDate || 'current dbt snapshot'}</p>
           </div>
-          <PeriodSelector currentPeriod={filters.period || '1y'} filters={filters as Record<string, string | number | boolean | undefined>} />
+          <div className="flex flex-wrap gap-2">
+            {dataQualityFlags.map((flag) => (
+              <Badge key={flag.flagKey} variant="outline" className={
+                flag.severity === 'critical'
+                  ? 'border-red-300 bg-red-50 text-red-800'
+                  : flag.severity === 'warn'
+                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                    : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+              }>
+                {flag.flagLabel}: {flag.flagValue ?? 'n/a'}
+              </Badge>
+            ))}
+          </div>
         </div>
 
-        {/* Metrics Cards */}
-        <Suspense 
-          fallback={
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <LoadingCard />
-              <LoadingCard />
-              <LoadingCard />
-              <LoadingCard />
-            </div>
-          }
-        >
-          <DashboardMetrics filters={filters} />
-        </Suspense>
+        {summary && (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <SummaryTile
+              title="YTD Revenue"
+              value={formatCurrency(summary.ytdRevenue, { showCents: false })}
+              detail={<><Delta value={summary.ytdRevenueGrowthPct} /> vs prior YTD, {formatNumber(summary.ytdOrders, 0)} orders</>}
+              icon={DollarSign}
+            />
+            <SummaryTile
+              title="A/R"
+              value={formatCurrency(summary.openArAmount, { showCents: false })}
+              detail={`${summary.openInvoiceCount} invoices, ${formatCurrency(summary.overdueArAmount, { showCents: false })} overdue`}
+              icon={CreditCard}
+            />
+            <SummaryTile
+              title="Inventory Buy"
+              value={formatCurrency(summary.suggestedBuyCost, { showCents: false })}
+              detail={`${summary.reorderSkuCount} reorder SKUs, ${summary.manualReviewSkuCount} manual reviews`}
+              icon={Boxes}
+            />
+            <SummaryTile
+              title="Attribution Coverage"
+              value={`${summary.attributionOrderCoveragePct}%`}
+              detail={`${summary.futureOrderCount} future orders worth ${formatCurrency(summary.futureOrderAmount, { showCents: false })}`}
+              icon={Database}
+            />
+          </div>
+        )}
 
-        {/* Revenue Chart - Full Width */}
-        <Suspense fallback={<LoadingChart />}>
-          <DashboardChart filters={filters} />
-        </Suspense>
+        {summary && (
+          <div className="grid gap-3 md:grid-cols-3">
+            <SummaryTile
+              title="Trailing 365 Revenue"
+              value={formatCurrency(summary.trailing365dRevenue, { showCents: false })}
+              detail={`${formatNumber(summary.trailing365dOrders, 0)} current-safe orders`}
+              icon={TrendingUp}
+            />
+            <SummaryTile
+              title="Top 10 Accounts"
+              value={`${summary.top10CorporateRevenueSharePct}%`}
+              detail={`Top 50 hold ${summary.top50CorporateRevenueSharePct}% of corporate revenue`}
+              icon={Users}
+            />
+            <SummaryTile
+              title="Inventory Freshness"
+              value={summary.inventoryAsOfDate || 'n/a'}
+              detail="Latest reorder recommendation snapshot"
+              icon={Package}
+            />
+          </div>
+        )}
 
-        {/* Recent Orders */}
-        <Suspense fallback={<LoadingTable />}>
-          <DashboardOrders />
-        </Suspense>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Card>
+            <CardHeader className="p-3 pb-1">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Account Attention</CardTitle>
+                <Link href="/account-attention" className="text-xs text-blue-700 hover:underline">Open</Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Company</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">Days</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {accountQueue.map((account) => (
+                      <TableRow key={account.companyDomainKey}>
+                        <TableCell className="min-w-48 font-medium">
+                          <Link
+                            href={`/companies/${encodeURIComponent(account.companyDomainKey)}`}
+                            className="text-blue-700 hover:underline"
+                          >
+                            {account.companyName}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(account.totalRevenue, { showCents: false })}</TableCell>
+                        <TableCell className="text-right tabular-nums">{account.daysSinceLastOrder}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="whitespace-nowrap text-xs">{account.reasonCodes[0]}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-3 pb-1">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold">Product Economics</CardTitle>
+                <Link href="/products" className="text-xs text-blue-700 hover:underline">Open</Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SKU</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
+                      <TableHead className="text-right">Margin</TableHead>
+                      <TableHead className="text-right">Discount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productQuality.map((product) => (
+                      <TableRow key={product.sku}>
+                        <TableCell className="min-w-36 font-medium">
+                          <Link
+                            href={`/products/${encodeURIComponent(product.sku)}`}
+                            className="text-blue-700 hover:underline"
+                          >
+                            {product.sku}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(product.revenue, { showCents: false })}</TableCell>
+                        <TableCell className="text-right font-mono">{product.grossMarginPercentage ?? 'n/a'}%</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(product.discountLeakageAmount, { showCents: false })}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {summary && summary.futureOrderCount > 0 && (
+          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>{summary.futureOrderCount} future-dated invoices remain in committed demand through {summary.latestFutureOrderDate}.</span>
+          </div>
+        )}
       </div>
     </>
   )

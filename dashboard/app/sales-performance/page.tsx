@@ -14,7 +14,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import ChannelBreakdown from "@/components/orders/channel-breakdown"
 import SegmentBreakdown from "@/components/orders/segment-breakdown"
-import { getChannelMetrics, getSegmentMetrics } from "@/lib/queries"
+import { getChannelMetrics, getSegmentMetrics, getSalesPerformanceHighlights } from "@/lib/queries"
+import { formatCurrency } from "@/lib/utils"
 
 async function ChannelMetrics() {
   const channelMetrics = await getChannelMetrics()
@@ -24,6 +25,24 @@ async function ChannelMetrics() {
 async function SegmentMetrics() {
   const segmentMetrics = await getSegmentMetrics()
   return <SegmentBreakdown metrics={segmentMetrics} />
+}
+
+async function SalesHighlights() {
+  const highlights = await getSalesPerformanceHighlights(3)
+
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {highlights.map((highlight) => (
+        <div key={highlight.salesChannel} className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground">{highlight.salesChannel}</p>
+          <p className="text-2xl font-bold">{formatCurrency(highlight.totalRevenue, { showCents: false })}</p>
+          <p className="text-xs text-muted-foreground">
+            {highlight.orderCount.toLocaleString()} orders • {formatCurrency(highlight.averageOrderValue, { showCents: false })} AOV • {highlight.customerSegment}
+          </p>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function LoadingBreakdown() {
@@ -83,23 +102,9 @@ export default async function SalesPerformancePage() {
               <CardDescription>Channel and segment performance highlights</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Invoice Channel</p>
-                  <p className="text-2xl font-bold">$3.9M</p>
-                  <p className="text-xs text-muted-foreground">1,727 orders • $2,271 AOV • All B2B</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Website Channel</p>
-                  <p className="text-2xl font-bold">$2.1M</p>
-                  <p className="text-xs text-muted-foreground">5,163 orders • $408 AOV • B2C Focus</p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Amazon Channel</p>
-                  <p className="text-2xl font-bold">$1.0M</p>
-                  <p className="text-xs text-muted-foreground">6,435 orders • $157 AOV • Marketplace</p>
-                </div>
-              </div>
+              <Suspense fallback={<LoadingBreakdown />}>
+                <SalesHighlights />
+              </Suspense>
             </CardContent>
           </Card>
 

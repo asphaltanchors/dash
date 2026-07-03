@@ -1504,3 +1504,159 @@ models:
           - dbt_utils.expression_is_true:
               arguments:
                 expression: "> 0"
+
+  - name: base_fct_orders_current
+    description: >
+      Current-safe order-grain view over fct_orders. It excludes future-dated orders
+      for current revenue, order, AR, and recency metrics while leaving fct_orders
+      available for committed demand and backlog analysis.
+    columns:
+      - name: order_key
+        description: Stable transaction-grain key; QuickBooks order_number alone is not unique.
+        tests:
+          - not_null
+          - unique
+      - name: order_date
+        description: Current business metric order date; guaranteed not to be after the dbt run date.
+        tests:
+          - not_null
+
+  - name: base_fct_order_line_items_current
+    description: >
+      Current-safe line-item view for product, margin, and company analytics.
+      One row per source line item whose parent order is present in base_fct_orders_current.
+    columns:
+      - name: line_item_id
+        description: Source line identifier at line-item grain.
+        tests:
+          - not_null
+          - unique
+      - name: order_key
+        description: Stable parent order key used to inherit the current-date contract.
+        tests:
+          - not_null
+      - name: actual_margin_amount
+        description: "Unit-level actual margin amount: actual unit price minus purchase cost. Extended margin must multiply this value by product_service_quantity."
+      - name: price_discount_amount
+        description: "Unit-level discount amount from the standard sales price. Extended discount must multiply this value by product_service_quantity."
+
+  - name: mart_ar_invoice_aging
+    description: >
+      Current AR at invoice grain. One row per open current invoice, excluding future-dated
+      invoices so DSO and cash-flow metrics do not treat committed future invoices as receivables.
+    columns:
+      - name: order_key
+        description: Stable invoice transaction key.
+        tests:
+          - not_null
+          - unique
+      - name: order_date
+        description: Invoice date used for current aging calculations.
+        tests:
+          - not_null
+      - name: days_outstanding
+        description: Non-negative age of the invoice in days from order_date to current_date.
+        tests:
+          - not_null
+      - name: days_past_due
+        description: Non-negative days after due_date, or zero when not yet due.
+        tests:
+          - not_null
+
+  - name: mart_ar_customer_summary
+    description: >
+      Customer-grain AR rollup derived from mart_ar_invoice_aging. Kept separate from
+      invoice rows to avoid dashboard double counting.
+    columns:
+      - name: customer
+        description: QuickBooks customer name for the AR customer grain.
+        tests:
+          - not_null
+          - unique
+      - name: total_ar_amount
+        description: Sum of open current invoice balances for this customer.
+        tests:
+          - not_null
+
+  - name: mart_ar_bucket_summary
+    description: >
+      Aging-bucket AR rollup derived from mart_ar_invoice_aging. One row per aging bucket
+      and risk classification for compact dashboard summaries.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - aging_bucket
+            - collection_risk
+    columns:
+      - name: aging_bucket
+        description: Invoice aging bucket based on days_outstanding.
+        tests:
+          - not_null
+      - name: total_ar_amount
+        description: Sum of open current invoice balances in the bucket.
+        tests:
+          - not_null
+
+  - name: mart_account_attention_queue
+    description: >
+      Read-only prioritized queue of corporate accounts that deserve attention because
+      they are high-value at-risk, dormant high-value, declining but active, or showing
+      growth opportunity. Contact fields are support context only.
+    columns:
+      - name: company_domain_key
+        description: Consolidated company key at one-row-per-company queue grain.
+        tests:
+          - not_null
+          - unique
+      - name: attention_score
+        description: Priority score derived from explicit reason-code flags.
+        tests:
+          - not_null
+      - name: reason_codes
+        description: Semicolon-delimited reason codes explaining why the account is queued.
+        tests:
+          - not_null
+
+  - name: mart_product_growth_quality
+    description: >
+      SKU-level current product economics mart for profitable growth, discount leakage,
+      customer concentration, inventory posture, and trend quality. Margin and discount
+      dollars use quantity-weighted extended calculations from line items.
+    columns:
+      - name: sku
+        description: Merchandise SKU at the mart grain.
+        tests:
+          - not_null
+          - unique
+      - name: gross_margin_amount
+        description: "Extended margin dollars: sum of unit margin multiplied by line quantity."
+      - name: discount_leakage_amount
+        description: "Extended positive discount dollars: sum of unit discount multiplied by line quantity."
+
+  - name: mart_business_cockpit_summary
+    description: >
+      Single-row dashboard cockpit summary combining current-safe sales, AR, inventory,
+      attribution coverage, future-order visibility, and account concentration metrics.
+    columns:
+      - name: as_of_date
+        description: Date anchoring the current dashboard snapshot.
+        tests:
+          - not_null
+          - unique
+
+  - name: mart_data_quality_flags
+    description: >
+      Dashboard-facing data quality strip. One row per monitored condition so the UI can
+      show future-order leakage, inventory freshness, and attribution coverage explicitly.
+    columns:
+      - name: flag_key
+        description: Stable identifier for the monitored data quality condition.
+        tests:
+          - not_null
+          - unique
+      - name: severity
+        description: Current flag severity for dashboard display.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ok', 'warn', 'critical']

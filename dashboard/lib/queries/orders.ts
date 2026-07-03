@@ -1,6 +1,6 @@
 // ABOUTME: Order-related queries including detailed order information and line items
 // ABOUTME: Handles order searches, pagination, filtering, and order line item management
-import { db, fctOrdersInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctProductPricingHistoryInAnalyticsMart } from '@/lib/db';
+import { db, baseFctOrdersCurrentInAnalyticsMart as fctOrdersInAnalyticsMart, fctOrderLineItemsInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctProductPricingHistoryInAnalyticsMart } from '@/lib/db';
 import { desc, asc, sql, count, and, eq } from 'drizzle-orm';
 
 export interface OrderDetail {

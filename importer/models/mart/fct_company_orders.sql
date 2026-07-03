@@ -39,7 +39,7 @@ WITH company_order_details AS (
         oli.payment_method,
         oli.terms
         
-    FROM {{ ref('fct_order_line_items') }} oli
+    FROM {{ ref('base_fct_order_line_items_current') }} oli
     INNER JOIN {{ ref('bridge_customer_company') }} bc 
         ON oli.customer = bc.customer_name
     WHERE oli.product_service_amount IS NOT NULL 

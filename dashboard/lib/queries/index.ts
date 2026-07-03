@@ -7,6 +7,7 @@ export {
   getRecentOrders,
   getChannelMetrics,
   getSegmentMetrics,
+  getSalesPerformanceHighlights,
   getWeeklyRevenue,
   getOrderStatusBreakdown,
   getDSOMetrics,
@@ -18,9 +19,27 @@ export {
   type WeeklyRevenue,
   type SalesPeriodMetric,
   type SalesChannelMetric,
+  type SalesPerformanceHighlight,
   type DSOMetric,
   type ARAgingDetail,
 } from './dashboard';
+
+export {
+  getBusinessCockpitData,
+  type BusinessCockpitData,
+  type BusinessCockpitSummary,
+  type DataQualityFlag,
+} from './business-cockpit';
+
+export {
+  getAccountAttentionQueue,
+  type AccountAttentionItem,
+} from './account-attention';
+
+export {
+  getProductGrowthQuality,
+  type ProductGrowthQualityItem,
+} from './growth-quality';
 
 // Order queries and interfaces
 export {

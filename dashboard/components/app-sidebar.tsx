@@ -14,6 +14,7 @@ import {
   Target,
   ClipboardList,
   Calendar,
+  Radar,
 } from "lucide-react"
 
 import {
@@ -74,6 +75,11 @@ const data = {
       title: "Companies",
       url: "/companies",
       icon: Building2,
+    },
+    {
+      title: "Account Attention",
+      url: "/account-attention",
+      icon: Radar,
     },
     {
       title: "Contacts",

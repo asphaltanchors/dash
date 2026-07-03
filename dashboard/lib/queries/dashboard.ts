@@ -1,6 +1,6 @@
 // ABOUTME: Dashboard metrics and chart data queries for main dashboard overview
 // ABOUTME: Handles revenue trends, metrics calculations, and channel analysis
-import { db, fctOrdersInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctDsoMetricsInAnalyticsMart, dimAccountsReceivableAgingInAnalyticsMart } from '@/lib/db';
+import { db, baseFctOrdersCurrentInAnalyticsMart as fctOrdersInAnalyticsMart, bridgeCustomerCompanyInAnalyticsMart, fctDsoMetricsInAnalyticsMart, dimAccountsReceivableAgingInAnalyticsMart } from '@/lib/db';
 import { desc, gte, lte, sql, count, sum, avg, and, eq } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { getDateRange, type DashboardFilters } from '@/lib/filter-utils';
@@ -46,6 +46,14 @@ export interface SalesPeriodMetric {
 export interface SalesChannelMetric {
   sales_channel: string;
   periods: SalesPeriodMetric[];
+}
+
+export interface SalesPerformanceHighlight {
+  salesChannel: string;
+  totalRevenue: string;
+  orderCount: number;
+  averageOrderValue: string;
+  customerSegment: string;
 }
 
 export interface DSOMetric {
@@ -305,7 +313,7 @@ export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
         sales_channel,
         SUM(total_amount) as total_revenue,
         COUNT(*) as order_count
-      FROM analytics_mart.fct_orders 
+      FROM analytics_mart.base_fct_orders_current
       WHERE total_amount IS NOT NULL 
         AND order_date >= ${period.period_start}
         AND order_date <= ${period.period_end}
@@ -378,7 +386,7 @@ export async function getSegmentMetrics(): Promise<SalesChannelMetric[]> {
         customer_segment as sales_channel,
         SUM(total_amount) as total_revenue,
         COUNT(*) as order_count
-      FROM analytics_mart.fct_orders 
+      FROM analytics_mart.base_fct_orders_current
       WHERE total_amount IS NOT NULL 
         AND order_date >= ${period.period_start}
         AND order_date <= ${period.period_end}
@@ -418,6 +426,40 @@ export async function getSegmentMetrics(): Promise<SalesChannelMetric[]> {
   }));
 }
 
+export async function getSalesPerformanceHighlights(limit: number = 3): Promise<SalesPerformanceHighlight[]> {
+  const rows = await db.execute(sql`
+    SELECT
+      COALESCE(sales_channel, 'Unknown') AS sales_channel,
+      SUM(total_amount) AS total_revenue,
+      COUNT(*) AS order_count,
+      AVG(total_amount) AS average_order_value,
+      MODE() WITHIN GROUP (ORDER BY customer_segment) AS customer_segment
+    FROM analytics_mart.base_fct_orders_current
+    WHERE total_amount IS NOT NULL
+      AND sales_channel IS NOT NULL
+      AND sales_channel <> ''
+    GROUP BY sales_channel
+    ORDER BY total_revenue DESC
+    LIMIT ${limit}
+  `);
+
+  const results = rows as unknown as Array<{
+    sales_channel: string;
+    total_revenue: string;
+    order_count: number;
+    average_order_value: string;
+    customer_segment: string | null;
+  }>;
+
+  return results.map((row) => ({
+    salesChannel: row.sales_channel,
+    totalRevenue: Number(row.total_revenue || 0).toFixed(2),
+    orderCount: Number(row.order_count || 0),
+    averageOrderValue: Number(row.average_order_value || 0).toFixed(2),
+    customerSegment: row.customer_segment || 'Mixed',
+  }));
+}
+
 // Get revenue trend for specified period with appropriate granularity
 export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<WeeklyRevenue[]> {
   const period = filters.period || '30d';
@@ -454,7 +496,7 @@ export async function getWeeklyRevenue(filters: DashboardFilters = {}): Promise<
       DATE_TRUNC('${sql.raw(dateGrouping)}', order_date) as period_start,
       SUM(total_amount) as revenue,
       COUNT(*) as order_count
-    FROM analytics_mart.fct_orders
+    FROM analytics_mart.base_fct_orders_current
     WHERE order_date >= ${startDate}
       AND order_date <= ${endDate}
       AND total_amount IS NOT NULL
