@@ -13,6 +13,12 @@
       "skillPath": "skills/dbt/skills/fetching-dbt-docs/SKILL.md",
       "computedHash": "c1724483e3b82a88cdb76d984842f5373d3c46a1f72ed48f596521b25adecf57"
     },
+    "postgres": {
+      "source": "planetscale/database-skills",
+      "sourceType": "github",
+      "skillPath": "skills/postgres/SKILL.md",
+      "computedHash": "2acf9fae4fcdb6c392923708b67234828f8a9f10b10dfa5d228eaab6e9108245"
+    },
     "running-dbt-commands": {
       "source": "dbt-labs/dbt-agent-skills",
       "sourceType": "github",
