@@ -51,6 +51,10 @@ print(f"Seed directory: {SEED_PATH}")
 print(f"Full directory: {FULL_PATH}")
 print(f"Input directory: {INPUT_PATH}")
 
+def worksheet_write_disposition(mode):
+    """Seed loads are authoritative full-file snapshots; daily loads are keyed merges."""
+    return "replace" if mode == "seed" else "merge"
+
 def historical_path():
     """Return the directory containing historical QuickBooks exports."""
     seed_files = [
@@ -247,6 +251,7 @@ def xlsx_quickbooks_source(mode="full"):
               - 'full': Load seed + all incremental data
     """
     resources = []
+    write_disposition = worksheet_write_disposition(mode)
 
     # Determine which files to process
     files_to_process = []
@@ -322,7 +327,7 @@ def xlsx_quickbooks_source(mode="full"):
             }
 
         @dlt.resource(
-            write_disposition="merge",
+            write_disposition=write_disposition,
             name=table_name,
             primary_key=["QuickBooks_Internal_Id"],
             columns=columns
@@ -364,7 +369,7 @@ def xlsx_quickbooks_source(mode="full"):
             primary_key = ["QuickBooks_Internal_Id", "S_No"]
 
         @dlt.resource(
-            write_disposition="merge",
+            write_disposition=write_disposition,
             name=table_name,
             primary_key=primary_key
         )
