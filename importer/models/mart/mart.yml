@@ -222,16 +222,16 @@ models:
           - not_null
 
       - name: six_pack_units_per_layer
-        description: Configured WWD layer multiple for anchor 6-pack SKUs, when known. Null means no layer rounding rule has been configured for the SKU.
+        description: Configured WWD layer multiple in the SKU's native inventory unit, when known. The historical column name says six_pack, but bulk-pack SKUs such as 01-6310.72L are counted in their own item units. Null means no layer rounding rule has been configured for the SKU.
 
       - name: layer_rounded_reorder_qty
-        description: Suggested reorder quantity rounded up to the configured 6-pack layer multiple when one exists; otherwise equal to `reorder_qty`.
+        description: Suggested reorder quantity rounded up to the configured layer multiple when one exists; otherwise equal to `reorder_qty`.
 
       - name: reorder_layer_count
-        description: Number of configured layers represented by `layer_rounded_reorder_qty`, when a SKU has a configured 6-pack layer multiple.
+        description: Number of configured layers represented by `layer_rounded_reorder_qty`, when a SKU has a configured layer multiple.
 
       - name: layer_rounding_extra_qty
-        description: Extra quantity added by rounding `reorder_qty` up to the configured 6-pack layer multiple.
+        description: Extra quantity added by rounding `reorder_qty` up to the configured layer multiple.
 
       - name: reorder_value_at_cost
         description: Suggested reorder quantity multiplied by current QuickBooks purchase cost.

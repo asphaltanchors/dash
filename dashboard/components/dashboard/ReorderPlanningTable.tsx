@@ -156,7 +156,7 @@ function buyPlanDetail(item: InventoryPlanningItem, useLayerPlan: boolean): stri
     return `model calls for ${formatInteger(item.suggestedBuyQty)}; layer multiple TBD`;
   }
 
-  return `${formatInteger(item.layerRoundedBuyQty)} 6-packs; model calls for ${formatInteger(item.suggestedBuyQty)}, +${formatInteger(item.layerRoundingExtraQty)}`;
+  return `${formatInteger(item.layerRoundedBuyQty)} units; model calls for ${formatInteger(item.suggestedBuyQty)}, +${formatInteger(item.layerRoundingExtraQty)}`;
 }
 
 function layerBasisDetail(item: InventoryPlanningItem): string {
@@ -164,7 +164,7 @@ function layerBasisDetail(item: InventoryPlanningItem): string {
     return 'Layer multiple TBD';
   }
 
-  return `Layer multiple ${item.sixPackUnitsPerLayer} 6-packs`;
+  return `Layer multiple ${item.sixPackUnitsPerLayer} units`;
 }
 
 function PlanningDetailsTooltip({ item }: { item: InventoryPlanningItem }) {
@@ -241,7 +241,7 @@ function sectionSummary(items: InventoryPlanningItem[], options: { useLayerPlan?
   const buyItems = items.filter((item) => item.shouldReorder);
   const buyQty = buyItems.reduce((sum, item) => sum + operationalBuyQty(item, useLayerPlan), 0);
   const buyCost = buyItems.reduce((sum, item) => sum + operationalBuyCost(item, useLayerPlan), 0);
-  const quantityLabel = useLayerPlan ? '6-packs' : 'units';
+  const quantityLabel = useLayerPlan ? 'layer-adjusted units' : 'units';
 
   return `${items.length} SKUs, ${buyItems.length} buys, ${buyQty.toLocaleString()} ${quantityLabel}, ${formatCurrency(buyCost, { showCents: false })}`;
 }
@@ -266,7 +266,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
     {
       key: 'wwd',
       title: 'WWD Pallet Planning',
-      description: 'WWD vendor SKUs, including known 6-pack layer multiples for anchor SKUs.',
+      description: 'WWD vendor SKUs, including known layer multiples for anchor SKUs.',
       items: wwdItems,
       tone: 'primary',
     },
