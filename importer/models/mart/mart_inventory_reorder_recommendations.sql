@@ -228,28 +228,45 @@ family_material_seasonality AS (
 ),
 
 purchase_order_lines AS (
-    SELECT DISTINCT
-        CASE
-            WHEN product = '82-6002 IN' THEN '82-6002'
-            ELSE product
-        END AS sku,
+    SELECT
+        sku,
         vendor,
-        TO_DATE(date, 'MM-DD-YYYY') AS po_date,
+        po_date,
         purchase_order_no,
-        CASE
-            WHEN product_quantity IS NOT NULL
-             AND TRIM(product_quantity::TEXT) != ''
-            THEN product_quantity::NUMERIC
-            ELSE NULL
-        END AS po_qty
-    FROM {{ source('raw_data', 'xlsx_purchase_order') }}
-    WHERE product IS NOT NULL
-      AND TRIM(product) != ''
-      AND vendor IS NOT NULL
-      AND TRIM(vendor) != ''
-      AND date IS NOT NULL
-      AND TRIM(date) != ''
-      AND date ~ '^\d{2}-\d{2}-\d{4}$'
+        po_qty
+    FROM (
+        SELECT
+            CASE
+                WHEN product = '82-6002 IN' THEN '82-6002'
+                ELSE product
+            END AS sku,
+            vendor,
+            TO_DATE(date, 'MM-DD-YYYY') AS po_date,
+            purchase_order_no,
+            CASE
+                WHEN product_quantity IS NOT NULL
+                 AND TRIM(product_quantity::TEXT) != ''
+                THEN product_quantity::NUMERIC
+                ELSE NULL
+            END AS po_qty,
+            DENSE_RANK() OVER (
+                PARTITION BY COALESCE(NULLIF(quick_books_internal_id, ''), CONCAT_WS(':', purchase_order_no, vendor))
+                ORDER BY
+                    CASE
+                        WHEN _dlt_load_id ~ '^[0-9]+(\.[0-9]+)?$' THEN _dlt_load_id::NUMERIC
+                        ELSE NULL
+                    END DESC NULLS LAST
+            ) AS load_rank
+        FROM {{ source('raw_data', 'xlsx_purchase_order') }}
+        WHERE product IS NOT NULL
+          AND TRIM(product) != ''
+          AND vendor IS NOT NULL
+          AND TRIM(vendor) != ''
+          AND date IS NOT NULL
+          AND TRIM(date) != ''
+          AND date ~ '^\d{2}-\d{2}-\d{4}$'
+    ) ranked
+    WHERE load_rank = 1
 ),
 
 receipt_lines AS (

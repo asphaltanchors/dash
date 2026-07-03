@@ -380,6 +380,67 @@ models:
         tests:
           - not_null
 
+  - name: mart_inventory_inbound_lines
+    description: >
+      Line-level inbound inventory details for SKU drilldowns. Combines open, unreceived
+      QuickBooks purchase order lines with future-dated vendor bill receipt lines that were
+      removed from QuickBooks-reported quantity on hand in `fct_inventory_history`.
+    columns:
+      - name: inbound_line_id
+        description: Stable hash key for the inbound line, built from document, SKU, date, quantity, and source transaction fields.
+        tests:
+          - not_null
+          - unique
+
+      - name: inventory_as_of_date
+        description: Latest inventory snapshot date used to classify future receipt lines.
+        tests:
+          - not_null
+
+      - name: sku
+        description: QuickBooks item name after SKU normalization for known aliases such as `82-6002 IN`.
+        tests:
+          - not_null
+
+      - name: inbound_type
+        description: Whether the inbound quantity comes from an open purchase order or a future-dated bill receipt.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['OPEN_PO', 'FUTURE_RECEIPT']
+
+      - name: document_number
+        description: Purchase order number or bill number from QuickBooks.
+
+      - name: vendor
+        description: Vendor or source party from the QuickBooks transaction.
+
+      - name: document_date
+        description: Purchase order date or bill receipt date.
+
+      - name: expected_or_receipt_date
+        description: Expected purchase order receipt date when available, otherwise PO date; actual future bill receipt date for future receipts.
+
+      - name: quantity
+        description: Inbound quantity represented by the source line.
+        tests:
+          - not_null
+
+      - name: rate
+        description: Unit rate from the source line when available.
+
+      - name: amount
+        description: Extended source-line amount when available.
+
+      - name: status
+        description: Source-line status for explaining why the line is counted as inbound.
+
+      - name: source_transaction_key
+        description: Source transaction key built from QuickBooks identifiers.
+
+      - name: inbound_note
+        description: Human-readable note explaining how the line should be interpreted in inventory planning.
+
   - name: base_fct_orders_current
     description: >
       Base view that filters fct_orders to exclude future-dated orders.

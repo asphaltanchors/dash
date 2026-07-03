@@ -138,50 +138,160 @@ daily_movements AS (
     GROUP BY sku, movement_date
 ),
 
-open_purchase_orders AS (
+latest_purchase_order_rows AS (
+    SELECT *
+    FROM (
+        SELECT
+            *,
+            DENSE_RANK() OVER (
+                PARTITION BY COALESCE(NULLIF(quick_books_internal_id, ''), CONCAT_WS(':', purchase_order_no, vendor))
+                ORDER BY
+                    CASE
+                        WHEN _dlt_load_id ~ '^[0-9]+(\.[0-9]+)?$' THEN _dlt_load_id::NUMERIC
+                        ELSE NULL
+                    END DESC NULLS LAST
+            ) AS load_rank
+        FROM {{ source('raw_data', 'xlsx_purchase_order') }}
+    ) ranked
+    WHERE load_rank = 1
+),
+
+purchase_order_lines AS (
     SELECT
         CASE
             WHEN product = '82-6002 IN' THEN '82-6002'
             ELSE product
         END AS sku,
+        vendor,
+        purchase_order_no,
+        TO_DATE(date, 'MM-DD-YYYY') AS po_date,
+        CASE
+            WHEN expected_date IS NOT NULL
+             AND TRIM(expected_date) != ''
+             AND expected_date ~ '^\d{2}-\d{2}-\d{4}$'
+            THEN TO_DATE(expected_date, 'MM-DD-YYYY')
+            ELSE NULL
+        END AS expected_date_parsed,
+        product_quantity,
+        product_rate,
+        product_amount,
+        fully_received,
+        manually_closed,
+        transxx,
+        quick_books_internal_id
+    FROM latest_purchase_order_rows
+    WHERE product IS NOT NULL
+      AND TRIM(product) != ''
+      AND product_quantity IS NOT NULL
+      AND date IS NOT NULL
+      AND TRIM(date) != ''
+      AND date ~ '^\d{2}-\d{2}-\d{4}$'
+),
+
+receipt_lines AS (
+    SELECT DISTINCT
+        CASE
+            WHEN product_service = '82-6002 IN' THEN '82-6002'
+            ELSE product_service
+        END AS sku,
+        vendor,
+        TO_DATE(date, 'MM-DD-YYYY') AS receipt_date,
+        bill_no,
+        NULLIF(product_service_quantity, '')::NUMERIC AS receipt_qty
+    FROM {{ source('raw_data', 'xlsx_bill') }}
+    WHERE product_service IS NOT NULL
+      AND TRIM(product_service) != ''
+      AND vendor IS NOT NULL
+      AND TRIM(vendor) != ''
+      AND product_service_quantity IS NOT NULL
+      AND TRIM(product_service_quantity) != ''
+      AND product_service_quantity ~ '^-?[0-9]+(\.[0-9]+)?$'
+      AND date IS NOT NULL
+      AND TRIM(date) != ''
+      AND date ~ '^\d{2}-\d{2}-\d{4}$'
+      AND COALESCE(vendor, '') != 'DPC Transfer Inventory'
+),
+
+po_to_next_receipt AS (
+    SELECT
+        sku,
+        vendor,
+        po_date,
+        receipt_date,
+        receipt_date - po_date AS lead_time_days
+    FROM (
+        SELECT
+            po.sku,
+            po.vendor,
+            po.po_date,
+            rl.receipt_date,
+            ROW_NUMBER() OVER (
+                PARTITION BY po.sku, po.vendor, po.po_date, po.purchase_order_no
+                ORDER BY rl.receipt_date
+            ) AS receipt_rank
+        FROM purchase_order_lines po
+        INNER JOIN receipt_lines rl
+            ON po.sku = rl.sku
+           AND po.vendor = rl.vendor
+           AND rl.receipt_date >= po.po_date
+           AND rl.receipt_date - po.po_date BETWEEN 1 AND 365
+    ) matched
+    WHERE receipt_rank = 1
+),
+
+observed_sku_vendor_lead_times AS (
+    SELECT
+        sku,
+        vendor,
+        COUNT(*) AS observed_sku_vendor_lead_time_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_sku_vendor_lead_time_days
+    FROM po_to_next_receipt
+    GROUP BY sku, vendor
+),
+
+observed_vendor_lead_times AS (
+    SELECT
+        vendor,
+        COUNT(*) AS observed_vendor_lead_time_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_vendor_lead_time_days
+    FROM po_to_next_receipt
+    GROUP BY vendor
+),
+
+open_purchase_orders AS (
+    SELECT
+        po.sku,
         SUM(product_quantity) AS open_po_quantity,
         COUNT(*) AS open_po_line_count,
-        MIN(COALESCE(expected_date_parsed, po_date)) AS next_open_po_date
-    FROM (
-        SELECT DISTINCT
-            purchase_order_no,
-            vendor,
-            product,
-            TO_DATE(date, 'MM-DD-YYYY') AS po_date,
+        MIN(
             CASE
-                WHEN expected_date IS NOT NULL
-                 AND TRIM(expected_date) != ''
-                 AND expected_date ~ '^\d{2}-\d{2}-\d{4}$'
-                THEN TO_DATE(expected_date, 'MM-DD-YYYY')
-                ELSE NULL
-            END AS expected_date_parsed,
-            product_quantity,
-            product_rate,
-            product_amount,
-            fully_received,
-            manually_closed,
-            transxx,
-            quick_books_internal_id
-        FROM {{ source('raw_data', 'xlsx_purchase_order') }}
-        WHERE product IS NOT NULL
-          AND TRIM(product) != ''
-          AND product_quantity IS NOT NULL
-          AND date IS NOT NULL
-          AND TRIM(date) != ''
-          AND date ~ '^\d{2}-\d{2}-\d{4}$'
-          AND COALESCE(fully_received, FALSE) = FALSE
-          AND COALESCE(manually_closed, FALSE) = FALSE
-    ) deduped_open_pos
-    GROUP BY
-        CASE
-            WHEN product = '82-6002 IN' THEN '82-6002'
-            ELSE product
-        END
+                WHEN po.expected_date_parsed IS NOT NULL
+                 AND po.expected_date_parsed > po.po_date
+                THEN po.expected_date_parsed
+                ELSE po.po_date + CEIL(COALESCE(
+                    CASE
+                        WHEN osvl.observed_sku_vendor_lead_time_count >= 3
+                        THEN osvl.observed_sku_vendor_lead_time_days
+                        ELSE NULL
+                    END,
+                    CASE
+                        WHEN ovl.observed_vendor_lead_time_count >= 10
+                        THEN ovl.observed_vendor_lead_time_days
+                        ELSE NULL
+                    END,
+                    45
+                ))::INT
+            END
+        ) AS next_open_po_date
+    FROM purchase_order_lines po
+    LEFT JOIN observed_sku_vendor_lead_times osvl
+        ON po.sku = osvl.sku
+       AND po.vendor = osvl.vendor
+    LEFT JOIN observed_vendor_lead_times ovl
+        ON po.vendor = ovl.vendor
+    WHERE COALESCE(po.fully_received, FALSE) = FALSE
+      AND COALESCE(po.manually_closed, FALSE) = FALSE
+    GROUP BY po.sku
 ),
 
 sku_bounds AS (

@@ -81,6 +81,62 @@ export interface InventoryPlanningItem {
   recommendationReason: string;
 }
 
+export interface ProductReorderPlanningDetail extends InventoryPlanningItem {
+  inventoryAsOfDate: string;
+  expectedReceiptDate: string | null;
+  leadTimeSource: string;
+  planningOverrideReason: string;
+  configuredLeadTimeDays: string;
+  observedSkuVendorLeadTimeDays: string;
+  observedSkuVendorLeadTimeCount: number;
+  observedVendorLeadTimeDays: string;
+  observedVendorLeadTimeCount: number;
+  defaultPolicyLeadTimeDays: number;
+  defaultTargetCoverageDays: number;
+  committedDemandQty: string;
+  committedDemandBeforeExpectedReceiptQty: string;
+  committedOrderCount: number;
+  firstCommittedDemandDate: string | null;
+  lastCommittedDemandDate: string | null;
+  inboundQtyByExpectedReceiptDate: string;
+  quickbooksQuantityOnOrder: string;
+  forecastLeadTimeQty: string;
+  projectedPositionAtExpectedReceiptQty: string;
+  uncoveredLeadTimeDemandQty: string;
+  stockoutGapQty: string;
+  rawReorderQty: string;
+  stddevDailySales90d: string;
+  p80DailySales90d: string;
+  totalSalesQty90d: string;
+  daysWithSales90d: number;
+  avgMonthlySales36m: string;
+  trailing3mAvgMonthlySales: string;
+  trailing12mAvgMonthlySales: string;
+  prior12mAvgMonthlySales: string;
+  cappedSalesQty12m: string;
+  uncappedSalesQty12m: string;
+  hasLargeOrderOutlier2025: boolean;
+}
+
+export interface ProductInboundLine {
+  inboundLineId: string;
+  inventoryAsOfDate: string;
+  sku: string;
+  inboundType: 'OPEN_PO' | 'FUTURE_RECEIPT';
+  documentNumber: string;
+  vendor: string;
+  documentDate: string | null;
+  expectedOrReceiptDate: string | null;
+  quantity: string;
+  rate: string;
+  amount: string;
+  status: string;
+  sourceTransactionKey: string;
+  quickbooksInternalId: string;
+  sourceTransactionId: string;
+  inboundNote: string;
+}
+
 export interface PriorityBreakdown {
   status: string;
   count: number;
@@ -143,6 +199,61 @@ interface InventoryPlanningRow {
   recommendation_reason: string | null;
 }
 
+interface ProductReorderPlanningRow extends InventoryPlanningRow {
+  expected_receipt_date: string | Date | null;
+  lead_time_source: string | null;
+  planning_override_reason: string | null;
+  configured_lead_time_days: string | number | null;
+  observed_sku_vendor_lead_time_days: string | number | null;
+  observed_sku_vendor_lead_time_count: number | null;
+  observed_vendor_lead_time_days: string | number | null;
+  observed_vendor_lead_time_count: number | null;
+  default_policy_lead_time_days: number | null;
+  default_target_coverage_days: number | null;
+  committed_demand_qty: string | number | null;
+  committed_demand_before_expected_receipt_qty: string | number | null;
+  committed_order_count: number | null;
+  first_committed_demand_date: string | Date | null;
+  last_committed_demand_date: string | Date | null;
+  inbound_qty_by_expected_receipt_date: string | number | null;
+  quickbooks_quantity_on_order: string | number | null;
+  forecast_lead_time_qty: string | number | null;
+  projected_position_at_expected_receipt_qty: string | number | null;
+  uncovered_lead_time_demand_qty: string | number | null;
+  stockout_gap_qty: string | number | null;
+  raw_reorder_qty: string | number | null;
+  stddev_daily_sales_90d: string | number | null;
+  p80_daily_sales_90d: string | number | null;
+  total_sales_qty_90d: string | number | null;
+  days_with_sales_90d: number | null;
+  avg_monthly_sales_36m: string | number | null;
+  trailing_3m_avg_monthly_sales: string | number | null;
+  trailing_12m_avg_monthly_sales: string | number | null;
+  prior_12m_avg_monthly_sales: string | number | null;
+  capped_sales_qty_12m: string | number | null;
+  uncapped_sales_qty_12m: string | number | null;
+  has_large_order_outlier_2025: boolean | null;
+}
+
+interface ProductInboundLineRow {
+  inbound_line_id: string | null;
+  inventory_as_of_date: string | Date | null;
+  sku: string | null;
+  inbound_type: 'OPEN_PO' | 'FUTURE_RECEIPT' | null;
+  document_number: string | null;
+  vendor: string | null;
+  document_date: string | Date | null;
+  expected_or_receipt_date: string | Date | null;
+  quantity: string | number | null;
+  rate: string | number | null;
+  amount: string | number | null;
+  status: string | null;
+  source_transaction_key: string | null;
+  quickbooks_internal_id: string | null;
+  source_transaction_id: string | null;
+  inbound_note: string | null;
+}
+
 function getInventoryAction(row: InventoryPlanningRow): InventoryAction {
   const onHandQty = Number(row.current_on_hand_qty || 0);
 
@@ -161,6 +272,61 @@ function calculateDays(numerator: string | number | null, forecastDailyQty: stri
   if (qty <= 0) return '0';
   if (forecast <= 0) return '';
   return Math.floor(qty / forecast).toFixed(0);
+}
+
+function mapPlanningRow(row: InventoryPlanningRow): InventoryPlanningItem {
+  const action = getInventoryAction(row);
+
+  return {
+    sku: row.sku || '',
+    preferredVendor: row.preferred_vendor || 'Unassigned',
+    salesDescription: row.sales_description || '',
+    productFamily: row.product_family || 'Uncategorized',
+    materialType: row.material_type || 'Uncategorized',
+    action,
+    shouldReorder: Boolean(row.should_reorder),
+    requiresManualReview: Boolean(row.requires_manual_review),
+    policyBucket: row.policy_bucket || 'UNKNOWN',
+    policyAssignmentReason: row.policy_assignment_reason || '',
+    policyValidationStatus: row.policy_validation_status || 'ok',
+    policyReviewFlags: row.policy_review_flags || '',
+    forecastMethod: row.forecast_method || 'unknown',
+    forecastModelDetail: row.forecast_model_detail || 'unknown',
+    confidenceLevel: row.confidence_level || 'unknown',
+    inventoryStatus: row.inventory_status || 'UNKNOWN',
+    onHandQty: formatNumber(row.current_on_hand_qty),
+    inboundOpenPoQty: formatNumber(row.inbound_open_po_qty),
+    openPoLineCount: Number(row.open_po_line_count || 0),
+    nextOpenPoDate: formatDate(row.next_open_po_date),
+    futureReceiptQty: formatNumber(row.future_receipt_qty_after_anchor),
+    futureReceiptLineCount: Number(row.future_receipt_line_count_after_anchor || 0),
+    availablePositionQty: formatNumber(row.available_position_qty),
+    forecastDailyQty: formatNumber(row.forecast_daily_qty, 1),
+    forecastMonthlyQty: formatNumber(row.forecast_monthly_qty),
+    skuBaselineMonthlyQty: formatNumber(row.sku_baseline_monthly_qty),
+    appliedSeasonalityIndex: formatNumber(row.applied_seasonality_index, 2),
+    appliedGrowthFactor: formatNumber(row.applied_growth_factor, 2),
+    cappedReductionQty12m: formatNumber(row.capped_reduction_qty_12m),
+    avgDailySales30d: formatNumber(row.avg_daily_sales_30d, 1),
+    avgDailySales90d: formatNumber(row.avg_daily_sales_90d, 1),
+    avgDailySales365d: formatNumber(row.avg_daily_sales_365d, 1),
+    onHandDays: calculateDays(row.current_on_hand_qty, row.forecast_daily_qty),
+    positionDays: calculateDays(row.available_position_qty, row.forecast_daily_qty),
+    stockoutDate: formatDate(row.projected_stockout_or_safety_date),
+    reorderByDate: formatDate(row.reorder_by_date),
+    suggestedBuyQty: formatNumber(row.reorder_qty),
+    layerRoundedBuyQty: formatNumber(row.layer_rounded_reorder_qty),
+    reorderLayerCount: formatNumber(row.reorder_layer_count),
+    layerRoundingExtraQty: formatNumber(row.layer_rounding_extra_qty),
+    sixPackUnitsPerLayer: row.six_pack_units_per_layer == null ? null : Number(row.six_pack_units_per_layer),
+    suggestedBuyCost: formatNumber(row.reorder_value_at_cost, 2),
+    purchaseCost: formatNumber(row.purchase_cost, 2),
+    safetyStockQty: formatNumber(row.safety_stock_qty),
+    reorderPointQty: formatNumber(row.reorder_point_qty),
+    targetCoverageDays: Number(row.target_coverage_days || 0),
+    assumedLeadTimeDays: Number(row.assumed_lead_time_days || 0),
+    recommendationReason: row.recommendation_reason || '',
+  };
 }
 
 export async function getInventoryPlanningPageData(): Promise<{
@@ -182,60 +348,7 @@ export async function getInventoryPlanningPageData(): Promise<{
       sku
   `) as unknown as InventoryPlanningRow[];
 
-  const items = rows.map((row) => {
-    const action = getInventoryAction(row);
-
-    return {
-      sku: row.sku || '',
-      preferredVendor: row.preferred_vendor || 'Unassigned',
-      salesDescription: row.sales_description || '',
-      productFamily: row.product_family || 'Uncategorized',
-      materialType: row.material_type || 'Uncategorized',
-      action,
-      shouldReorder: Boolean(row.should_reorder),
-      requiresManualReview: Boolean(row.requires_manual_review),
-      policyBucket: row.policy_bucket || 'UNKNOWN',
-      policyAssignmentReason: row.policy_assignment_reason || '',
-      policyValidationStatus: row.policy_validation_status || 'ok',
-      policyReviewFlags: row.policy_review_flags || '',
-      forecastMethod: row.forecast_method || 'unknown',
-      forecastModelDetail: row.forecast_model_detail || 'unknown',
-      confidenceLevel: row.confidence_level || 'unknown',
-      inventoryStatus: row.inventory_status || 'UNKNOWN',
-      onHandQty: formatNumber(row.current_on_hand_qty),
-      inboundOpenPoQty: formatNumber(row.inbound_open_po_qty),
-      openPoLineCount: Number(row.open_po_line_count || 0),
-      nextOpenPoDate: formatDate(row.next_open_po_date),
-      futureReceiptQty: formatNumber(row.future_receipt_qty_after_anchor),
-      futureReceiptLineCount: Number(row.future_receipt_line_count_after_anchor || 0),
-      availablePositionQty: formatNumber(row.available_position_qty),
-      forecastDailyQty: formatNumber(row.forecast_daily_qty, 1),
-      forecastMonthlyQty: formatNumber(row.forecast_monthly_qty),
-      skuBaselineMonthlyQty: formatNumber(row.sku_baseline_monthly_qty),
-      appliedSeasonalityIndex: formatNumber(row.applied_seasonality_index, 2),
-      appliedGrowthFactor: formatNumber(row.applied_growth_factor, 2),
-      cappedReductionQty12m: formatNumber(row.capped_reduction_qty_12m),
-      avgDailySales30d: formatNumber(row.avg_daily_sales_30d, 1),
-      avgDailySales90d: formatNumber(row.avg_daily_sales_90d, 1),
-      avgDailySales365d: formatNumber(row.avg_daily_sales_365d, 1),
-      onHandDays: calculateDays(row.current_on_hand_qty, row.forecast_daily_qty),
-      positionDays: calculateDays(row.available_position_qty, row.forecast_daily_qty),
-      stockoutDate: formatDate(row.projected_stockout_or_safety_date),
-      reorderByDate: formatDate(row.reorder_by_date),
-      suggestedBuyQty: formatNumber(row.reorder_qty),
-      layerRoundedBuyQty: formatNumber(row.layer_rounded_reorder_qty),
-      reorderLayerCount: formatNumber(row.reorder_layer_count),
-      layerRoundingExtraQty: formatNumber(row.layer_rounding_extra_qty),
-      sixPackUnitsPerLayer: row.six_pack_units_per_layer == null ? null : Number(row.six_pack_units_per_layer),
-      suggestedBuyCost: formatNumber(row.reorder_value_at_cost, 2),
-      purchaseCost: formatNumber(row.purchase_cost, 2),
-      safetyStockQty: formatNumber(row.safety_stock_qty),
-      reorderPointQty: formatNumber(row.reorder_point_qty),
-      targetCoverageDays: Number(row.target_coverage_days || 0),
-      assumedLeadTimeDays: Number(row.assumed_lead_time_days || 0),
-      recommendationReason: row.recommendation_reason || '',
-    };
-  });
+  const items = rows.map(mapPlanningRow);
 
   const total = items.length;
   const outOfStock = items.filter((item) => item.action === 'OUT_OF_STOCK');
@@ -274,4 +387,84 @@ export async function getProductFamiliesForReorder(): Promise<string[]> {
 export async function getReorderPlanningData(): Promise<InventoryPlanningItem[]> {
   const data = await getInventoryPlanningPageData();
   return data.items;
+}
+
+export async function getProductReorderPlanningDetail(sku: string): Promise<ProductReorderPlanningDetail | null> {
+  const rows = await db.execute(sql`
+    select *
+    from analytics_mart.mart_inventory_reorder_recommendations
+    where sku = ${sku}
+    limit 1
+  `) as unknown as ProductReorderPlanningRow[];
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  return {
+    ...mapPlanningRow(row),
+    inventoryAsOfDate: formatDate(row.inventory_as_of_date) || '',
+    expectedReceiptDate: formatDate(row.expected_receipt_date),
+    leadTimeSource: row.lead_time_source || 'unknown',
+    planningOverrideReason: row.planning_override_reason || '',
+    configuredLeadTimeDays: formatNumber(row.configured_lead_time_days),
+    observedSkuVendorLeadTimeDays: formatNumber(row.observed_sku_vendor_lead_time_days),
+    observedSkuVendorLeadTimeCount: Number(row.observed_sku_vendor_lead_time_count || 0),
+    observedVendorLeadTimeDays: formatNumber(row.observed_vendor_lead_time_days),
+    observedVendorLeadTimeCount: Number(row.observed_vendor_lead_time_count || 0),
+    defaultPolicyLeadTimeDays: Number(row.default_policy_lead_time_days || 0),
+    defaultTargetCoverageDays: Number(row.default_target_coverage_days || 0),
+    committedDemandQty: formatNumber(row.committed_demand_qty),
+    committedDemandBeforeExpectedReceiptQty: formatNumber(row.committed_demand_before_expected_receipt_qty),
+    committedOrderCount: Number(row.committed_order_count || 0),
+    firstCommittedDemandDate: formatDate(row.first_committed_demand_date),
+    lastCommittedDemandDate: formatDate(row.last_committed_demand_date),
+    inboundQtyByExpectedReceiptDate: formatNumber(row.inbound_qty_by_expected_receipt_date),
+    quickbooksQuantityOnOrder: formatNumber(row.quickbooks_quantity_on_order),
+    forecastLeadTimeQty: formatNumber(row.forecast_lead_time_qty),
+    projectedPositionAtExpectedReceiptQty: formatNumber(row.projected_position_at_expected_receipt_qty),
+    uncoveredLeadTimeDemandQty: formatNumber(row.uncovered_lead_time_demand_qty),
+    stockoutGapQty: formatNumber(row.stockout_gap_qty),
+    rawReorderQty: formatNumber(row.raw_reorder_qty),
+    stddevDailySales90d: formatNumber(row.stddev_daily_sales_90d, 1),
+    p80DailySales90d: formatNumber(row.p80_daily_sales_90d, 1),
+    totalSalesQty90d: formatNumber(row.total_sales_qty_90d),
+    daysWithSales90d: Number(row.days_with_sales_90d || 0),
+    avgMonthlySales36m: formatNumber(row.avg_monthly_sales_36m),
+    trailing3mAvgMonthlySales: formatNumber(row.trailing_3m_avg_monthly_sales),
+    trailing12mAvgMonthlySales: formatNumber(row.trailing_12m_avg_monthly_sales),
+    prior12mAvgMonthlySales: formatNumber(row.prior_12m_avg_monthly_sales),
+    cappedSalesQty12m: formatNumber(row.capped_sales_qty_12m),
+    uncappedSalesQty12m: formatNumber(row.uncapped_sales_qty_12m),
+    hasLargeOrderOutlier2025: Boolean(row.has_large_order_outlier_2025),
+  };
+}
+
+export async function getProductInboundLines(sku: string): Promise<ProductInboundLine[]> {
+  const rows = await db.execute(sql`
+    select *
+    from analytics_mart.mart_inventory_inbound_lines
+    where sku = ${sku}
+    order by expected_or_receipt_date nulls last, inbound_type, document_number
+  `) as unknown as ProductInboundLineRow[];
+
+  return rows.map((row) => ({
+    inboundLineId: row.inbound_line_id || '',
+    inventoryAsOfDate: formatDate(row.inventory_as_of_date) || '',
+    sku: row.sku || '',
+    inboundType: row.inbound_type || 'OPEN_PO',
+    documentNumber: row.document_number || '',
+    vendor: row.vendor || '',
+    documentDate: formatDate(row.document_date),
+    expectedOrReceiptDate: formatDate(row.expected_or_receipt_date),
+    quantity: formatNumber(row.quantity),
+    rate: formatNumber(row.rate, 2),
+    amount: formatNumber(row.amount, 2),
+    status: row.status || '',
+    sourceTransactionKey: row.source_transaction_key || '',
+    quickbooksInternalId: row.quickbooks_internal_id || '',
+    sourceTransactionId: row.source_transaction_id || '',
+    inboundNote: row.inbound_note || '',
+  }));
 }

@@ -33,6 +33,7 @@ logs/
 
 # Database dumps
 *.sql
+!importer/models/**/*.sql
 *.dump
 
 # Python cache (if running scripts locally)

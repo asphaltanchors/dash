@@ -99,8 +99,12 @@ export {
   getInventoryPlanningPageData,
   getReorderPlanningData,
   getProductFamiliesForReorder,
+  getProductReorderPlanningDetail,
+  getProductInboundLines,
   type InventoryPlanningSummary,
   type InventoryPlanningItem,
+  type ProductReorderPlanningDetail,
+  type ProductInboundLine,
   type PriorityBreakdown,
   type StockoutTimelineItem,
 } from './reorder-planning';
