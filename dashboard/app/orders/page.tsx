@@ -1,7 +1,6 @@
 // ABOUTME: Dense order ledger report with channel, payment, and value concentration readouts
 // ABOUTME: Preserves the searchable sortable order table as the detail layer
 
-import type { ComponentType, ReactNode } from 'react';
 import Link from 'next/link';
 import {
   BadgeDollarSign,
@@ -17,13 +16,20 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { DataTable } from '@/components/orders/data-table';
+import {
+  CompactBadge,
+  formatWholeCurrency as compactCurrency,
+  InlineBar,
+  MetricTile,
+  ReportHeader as PanelHeader,
+  ReportPanel as Panel,
+  toNumber,
+} from '@/components/dashboard/report-ui';
 import { getAllOrders, type OrderTableItem } from '@/lib/queries';
-import { cn, formatCurrency, formatNumber } from '@/lib/utils';
+import { formatNumber } from '@/lib/utils';
 
 interface OrdersPageProps {
   searchParams: Promise<{
@@ -32,15 +38,6 @@ interface OrdersPageProps {
     sortOrder?: 'asc' | 'desc';
     page?: string;
   }>;
-}
-
-function toNumber(value: number | string | null | undefined) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function compactCurrency(value: number) {
-  return formatCurrency(value, { showCents: false });
 }
 
 function percent(part: number, total: number) {
@@ -55,85 +52,6 @@ function formatDate(value: string | null | undefined) {
     day: 'numeric',
     year: 'numeric',
   });
-}
-
-function CompactBadge({
-  children,
-  tone = 'neutral',
-}: {
-  children: ReactNode;
-  tone?: 'neutral' | 'good' | 'blue' | 'warn' | 'bad';
-}) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
-        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
-        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
-        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
-      )}
-    >
-      {children}
-    </Badge>
-  );
-}
-
-function MetricTile({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  tone = 'blue',
-}: {
-  label: string;
-  value: string;
-  detail: ReactNode;
-  icon: ComponentType<{ className?: string }>;
-  tone?: 'good' | 'blue' | 'warn' | 'bad';
-}) {
-  return (
-    <Card className="rounded-md py-0 shadow-none">
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
-              <Icon
-                className={cn(
-                  'h-3.5 w-3.5',
-                  tone === 'good' && 'text-emerald-300',
-                  tone === 'blue' && 'text-blue-300',
-                  tone === 'warn' && 'text-amber-300',
-                  tone === 'bad' && 'text-red-300',
-                )}
-              />
-              <span className="truncate">{label}</span>
-            </div>
-            <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
-          </div>
-        </div>
-        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function InlineBar({ value, tone = 'blue' }: { value: number; tone?: 'blue' | 'green' | 'amber' | 'red' }) {
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-      <div
-        className={cn(
-          'h-full rounded-full',
-          tone === 'blue' && 'bg-blue-500',
-          tone === 'green' && 'bg-emerald-500',
-          tone === 'amber' && 'bg-amber-500',
-          tone === 'red' && 'bg-red-500',
-        )}
-        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-      />
-    </div>
-  );
 }
 
 function countBy(orders: OrderTableItem[], key: keyof OrderTableItem) {
@@ -165,17 +83,9 @@ function MixPanel({
   const maxCount = Math.max(...rows.map((row) => row.count), 1);
 
   return (
-    <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b border-slate-800 px-3 py-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-            <p className="text-xs text-slate-400">{description}</p>
-          </div>
-          <CompactBadge tone="blue">{total} visible</CompactBadge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3 p-3">
+    <Panel>
+      <PanelHeader title={title} eyebrow={description} action={<CompactBadge tone="blue">{total} visible</CompactBadge>} />
+      <div className="space-y-3 p-3">
         {rows.map((row) => (
           <div key={row.label} className="grid grid-cols-[8rem_minmax(0,1fr)_2.5rem] items-center gap-2">
             <p className="truncate text-xs text-slate-400" title={row.label}>{row.label}</p>
@@ -183,8 +93,8 @@ function MixPanel({
             <p className="text-right font-mono text-xs">{row.count}</p>
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 }
 
@@ -193,17 +103,13 @@ function ValueQueue({ orders }: { orders: OrderTableItem[] }) {
   const maxAmount = Math.max(...leaders.map((order) => toNumber(order.totalAmount)), 1);
 
   return (
-    <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b border-slate-800 px-3 py-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-sm font-semibold">Visible Value Queue</CardTitle>
-            <p className="text-xs text-slate-400">Largest orders in the current result page</p>
-          </div>
-          <CompactBadge tone="blue">{leaders.length} shown</CompactBadge>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
+    <Panel>
+      <PanelHeader
+        title="Visible Value Queue"
+        eyebrow="Largest orders in the current result page"
+        action={<CompactBadge tone="blue">{leaders.length} shown</CompactBadge>}
+      />
+      <div className="p-0">
         {leaders.map((order) => {
           const amount = toNumber(order.totalAmount);
           return (
@@ -226,8 +132,8 @@ function ValueQueue({ orders }: { orders: OrderTableItem[] }) {
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 }
 
@@ -330,20 +236,13 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
           </div>
         </div>
 
-        <Card className="rounded-md py-0 shadow-none">
-          <CardHeader className="border-b border-slate-800 px-3 py-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                  <ClipboardList className="h-4 w-4 text-blue-300" />
-                  Order Detail
-                </CardTitle>
-                <p className="text-xs text-slate-400">Search, sort, and inspect individual orders</p>
-              </div>
-              <CompactBadge tone="blue">50 per page</CompactBadge>
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 pt-0">
+        <Panel>
+          <PanelHeader
+            title={<span className="flex items-center gap-2"><ClipboardList className="h-4 w-4 text-blue-300" />Order Detail</span>}
+            eyebrow="Search, sort, and inspect individual orders"
+            action={<CompactBadge tone="blue">50 per page</CompactBadge>}
+          />
+          <div className="px-3 pb-3 pt-0">
             <DataTable
               data={orders}
               totalCount={totalCount}
@@ -354,8 +253,8 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               sortBy={currentSortBy}
               sortOrder={currentSortOrder}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </Panel>
       </div>
     </>
   );

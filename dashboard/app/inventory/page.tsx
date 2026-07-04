@@ -1,7 +1,6 @@
 // ABOUTME: Dense inventory planning cockpit with WWD layer buys and full SKU review sections.
 // ABOUTME: Keeps the operational ordering view separate from product sales analytics.
 import Link from 'next/link'
-import type { ComponentType, ReactNode } from 'react'
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -15,31 +14,24 @@ import {
   ShipWheel,
   Warehouse,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  CompactBadge,
+  formatCompactCurrency as compactCurrency,
+  formatIsoDate,
+  InlineBar,
+  MetricTile,
+  ReportHeader as PanelHeader,
+  ReportIconButton as IconButton,
+  ReportPanel as Panel,
+  type Tone,
+  toneStyles,
+  toNumber,
+} from '@/components/dashboard/report-ui'
 import { getInventoryPlanningPageData, type InventoryPlanningItem } from '@/lib/queries'
-import { cn, formatCurrency, formatNumber } from '@/lib/utils'
-
-type Tone = 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'cyan' | 'neutral'
-
-const toneStyles: Record<Tone, {
-  icon: string
-  text: string
-  border: string
-  bg: string
-  fill: string
-  stroke: string
-}> = {
-  blue: { icon: 'text-blue-300', text: 'text-blue-300', border: 'border-blue-500/30', bg: 'bg-blue-500/10', fill: '#3b82f6', stroke: '#60a5fa' },
-  green: { icon: 'text-emerald-300', text: 'text-emerald-300', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10', fill: '#10b981', stroke: '#34d399' },
-  amber: { icon: 'text-amber-300', text: 'text-amber-300', border: 'border-amber-500/30', bg: 'bg-amber-500/10', fill: '#f59e0b', stroke: '#fbbf24' },
-  red: { icon: 'text-red-300', text: 'text-red-300', border: 'border-red-500/30', bg: 'bg-red-500/10', fill: '#ef4444', stroke: '#f87171' },
-  purple: { icon: 'text-violet-300', text: 'text-violet-300', border: 'border-violet-500/30', bg: 'bg-violet-500/10', fill: '#8b5cf6', stroke: '#a78bfa' },
-  cyan: { icon: 'text-cyan-300', text: 'text-cyan-300', border: 'border-cyan-500/30', bg: 'bg-cyan-500/10', fill: '#06b6d4', stroke: '#22d3ee' },
-  neutral: { icon: 'text-slate-300', text: 'text-slate-300', border: 'border-slate-700', bg: 'bg-slate-800/70', fill: '#64748b', stroke: '#94a3b8' },
-}
+import { cn, formatNumber } from '@/lib/utils'
 
 const actionLabels: Record<InventoryPlanningItem['action'], string> = {
   OUT_OF_STOCK: 'Out',
@@ -49,140 +41,12 @@ const actionLabels: Record<InventoryPlanningItem['action'], string> = {
   OK: 'OK',
 }
 
-function toNumber(value: number | string | null | undefined) {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : 0
-}
-
-function clampPercent(value: number) {
-  return Math.max(0, Math.min(100, value))
-}
-
-function compactCurrency(value: number | string | null | undefined, digits = 1) {
-  const numeric = toNumber(value)
-  const abs = Math.abs(numeric)
-  if (abs >= 1_000_000) return `$${formatNumber(numeric / 1_000_000, digits)}M`
-  if (abs >= 1_000) return `$${formatNumber(numeric / 1_000, 0)}K`
-  return formatCurrency(numeric, { showCents: false })
-}
-
-function formatIsoDate(value: string | null | undefined) {
-  return value ? value.slice(0, 10) : 'n/a'
-}
-
 function actionTone(action: InventoryPlanningItem['action']): Tone {
   if (action === 'OUT_OF_STOCK') return 'red'
   if (action === 'BUY') return 'blue'
   if (action === 'REVIEW') return 'amber'
   if (action === 'WATCH') return 'purple'
   return 'green'
-}
-
-function Panel({ className, id, children }: { className?: string; id?: string; children: ReactNode }) {
-  return (
-    <section id={id} className={cn('rounded-md border border-slate-800 border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
-      {children}
-    </section>
-  )
-}
-
-function PanelHeader({ title, eyebrow, action }: { title: string; eyebrow?: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800 border-slate-800 px-3 py-2">
-      <div className="min-w-0">
-        <h2 className="truncate text-sm font-semibold text-slate-100">{title}</h2>
-        {eyebrow ? <p className="mt-0.5 truncate text-xs text-slate-400">{eyebrow}</p> : null}
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  )
-}
-
-function CompactBadge({ children, tone = 'neutral' }: { children: ReactNode; tone?: Tone }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn('h-5 rounded-sm border-slate-700 bg-slate-900/80 px-1.5 text-[11px] font-medium text-slate-300', toneStyles[tone].border, toneStyles[tone].bg, toneStyles[tone].text)}
-    >
-      {children}
-    </Badge>
-  )
-}
-
-function IconButton({ icon: Icon, label }: { icon: ComponentType<{ className?: string }>; label: string }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      className="inline-flex size-8 items-center justify-center rounded-md border border-slate-800 border-slate-700 bg-slate-950/30 text-slate-300 transition hover:border-slate-500 hover:text-slate-50"
-    >
-      <Icon className="size-4" />
-    </button>
-  )
-}
-
-function InlineBar({ value, tone = 'blue' }: { value: number; tone?: Tone }) {
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-      <div className="h-full rounded-full" style={{ width: `${clampPercent(value)}%`, backgroundColor: toneStyles[tone].fill }} />
-    </div>
-  )
-}
-
-function Sparkline({ values, tone = 'blue' }: { values: Array<number | string | null | undefined>; tone?: Tone }) {
-  const series = values.map(toNumber)
-  const safeSeries = series.length < 2 ? [0, ...series] : series
-  const width = 144
-  const height = 38
-  const min = Math.min(...safeSeries)
-  const max = Math.max(...safeSeries)
-  const range = max - min || 1
-  const points = safeSeries.map((value, index) => {
-    const x = 2 + (index / Math.max(safeSeries.length - 1, 1)) * (width - 4)
-    const y = height - 2 - ((value - min) / range) * (height - 4)
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  })
-  const areaPoints = [`2,${height - 2}`, ...points, `${width - 2},${height - 2}`].join(' ')
-
-  return (
-    <svg className="mt-1 h-9 w-full overflow-visible" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-      <polygon points={areaPoints} fill={toneStyles[tone].fill} opacity="0.12" />
-      <polyline points={points.join(' ')} fill="none" stroke={toneStyles[tone].stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
-
-function MetricTile({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  tone,
-  trend,
-}: {
-  label: string
-  value: string
-  detail: ReactNode
-  icon: ComponentType<{ className?: string }>
-  tone: Tone
-  trend: Array<number | string | null | undefined>
-}) {
-  return (
-    <Panel className={cn('min-h-36 p-3', toneStyles[tone].border)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase text-slate-400">
-            <Icon className={cn('size-3.5 shrink-0', toneStyles[tone].icon)} />
-            <span className="truncate">{label}</span>
-          </div>
-          <div className="mt-1 truncate text-2xl font-semibold tabular-nums text-slate-50">{value}</div>
-        </div>
-      </div>
-      <div className="mt-1 min-h-8 text-xs leading-4 text-slate-400">{detail}</div>
-      <Sparkline values={trend} tone={tone} />
-    </Panel>
-  )
 }
 
 function conicStops<T>(

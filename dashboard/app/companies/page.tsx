@@ -1,6 +1,5 @@
 // ABOUTME: Dense account portfolio report with health, risk, and revenue concentration
 // ABOUTME: Keeps search/filter table workflow while making the first screen analytical
-import type { ComponentType, ReactNode } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -18,13 +17,21 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from '@/components/ui/breadcrumb';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { DataTable } from '@/components/companies/data-table';
 import { PeriodSelector } from '@/components/dashboard/PeriodSelector';
-import { cn, formatCurrency, formatNumber } from '@/lib/utils';
+import {
+  CompactBadge,
+  formatWholeCurrency as compactCurrency,
+  InlineBar,
+  MetricTile,
+  ReportHeader as PanelHeader,
+  ReportPanel as Panel,
+  type ReportTone,
+  toNumber,
+} from '@/components/dashboard/report-ui';
+import { cn, formatNumber } from '@/lib/utils';
 
 interface CompaniesPageProps {
   searchParams: Promise<{
@@ -41,110 +48,12 @@ interface CompaniesPageProps {
   }>;
 }
 
-function toNumber(value: number | string | null | undefined) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function clampPercent(value: number) {
-  return Math.max(0, Math.min(100, value));
-}
-
-function compactCurrency(value: number | string) {
-  return formatCurrency(value, { showCents: false });
-}
-
-function healthTone(score: string | number): 'good' | 'blue' | 'warn' | 'bad' {
+function healthTone(score: string | number): ReportTone {
   const numeric = toNumber(score);
   if (numeric >= 80) return 'good';
   if (numeric >= 60) return 'blue';
   if (numeric >= 40) return 'warn';
   return 'bad';
-}
-
-function CompactBadge({
-  children,
-  tone = 'neutral',
-}: {
-  children: ReactNode;
-  tone?: 'neutral' | 'good' | 'blue' | 'warn' | 'bad';
-}) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
-        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
-        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
-        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
-      )}
-    >
-      {children}
-    </Badge>
-  );
-}
-
-function InlineBar({
-  value,
-  tone = 'blue',
-}: {
-  value: number;
-  tone?: 'blue' | 'green' | 'amber' | 'red';
-}) {
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-      <div
-        className={cn(
-          'h-full rounded-full',
-          tone === 'blue' && 'bg-blue-500',
-          tone === 'green' && 'bg-emerald-500',
-          tone === 'amber' && 'bg-amber-500',
-          tone === 'red' && 'bg-red-500',
-        )}
-        style={{ width: `${clampPercent(value)}%` }}
-      />
-    </div>
-  );
-}
-
-function MetricTile({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  tone = 'blue',
-}: {
-  label: string;
-  value: string;
-  detail: ReactNode;
-  icon: ComponentType<{ className?: string }>;
-  tone?: 'good' | 'blue' | 'warn' | 'bad';
-}) {
-  return (
-    <Card className="rounded-md py-0 shadow-none">
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
-              <Icon
-                className={cn(
-                  'h-3.5 w-3.5',
-                  tone === 'good' && 'text-emerald-300',
-                  tone === 'blue' && 'text-blue-300',
-                  tone === 'warn' && 'text-amber-300',
-                  tone === 'bad' && 'text-red-300',
-                )}
-              />
-              <span className="truncate">{label}</span>
-            </div>
-            <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
-          </div>
-        </div>
-        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
-      </CardContent>
-    </Card>
-  );
 }
 
 function AccountLeadersPanel({
@@ -158,17 +67,13 @@ function AccountLeadersPanel({
   const maxRevenue = Math.max(...leaders.map((company) => toNumber(company.totalRevenue)), 1);
 
   return (
-    <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b border-slate-800 px-3 py-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-sm font-semibold">Account Revenue Leaders</CardTitle>
-            <p className="text-xs text-slate-400">Largest accounts in the current filtered result set</p>
-          </div>
-          <CompactBadge tone="blue">{leaders.length} shown</CompactBadge>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
+    <Panel>
+      <PanelHeader
+        title="Account Revenue Leaders"
+        eyebrow="Largest accounts in the current filtered result set"
+        action={<CompactBadge tone="blue">{leaders.length} shown</CompactBadge>}
+      />
+      <div className="p-0">
         {leaders.map((company, index) => {
           const revenue = toNumber(company.totalRevenue);
           const health = toNumber(company.healthScore);
@@ -206,8 +111,8 @@ function AccountLeadersPanel({
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 }
 
@@ -225,17 +130,9 @@ function MixPanel({
   const maxCount = Math.max(...rows.map((row) => row.count), 1);
 
   return (
-    <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b border-slate-800 px-3 py-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-            <p className="text-xs text-slate-400">{description}</p>
-          </div>
-          <CompactBadge tone="blue">{total} rows</CompactBadge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3 p-3">
+    <Panel>
+      <PanelHeader title={title} eyebrow={description} action={<CompactBadge tone="blue">{total} rows</CompactBadge>} />
+      <div className="space-y-3 p-3">
         {rows.map((row) => (
           <div key={row.label} className="grid grid-cols-[8rem_minmax(0,1fr)_2.5rem] items-center gap-2">
             <p className="truncate text-xs text-slate-400" title={row.label}>{row.label}</p>
@@ -243,8 +140,8 @@ function MixPanel({
             <p className="text-right font-mono text-xs">{row.count}</p>
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </Panel>
   );
 }
 
@@ -389,26 +286,26 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
         </section>
 
         <section className="grid gap-3 md:grid-cols-3">
-          <Card className="rounded-md py-0 shadow-none">
-            <CardContent className="flex items-center gap-3 p-3">
+          <Panel>
+            <div className="flex items-center gap-3 p-3">
               <AlertTriangle className="h-4 w-4 text-red-300" />
               <div className="min-w-0">
                 <p className="text-xs text-slate-400">Risk Flags</p>
                 <p className="text-sm font-semibold">{formatNumber(atRisk, 0)}</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-md py-0 shadow-none">
-            <CardContent className="flex items-center gap-3 p-3">
+            </div>
+          </Panel>
+          <Panel>
+            <div className="flex items-center gap-3 p-3">
               <Target className="h-4 w-4 text-emerald-300" />
               <div className="min-w-0">
                 <p className="text-xs text-slate-400">Growth Opportunities</p>
                 <p className="text-sm font-semibold">{formatNumber(growthOpportunities, 0)}</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-md py-0 shadow-none">
-            <CardContent className="grid grid-cols-3 gap-3 p-3 text-xs">
+            </div>
+          </Panel>
+          <Panel>
+            <div className="grid grid-cols-3 gap-3 p-3 text-xs">
               <div>
                 <p className="text-slate-400">Accounts</p>
                 <p className="font-semibold tabular-nums">{formatNumber(totalCount, 0)}</p>
@@ -421,23 +318,17 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
                 <p className="text-slate-400">Page</p>
                 <p className="font-semibold tabular-nums">{currentPage}</p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Panel>
         </section>
 
-        <Card className="rounded-md py-0 shadow-none">
-          <CardHeader className="border-b border-slate-800 px-3 py-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-sm font-semibold">Company Detail</CardTitle>
-                <p className="text-xs text-slate-400">
-                  Searchable account table with server-side filters, sort, and pagination
-                </p>
-              </div>
-              <CompactBadge tone="blue">{formatNumber(totalCount, 0)} rows</CompactBadge>
-            </div>
-          </CardHeader>
-          <CardContent className="p-3">
+        <Panel>
+          <PanelHeader
+            title="Company Detail"
+            eyebrow="Searchable account table with server-side filters, sort, and pagination"
+            action={<CompactBadge tone="blue">{formatNumber(totalCount, 0)} rows</CompactBadge>}
+          />
+          <div className="p-3">
             <DataTable
               data={companies}
               totalCount={totalCount}
@@ -448,8 +339,8 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
               sortBy={currentSortBy}
               sortOrder={currentSortOrder}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </Panel>
       </main>
     </>
   );

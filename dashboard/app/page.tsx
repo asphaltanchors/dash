@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -22,11 +22,23 @@ import {
   Target,
   Users,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { CockpitRevenueChart, type CockpitRevenuePoint } from '@/components/dashboard/CockpitCharts'
+import {
+  CompactBadge,
+  formatCompactCurrency,
+  formatIsoDate,
+  InlineBar,
+  MetricTile,
+  ReportHeader as PanelHeader,
+  ReportIconButton as IconButton,
+  ReportPanel as Panel,
+  type Tone,
+  toneStyles,
+  toNumber,
+} from '@/components/dashboard/report-ui'
 import {
   getARAgingDetails,
   getBusinessCockpitData,
@@ -43,100 +55,6 @@ import {
 import { getChannelRevenue, type ChannelRevenue } from '@/lib/queries/marketing'
 import { cn, formatCurrency, formatNumber } from '@/lib/utils'
 
-type Tone = 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'cyan' | 'neutral'
-
-const toneStyles: Record<Tone, {
-  icon: string
-  text: string
-  muted: string
-  border: string
-  bg: string
-  stroke: string
-  fill: string
-}> = {
-  blue: {
-    icon: 'text-blue-300',
-    text: 'text-blue-300',
-    muted: 'text-blue-200',
-    border: 'border-blue-500/30',
-    bg: 'bg-blue-500/10',
-    stroke: '#60a5fa',
-    fill: '#3b82f6',
-  },
-  green: {
-    icon: 'text-emerald-300',
-    text: 'text-emerald-300',
-    muted: 'text-emerald-200',
-    border: 'border-emerald-500/30',
-    bg: 'bg-emerald-500/10',
-    stroke: '#34d399',
-    fill: '#10b981',
-  },
-  amber: {
-    icon: 'text-amber-300',
-    text: 'text-amber-300',
-    muted: 'text-amber-200',
-    border: 'border-amber-500/30',
-    bg: 'bg-amber-500/10',
-    stroke: '#fbbf24',
-    fill: '#f59e0b',
-  },
-  red: {
-    icon: 'text-red-300',
-    text: 'text-red-300',
-    muted: 'text-red-200',
-    border: 'border-red-500/30',
-    bg: 'bg-red-500/10',
-    stroke: '#f87171',
-    fill: '#ef4444',
-  },
-  purple: {
-    icon: 'text-violet-300',
-    text: 'text-violet-300',
-    muted: 'text-violet-200',
-    border: 'border-violet-500/30',
-    bg: 'bg-violet-500/10',
-    stroke: '#a78bfa',
-    fill: '#8b5cf6',
-  },
-  cyan: {
-    icon: 'text-cyan-300',
-    text: 'text-cyan-300',
-    muted: 'text-cyan-200',
-    border: 'border-cyan-500/30',
-    bg: 'bg-cyan-500/10',
-    stroke: '#22d3ee',
-    fill: '#06b6d4',
-  },
-  neutral: {
-    icon: 'text-slate-300',
-    text: 'text-slate-200',
-    muted: 'text-slate-400',
-    border: 'border-slate-700',
-    bg: 'bg-slate-800/70',
-    stroke: '#94a3b8',
-    fill: '#64748b',
-  },
-}
-
-function toNumber(value: number | string | null | undefined) {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) ? numeric : 0
-}
-
-function clampPercent(value: number) {
-  return Math.max(0, Math.min(100, value))
-}
-
-function formatCompactCurrency(value: number | string | null | undefined, digits = 1) {
-  const numeric = toNumber(value)
-  const abs = Math.abs(numeric)
-
-  if (abs >= 1_000_000) return `$${formatNumber(numeric / 1_000_000, digits)}M`
-  if (abs >= 1_000) return `$${formatNumber(numeric / 1_000, 0)}K`
-  return formatCurrency(numeric, { showCents: false })
-}
-
 function formatDate(value: string | null | undefined, options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) {
   if (!value) return 'n/a'
 
@@ -144,10 +62,6 @@ function formatDate(value: string | null | undefined, options: Intl.DateTimeForm
   if (Number.isNaN(date.getTime())) return value.slice(0, 10)
 
   return date.toLocaleDateString('en-US', options)
-}
-
-function formatIsoDate(value: string | null | undefined) {
-  return value ? value.slice(0, 10) : 'n/a'
 }
 
 function Delta({ value, suffix = '%' }: { value: number | string | null | undefined; suffix?: string }) {
@@ -160,145 +74,6 @@ function Delta({ value, suffix = '%' }: { value: number | string | null | undefi
     <span className={cn('font-mono text-xs font-semibold tabular-nums', positive ? 'text-emerald-300' : 'text-red-300')}>
       {positive ? '+' : ''}{formatNumber(numeric, 1)}{suffix}
     </span>
-  )
-}
-
-function Panel({ className, children }: { className?: string; children: ReactNode }) {
-  return (
-    <section className={cn('rounded-md border border-slate-800 border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
-      {children}
-    </section>
-  )
-}
-
-function PanelHeader({
-  title,
-  eyebrow,
-  action,
-}: {
-  title: string
-  eyebrow?: ReactNode
-  action?: ReactNode
-}) {
-  return (
-    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800 border-slate-800 px-3 py-2">
-      <div className="min-w-0">
-        <h2 className="truncate text-sm font-semibold text-slate-100">{title}</h2>
-        {eyebrow ? <p className="mt-0.5 truncate text-xs text-slate-400">{eyebrow}</p> : null}
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  )
-}
-
-function CompactBadge({
-  children,
-  tone = 'neutral',
-}: {
-  children: ReactNode
-  tone?: Tone
-}) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        'border-slate-700 bg-slate-900/80 text-slate-300',
-        toneStyles[tone].border,
-        toneStyles[tone].bg,
-        toneStyles[tone].text,
-      )}
-    >
-      {children}
-    </Badge>
-  )
-}
-
-function IconButton({ icon: Icon, label }: { icon: ComponentType<{ className?: string }>; label: string }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      className="inline-flex size-8 items-center justify-center rounded-md border border-slate-800 border-slate-700 bg-slate-950/30 text-slate-300 transition hover:border-slate-500 hover:text-slate-50"
-    >
-      <Icon className="size-4" />
-    </button>
-  )
-}
-
-function Sparkline({
-  values,
-  tone = 'blue',
-  className,
-}: {
-  values: Array<number | string | null | undefined>
-  tone?: Tone
-  className?: string
-}) {
-  const series = values.map(toNumber).filter((value) => Number.isFinite(value))
-  const safeSeries = series.length === 0 ? [0, 0] : series.length === 1 ? [series[0], series[0]] : series
-  const width = 144
-  const height = 38
-  const padding = 2
-  const min = Math.min(...safeSeries)
-  const max = Math.max(...safeSeries)
-  const range = max - min || 1
-  const points = safeSeries.map((value, index) => {
-    const x = padding + (index / Math.max(safeSeries.length - 1, 1)) * (width - padding * 2)
-    const y = height - padding - ((value - min) / range) * (height - padding * 2)
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  })
-  const areaPoints = [`${padding},${height - padding}`, ...points, `${width - padding},${height - padding}`].join(' ')
-
-  return (
-    <svg className={cn('h-9 w-full overflow-visible', className)} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-      <polygon points={areaPoints} fill={toneStyles[tone].fill} opacity="0.12" />
-      <polyline points={points.join(' ')} fill="none" stroke={toneStyles[tone].stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
-}
-
-function InlineBar({ value, tone = 'blue' }: { value: number; tone?: Tone }) {
-  return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-      <div
-        className={cn('h-full rounded-full', toneStyles[tone].bg)}
-        style={{ width: `${clampPercent(value)}%`, backgroundColor: toneStyles[tone].fill }}
-      />
-    </div>
-  )
-}
-
-function MetricTile({
-  label,
-  value,
-  detail,
-  icon: Icon,
-  tone,
-  trend,
-}: {
-  label: string
-  value: string
-  detail: ReactNode
-  icon: ComponentType<{ className?: string }>
-  tone: Tone
-  trend: Array<number | string | null | undefined>
-}) {
-  return (
-    <Panel className={cn('min-h-36 p-3', toneStyles[tone].border)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase text-slate-400">
-            <Icon className={cn('size-3.5 shrink-0', toneStyles[tone].icon)} />
-            <span className="truncate">{label}</span>
-          </div>
-          <div className="mt-1 truncate text-2xl font-semibold tabular-nums text-slate-50">{value}</div>
-        </div>
-      </div>
-      <div className="mt-1 min-h-8 text-xs leading-4 text-slate-400">{detail}</div>
-      <Sparkline values={trend} tone={tone} className="mt-1" />
-    </Panel>
   )
 }
 
