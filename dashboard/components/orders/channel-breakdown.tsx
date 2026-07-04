@@ -180,7 +180,7 @@ export default function ChannelBreakdown({ metrics }: Props) {
             return (
               <TableRow
                 key={metric.sales_channel}
-                className="hover:bg-gray-50 even:bg-gray-50/50"
+                className="hover:bg-slate-900/40"
               >
                 <TableCell className="font-semibold">
                   {channelName}
@@ -221,7 +221,7 @@ export default function ChannelBreakdown({ metrics }: Props) {
           })}
 
           {/* Totals row */}
-          <TableRow className="border-t-2 bg-gray-50/50 font-bold">
+          <TableRow className="border-t-2 font-bold hover:bg-slate-900/40">
             <TableCell>Total</TableCell>
             <TableCell className="text-right">
               {formatCurrency(totals.revenue, { showCents: false })}

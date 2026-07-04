@@ -115,9 +115,9 @@ function stockTone(item: InventoryPlanningItem | undefined): Tone {
   return 'green'
 }
 
-function Panel({ className, children }: { className?: string; children: ReactNode }) {
+function Panel({ className, id, children }: { className?: string; id?: string; children: ReactNode }) {
   return (
-    <section className={cn('rounded-md border border-slate-800 border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
+    <section id={id} className={cn('rounded-md border border-slate-800 border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
       {children}
     </section>
   )

@@ -1,6 +1,6 @@
 # Dash2 - E-commerce Business Intelligence Dashboard
 
-A modern Next.js 15 analytics dashboard for e-commerce business intelligence, built with TypeScript, Tailwind CSS, and powered by a DBT data pipeline.
+A modern Next.js 16 analytics dashboard for e-commerce business intelligence, built with TypeScript, Tailwind CSS, and powered by a DBT data pipeline.
 
 ## Features
 
@@ -12,7 +12,7 @@ A modern Next.js 15 analytics dashboard for e-commerce business intelligence, bu
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript 5
 - **Styling**: Tailwind CSS 4
 - **Database**: PostgreSQL with Drizzle ORM
@@ -35,13 +35,22 @@ The app connects to a DBT analytics pipeline via PostgreSQL. Configure your conn
 DATABASE_URL="postgresql://user:password@localhost:5432/database"
 ```
 
+The dashboard is database-first for Drizzle: dbt owns the `analytics_mart` schema, and Drizzle Kit introspects it into `drizzle/schema.ts`. The app imports that generated schema through `lib/db`; do not manually copy generated schema files into `lib/db`.
+
+After dbt mart schema changes, regenerate the dashboard schema:
+
+```bash
+npm run db:pull
+```
+
 ## Key Commands
 
 ```bash
 npm run dev          # Start development server
 npm run build        # Build for production  
 npm run lint         # Run ESLint
-npx drizzle-kit studio  # Open database browser
+npm run db:pull      # Introspect analytics_mart into drizzle/schema.ts
+npm run db:studio    # Open database browser
 ```
 
 Built with ❤️ for modern e-commerce analytics.

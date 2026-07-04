@@ -2,7 +2,7 @@
 // ABOUTME: Handles fetching and filtering contact records from dim_customer_contacts
 
 import { db } from '@/lib/db'
-import { dimCustomerContactsInAnalyticsMart } from '@/lib/db/schema'
+import { dimCustomerContactsInAnalyticsMart } from '@/lib/db'
 import { desc, asc, ilike, eq, and, or, count, type SQL } from 'drizzle-orm'
 
 export interface ContactFilters {
