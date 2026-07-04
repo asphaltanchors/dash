@@ -74,13 +74,14 @@ company_metrics AS (
         h.last_order_date,
         h.first_order_date,
         h.total_orders,
+        h.active_years,
         h.total_revenue,
         h.avg_order_value,
         h.orders_last_90_days,
         h.revenue_last_90_days,
         h.orders_last_year,
         h.orders_prior_year,
-        h.revenue_percentile,
+        PERCENT_RANK() OVER (ORDER BY h.total_revenue) AS revenue_percentile,
         h.at_risk_flag,
         h.growth_opportunity_flag,
         COALESCE(t90.total_revenue, 0) AS trailing_90d_revenue,
@@ -104,11 +105,61 @@ flagged AS (
             WHEN days_since_last_order >= 1500 THEN 0.15
             ELSE 1.00 - (((days_since_last_order - 365)::NUMERIC / 1135) * 0.85)
         END AS recency_attention_factor,
+        CASE
+            WHEN total_orders >= 3 THEN TRUE
+            WHEN total_orders >= 2 AND active_years >= 2 THEN TRUE
+            ELSE FALSE
+        END AS has_established_purchase_pattern,
+        CASE WHEN revenue_percentile >= 0.75 THEN TRUE ELSE FALSE END AS is_meaningful_revenue_account,
+        CASE
+            WHEN at_risk_flag = TRUE THEN TRUE
+            WHEN combined_growth_trend IN ('Declining', 'Lost Customer') THEN TRUE
+            WHEN days_since_last_order > 365 THEN TRUE
+            ELSE FALSE
+        END AS has_current_risk_issue,
         CASE WHEN total_revenue >= 50000 OR revenue_percentile >= 0.9 THEN TRUE ELSE FALSE END AS is_high_value_account,
-        CASE WHEN at_risk_flag = TRUE AND (total_revenue >= 25000 OR revenue_percentile >= 0.75) THEN TRUE ELSE FALSE END AS is_high_value_at_risk,
-        CASE WHEN combined_growth_trend IN ('Growing', 'New Customer') AND trailing_1y_revenue >= 5000 THEN TRUE ELSE FALSE END AS is_growth_opportunity,
-        CASE WHEN days_since_last_order >= 180 AND (total_revenue >= 25000 OR revenue_percentile >= 0.75) THEN TRUE ELSE FALSE END AS is_dormant_high_value,
-        CASE WHEN combined_growth_trend = 'Declining' AND days_since_last_order <= 365 AND trailing_1y_revenue >= 1000 THEN TRUE ELSE FALSE END AS is_declining_active
+        CASE
+            WHEN at_risk_flag = TRUE
+                AND revenue_percentile >= 0.75
+                AND (
+                    total_orders >= 3
+                    OR (total_orders >= 2 AND active_years >= 2)
+                )
+            THEN TRUE
+            ELSE FALSE
+        END AS is_high_value_at_risk,
+        CASE
+            WHEN combined_growth_trend IN ('Growing', 'New Customer')
+                AND trailing_1y_revenue >= 5000
+                AND revenue_percentile >= 0.75
+                AND (
+                    total_orders >= 3
+                    OR (total_orders >= 2 AND active_years >= 2)
+                )
+            THEN TRUE
+            ELSE FALSE
+        END AS is_growth_opportunity,
+        CASE
+            WHEN days_since_last_order > 365
+                AND revenue_percentile >= 0.75
+                AND (
+                    total_orders >= 3
+                    OR (total_orders >= 2 AND active_years >= 2)
+                )
+            THEN TRUE
+            ELSE FALSE
+        END AS is_dormant_high_value,
+        CASE
+            WHEN combined_growth_trend = 'Declining'
+                AND revenue_percentile >= 0.75
+                AND trailing_1y_revenue >= 1000
+                AND (
+                    total_orders >= 3
+                    OR (total_orders >= 2 AND active_years >= 2)
+                )
+            THEN TRUE
+            ELSE FALSE
+        END AS is_declining_active
     FROM company_metrics
 ),
 
@@ -119,19 +170,36 @@ scored AS (
             CASE WHEN is_high_value_at_risk THEN 100 * recency_attention_factor ELSE 0 END,
             CASE WHEN is_dormant_high_value THEN 90 * recency_attention_factor ELSE 0 END,
             CASE WHEN is_declining_active THEN 80 ELSE 0 END,
-            CASE WHEN is_growth_opportunity THEN 70 ELSE 0 END,
-            CASE WHEN at_risk_flag THEN 50 * recency_attention_factor ELSE 0 END,
-            CASE WHEN growth_opportunity_flag THEN 50 * recency_attention_factor ELSE 0 END
+            CASE
+                WHEN has_established_purchase_pattern
+                    AND is_meaningful_revenue_account
+                    AND has_current_risk_issue
+                THEN 50 * recency_attention_factor
+                ELSE 0
+            END
         ))::INTEGER AS attention_score,
         CONCAT_WS(
             '; ',
+            CASE WHEN has_established_purchase_pattern THEN 'established_purchase_pattern' END,
+            CASE WHEN is_meaningful_revenue_account THEN 'top_quartile_revenue' END,
+            CASE WHEN has_current_risk_issue THEN 'current_risk_issue' END,
             CASE WHEN is_high_value_at_risk THEN 'high_value_at_risk' END,
             CASE WHEN is_dormant_high_value THEN 'dormant_high_value' END,
             CASE WHEN is_declining_active THEN 'declining_active' END,
-            CASE WHEN is_growth_opportunity THEN 'growth_opportunity' END,
-            CASE WHEN at_risk_flag THEN 'health_at_risk' END,
-            CASE WHEN growth_opportunity_flag THEN 'health_growth_opportunity' END,
-            CASE WHEN days_since_last_order >= 1500 THEN 'long_dormant' END
+            CASE
+                WHEN has_established_purchase_pattern
+                    AND is_meaningful_revenue_account
+                    AND has_current_risk_issue
+                    AND at_risk_flag
+                THEN 'health_at_risk'
+            END,
+            CASE
+                WHEN has_established_purchase_pattern
+                    AND is_meaningful_revenue_account
+                    AND has_current_risk_issue
+                    AND days_since_last_order >= 1500
+                THEN 'long_dormant'
+            END
         ) AS reason_codes
     FROM flagged
 )
@@ -158,6 +226,9 @@ SELECT
     s.orders_last_90_days,
     s.revenue_last_90_days,
     s.revenue_percentile,
+    s.has_established_purchase_pattern,
+    s.is_meaningful_revenue_account,
+    s.has_current_risk_issue,
     s.is_high_value_account,
     s.is_high_value_at_risk,
     s.is_growth_opportunity,
@@ -178,5 +249,8 @@ SELECT
 FROM scored s
 LEFT JOIN best_contacts bc
     ON s.company_domain_key = bc.company_domain_key
-WHERE s.reason_codes <> ''
+WHERE s.has_established_purchase_pattern
+    AND s.is_meaningful_revenue_account
+    AND s.has_current_risk_issue
+    AND s.reason_codes <> ''
 ORDER BY s.attention_score DESC, s.total_revenue DESC

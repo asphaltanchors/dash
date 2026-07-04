@@ -1579,8 +1579,9 @@ models:
   - name: mart_account_attention_queue
     description: >
       Read-only prioritized queue of corporate accounts that deserve attention because
-      they are high-value at-risk, dormant high-value, declining but active, or showing
-      growth opportunity. Contact fields are support context only.
+      they have an established purchasing pattern, are at least top-quartile by lifetime
+      revenue, and now show a risk signal such as stale activity, lost/declining trend,
+      or an account-health risk flag. Contact fields are support context only.
     columns:
       - name: company_domain_key
         description: Consolidated company key at one-row-per-company queue grain.
@@ -1589,15 +1590,27 @@ models:
           - unique
       - name: attention_score
         description: >
-          Priority score derived from explicit reason-code flags, adjusted by recency
-          so stale accounts retain less outreach priority after one year and receive
-          only residual priority once they are 1,500+ days from their last order.
+          Priority score derived from explicit reason-code flags for established,
+          top-quartile accounts with current risk, adjusted by recency so stale accounts
+          retain less outreach priority after one year and receive only residual priority
+          once they are 1,500+ days from their last order.
         tests:
           - not_null
       - name: reason_codes
         description: Semicolon-delimited reason codes explaining why the account is queued.
         tests:
           - not_null
+      - name: has_established_purchase_pattern
+        description: >
+          True when the account has enough repeat history to represent a buying pattern:
+          at least three lifetime orders, or at least two orders spread across multiple
+          active years.
+      - name: is_meaningful_revenue_account
+        description: True when lifetime revenue is in the top quartile of corporate accounts.
+      - name: has_current_risk_issue
+        description: >
+          True when current health or trend signals indicate risk, including stale last
+          order activity, lost or declining growth trend, or the company health at-risk flag.
 
   - name: mart_product_growth_quality
     description: >
