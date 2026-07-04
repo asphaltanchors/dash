@@ -11,13 +11,10 @@ import {
   CircleDollarSign,
   Clock3,
   CreditCard,
-  Filter,
   Layers3,
   LineChart,
-  MoreHorizontal,
   Package,
   Percent,
-  Share2,
   ShoppingCart,
   Target,
   Users,
@@ -33,7 +30,6 @@ import {
   InlineBar,
   MetricTile,
   ReportHeader as PanelHeader,
-  ReportIconButton as IconButton,
   ReportPanel as Panel,
   type Tone,
   toneStyles,
@@ -684,11 +680,6 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
               Live
             </div>
             <CompactBadge tone={healthTone}>{criticalFlags}C {warningFlags}W</CompactBadge>
-            <div className="hidden items-center gap-2 md:flex">
-              <IconButton icon={Share2} label="Share dashboard" />
-              <IconButton icon={Filter} label="Filter dashboard" />
-              <IconButton icon={MoreHorizontal} label="More dashboard actions" />
-            </div>
           </div>
         </div>
       </header>
