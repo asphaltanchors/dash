@@ -17,11 +17,11 @@ export default function DSORiskCard({ dsoMetric }: Props) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">DSO Assessment</CardTitle>
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Calendar className="h-4 w-4 text-slate-400" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">—</div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-400">
             DSO data unavailable
           </p>
         </CardContent>
@@ -39,19 +39,19 @@ export default function DSORiskCard({ dsoMetric }: Props) {
   
   switch (dsoMetric.dsoAssessment) {
     case 'Excellent':
-      badgeClass = "bg-green-100 text-green-800 hover:bg-green-100"
+      badgeClass = "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
       Icon = TrendingUp
       break
     case 'Good':
-      badgeClass = "bg-blue-100 text-blue-800 hover:bg-blue-100"
+      badgeClass = "border-blue-500/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20"
       Icon = TrendingUp
       break
     case 'Fair':
-      badgeClass = "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+      badgeClass = "border-amber-500/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
       Icon = Calendar
       break
     case 'Poor':
-      badgeClass = "bg-red-100 text-red-800 hover:bg-red-100"
+      badgeClass = "border-red-500/30 bg-red-500/10 text-red-200 hover:bg-red-500/20"
       Icon = AlertTriangle
       break
     default:
@@ -63,7 +63,7 @@ export default function DSORiskCard({ dsoMetric }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">DSO Assessment</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <Icon className="h-4 w-4 text-slate-400" />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{dsoValue.toFixed(0)} days</div>
@@ -74,7 +74,7 @@ export default function DSORiskCard({ dsoMetric }: Props) {
           >
             {dsoMetric.dsoAssessment}
           </Badge>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-400">
             {collectionEff.toFixed(1)}% efficiency
           </p>
         </div>

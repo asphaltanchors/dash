@@ -21,7 +21,7 @@ export function TopCompaniesTable({ data, productName }: TopCompaniesTableProps)
           <CardDescription>Companies that have purchased {productName}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-muted-foreground py-8">
+          <div className="text-center text-slate-400 py-8">
             No company purchases found for this product
           </div>
         </CardContent>
@@ -54,7 +54,7 @@ export function TopCompaniesTable({ data, productName }: TopCompaniesTableProps)
                 <TableCell>
                   <Link 
                     href={`/companies/${encodeURIComponent(company.companyDomainKey)}`}
-                    className="hover:underline text-blue-600 font-medium"
+                    className="hover:underline text-blue-300 font-medium"
                   >
                     {company.companyName}
                   </Link>
@@ -78,7 +78,7 @@ export function TopCompaniesTable({ data, productName }: TopCompaniesTableProps)
                     {company.buyerStatus}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="text-slate-400">
                   {company.lastPurchaseDate ? 
                     new Date(company.lastPurchaseDate).toLocaleDateString() : 
                     'Never'

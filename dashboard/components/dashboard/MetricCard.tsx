@@ -22,7 +22,7 @@ export function MetricCard({
 }: MetricCardProps) {
   const changeColor = change === undefined ? 'text-gray-500' : 
     change > 0 ? 'text-green-600' : 
-    change < 0 ? 'text-red-600' : 'text-gray-500';
+    change < 0 ? 'text-red-300' : 'text-gray-500';
   
   const ChangeIcon = change === undefined ? null :
     change > 0 ? ArrowUpIcon : 
@@ -31,10 +31,10 @@ export function MetricCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className="text-sm font-medium text-slate-400">
           {title}
         </CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <Icon className="h-4 w-4 text-slate-400" />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{formatValue(value)}</div>
@@ -47,12 +47,12 @@ export function MetricCard({
           </div>
         )}
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             {subtitle}
           </p>
         )}
         {previousValue && change === undefined && !subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             Previous: {formatValue(previousValue)}
           </p>
         )}

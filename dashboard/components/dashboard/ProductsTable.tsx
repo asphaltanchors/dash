@@ -42,7 +42,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   <div className="flex items-center gap-2">
                     <Link 
                       href={`/products/${encodeURIComponent(product.itemName)}`}
-                      className="truncate hover:underline text-blue-600 hover:text-blue-800"
+                      className="truncate hover:underline text-blue-300 hover:text-blue-200"
                     >
                       {product.itemName}
                     </Link>
@@ -59,7 +59,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground max-w-60">
+              <TableCell className="hidden lg:table-cell text-sm text-slate-400 max-w-60">
                 <div className="truncate">
                   {product.salesDescription || '-'}
                 </div>
@@ -69,7 +69,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   {product.productFamily}
                 </Badge>
               </TableCell>
-              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+              <TableCell className="hidden lg:table-cell text-sm text-slate-400">
                 {product.materialType}
               </TableCell>
               <TableCell className="text-right font-mono">
@@ -82,7 +82,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
                       ? 'text-green-600'
                       : Number(product.actualMarginPercentage || product.marginPercentage) >= 50
                       ? 'text-yellow-600'
-                      : 'text-red-600'
+                      : 'text-red-300'
                   }`}
                 >
                   {product.actualMarginPercentage || product.marginPercentage}%
@@ -95,12 +95,12 @@ export function ProductsTable({ products }: ProductsTableProps) {
                 {formatCurrency(product.discountLeakageAmount || '0', { showCents: false })}
               </TableCell>
               <TableCell className="text-right font-mono hidden lg:table-cell">
-                <span className={`${product.periodUnits > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                <span className={`${product.periodUnits > 0 ? 'text-blue-300' : 'text-slate-400'}`}>
                   {product.periodUnits.toLocaleString()}
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden xl:table-cell">
-                <span className={`${product.customerCount && product.customerCount > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
+                <span className={`${product.customerCount && product.customerCount > 0 ? 'text-purple-600' : 'text-slate-400'}`}>
                   {product.customerCount || 0}
                 </span>
               </TableCell>

@@ -117,7 +117,7 @@ function stockTone(item: InventoryPlanningItem | undefined): Tone {
 
 function Panel({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <section className={cn('rounded-md border border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
+    <section className={cn('rounded-md border border-slate-800 border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
       {children}
     </section>
   )
@@ -125,7 +125,7 @@ function Panel({ className, children }: { className?: string; children: ReactNod
 
 function PanelHeader({ title, eyebrow, action }: { title: string; eyebrow?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800 px-3 py-2">
+    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800 border-slate-800 px-3 py-2">
       <div className="min-w-0">
         <h2 className="truncate text-sm font-semibold text-slate-100">{title}</h2>
         {eyebrow ? <p className="mt-0.5 truncate text-xs text-slate-400">{eyebrow}</p> : null}
@@ -152,7 +152,7 @@ function IconButton({ icon: Icon, label }: { icon: ComponentType<{ className?: s
       type="button"
       aria-label={label}
       title={label}
-      className="inline-flex size-8 items-center justify-center rounded-md border border-slate-700 bg-slate-950/30 text-slate-300 transition hover:border-slate-500 hover:text-slate-50"
+      className="inline-flex size-8 items-center justify-center rounded-md border border-slate-800 border-slate-700 bg-slate-950/30 text-slate-300 transition hover:border-slate-500 hover:text-slate-50"
     >
       <Icon className="size-4" />
     </button>
@@ -255,7 +255,7 @@ function MetricTile({
 
 function PeriodControl({ currentPeriod }: { currentPeriod: string }) {
   return (
-    <div className="hidden items-center gap-1 rounded-md border border-slate-700 bg-slate-950/40 p-0.5 text-xs text-slate-400 md:flex">
+    <div className="hidden items-center gap-1 rounded-md border border-slate-800 border-slate-700 bg-slate-950/40 p-0.5 text-xs text-slate-400 md:flex">
       {periods.map((period) => (
         <Link
           key={period.value}
@@ -549,7 +549,7 @@ function InventoryPlanningPanel({ summary }: { summary: Awaited<ReturnType<typeo
 
 function MiniBox({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: Tone }) {
   return (
-    <div className={cn('rounded-md border p-3', toneStyles[tone].border, toneStyles[tone].bg)}>
+    <div className={cn('rounded-md border border-slate-800 p-3', toneStyles[tone].border, toneStyles[tone].bg)}>
       <p className="text-[11px] uppercase text-slate-500">{label}</p>
       <p className="mt-1 text-lg font-semibold tabular-nums text-slate-50">{value}</p>
       <p className="mt-1 truncate text-xs text-slate-400">{detail}</p>
@@ -565,7 +565,7 @@ function InventoryAgingPanel({ buckets }: { buckets: InventoryBucket[] }) {
     <Panel>
       <PanelHeader title="Inventory Aging" eyebrow={`${compactCurrency(totalValue, 0)} current on-hand value by status`} />
       <div className="p-3">
-        <div className="flex h-10 overflow-hidden rounded-md border border-slate-800">
+        <div className="flex h-10 overflow-hidden rounded-md border border-slate-800 border-slate-800">
           {buckets.map((bucket) => (
             <div
               key={bucket.label}
@@ -663,7 +663,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-slate-800 bg-[#07101d]/95 text-slate-100 backdrop-blur">
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-slate-800 border-slate-800 bg-[#07101d]/95 text-slate-100 backdrop-blur">
         <div className="flex w-full items-center justify-between gap-3 px-3">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1 text-slate-300 hover:bg-slate-800 hover:text-slate-50" />
@@ -674,12 +674,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <div className="hidden items-center gap-1 rounded-md border border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-200 md:flex">
+            <div className="hidden items-center gap-1 rounded-md border border-slate-800 border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-200 md:flex">
               <CalendarDays className="size-3.5 text-slate-400" />
               <span className="font-mono">{formatIsoDate(planning.summary.inventoryAsOfDate)}</span>
             </div>
             <PeriodControl currentPeriod={filters.period} />
-            <div className="hidden items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300 sm:flex">
+            <div className="hidden items-center gap-1 rounded-full border border-slate-800 border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300 sm:flex">
               <span className="size-2 rounded-full bg-emerald-400" />
               Live
             </div>
@@ -749,7 +749,7 @@ function QuickLink({
   tone: Tone
 }) {
   return (
-    <Link href={href} className={cn('group rounded-md border border-slate-800 bg-[#0b1322] p-3 transition hover:border-slate-600', toneStyles[tone].border)}>
+    <Link href={href} className={cn('group rounded-md border border-slate-800 border-slate-800 bg-[#0b1322] p-3 transition hover:border-slate-600', toneStyles[tone].border)}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Icon className={cn('size-4 shrink-0', toneStyles[tone].icon)} />

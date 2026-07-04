@@ -23,8 +23,8 @@ export function TargetDaysSelector({ currentTarget = 90 }: TargetDaysSelectorPro
 
   return (
     <div className="flex items-center gap-2">
-      <Calendar className="h-4 w-4 text-muted-foreground" />
-      <span className="text-sm text-muted-foreground">Inventory Target:</span>
+      <Calendar className="h-4 w-4 text-slate-400" />
+      <span className="text-sm text-slate-400">Inventory Target:</span>
       <div className="flex items-center gap-1">
         <Button
           variant={currentTarget === 90 ? "default" : "outline"}

@@ -40,7 +40,7 @@ export function StockoutTimelineChart({ data }: StockoutTimelineChartProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-[300px] text-sm text-muted-foreground">
+          <div className="flex items-center justify-center h-[300px] text-sm text-slate-400">
             Stocked products with recent sales have enough estimated inventory for at least 90 days
           </div>
         </CardContent>

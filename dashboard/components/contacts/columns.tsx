@@ -43,7 +43,7 @@ export const columns: ColumnDef<Contact>[] = [
             )}
           </div>
           {jobTitle && (
-            <div className="text-sm text-muted-foreground">{jobTitle}</div>
+            <div className="text-sm text-slate-400">{jobTitle}</div>
           )}
         </div>
       )
@@ -81,7 +81,7 @@ export const columns: ColumnDef<Contact>[] = [
         <div className="space-y-1">
           <div className="font-medium">{companyName || 'Unknown'}</div>
           {businessSize && (
-            <div className="text-sm text-muted-foreground">{businessSize}</div>
+            <div className="text-sm text-slate-400">{businessSize}</div>
           )}
         </div>
       )
@@ -123,7 +123,7 @@ export const columns: ColumnDef<Contact>[] = [
       return (
         <div className="space-y-1 text-right">
           <div className="font-medium">{formatRevenue(revenue)}</div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-slate-400">
             {formatOrders(orders)} orders
           </div>
           {revenueCategory && (
@@ -151,7 +151,7 @@ export const columns: ColumnDef<Contact>[] = [
             {quality || 'Unknown'}
           </Badge>
           {phone && (
-            <div className="text-xs text-muted-foreground font-mono">{phone}</div>
+            <div className="text-xs text-slate-400 font-mono">{phone}</div>
           )}
         </div>
       )

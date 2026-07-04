@@ -25,8 +25,8 @@ export function PeriodSelector({ currentPeriod = '30d', filters = {} }: PeriodSe
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-      <Calendar className="h-4 w-4 text-muted-foreground" />
-      <span className="text-sm text-muted-foreground">Period:</span>
+      <Calendar className="h-4 w-4 text-slate-400" />
+      <span className="text-sm text-slate-400">Period:</span>
       <div className="flex min-w-0 flex-wrap items-center gap-1">
         {periods.map((period) => (
           <Button

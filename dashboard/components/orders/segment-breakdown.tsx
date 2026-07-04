@@ -35,7 +35,7 @@ function MiniSparkline({ values, periods }: SparklineProps) {
   const graphHeight = height - 2 * padding
 
   if (values.length < 2) {
-    return <span className="text-xs text-muted-foreground">N/A</span>;
+    return <span className="text-xs text-slate-400">N/A</span>;
   }
 
   const max = Math.max(...values)
@@ -84,7 +84,7 @@ function MiniSparkline({ values, periods }: SparklineProps) {
 
 function MiniBarChart({ percentage }: { percentage: number }) {
   return (
-    <div className="w-16 h-3 bg-gray-100 rounded-sm overflow-hidden">
+    <div className="w-16 h-3 bg-slate-800 rounded-sm overflow-hidden">
       <div
         className="h-full transition-all"
         style={{

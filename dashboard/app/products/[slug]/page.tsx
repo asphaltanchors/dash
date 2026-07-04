@@ -55,11 +55,11 @@ type Tone = 'neutral' | 'good' | 'blue' | 'warn' | 'bad';
 type BarTone = 'blue' | 'green' | 'amber' | 'red' | 'slate';
 
 const actionClasses: Record<string, string> = {
-  OUT_OF_STOCK: 'border-red-200 bg-red-50 text-red-800',
-  BUY: 'border-blue-200 bg-blue-50 text-blue-800',
-  REVIEW: 'border-amber-200 bg-amber-50 text-amber-800',
-  WATCH: 'border-orange-200 bg-orange-50 text-orange-800',
-  OK: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  OUT_OF_STOCK: 'border-red-500/30 bg-red-500/10 text-red-200',
+  BUY: 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+  REVIEW: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+  WATCH: 'border-orange-500/30 bg-orange-500/10 text-orange-200',
+  OK: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
 };
 
 function toNumber(value: number | string | null | undefined) {
@@ -230,10 +230,10 @@ function CompactBadge({
       variant="outline"
       className={cn(
         'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
-        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
-        tone === 'bad' && 'border-red-200 bg-red-50 text-red-800',
+        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
         className,
       )}
     >
@@ -264,7 +264,7 @@ function InlineBar({
   tone?: BarTone;
 }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
       <div
         className={cn(
           'h-full rounded-full',
@@ -296,20 +296,20 @@ function MetricTile({
   return (
     <Card className="rounded-md py-0 shadow-none">
       <CardContent className="p-3">
-        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
           <Icon
             className={cn(
               'h-3.5 w-3.5',
-              tone === 'good' && 'text-emerald-600',
-              tone === 'blue' && 'text-blue-600',
-              tone === 'warn' && 'text-amber-600',
-              tone === 'bad' && 'text-red-600',
+              tone === 'good' && 'text-emerald-300',
+              tone === 'blue' && 'text-blue-300',
+              tone === 'warn' && 'text-amber-300',
+              tone === 'bad' && 'text-red-300',
             )}
           />
           <span className="truncate">{label}</span>
         </div>
         <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
-        <div className="mt-2 line-clamp-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+        <div className="mt-2 line-clamp-2 text-xs leading-4 text-slate-400">{detail}</div>
       </CardContent>
     </Card>
   );
@@ -325,11 +325,11 @@ function PanelHeader({
   badge?: ReactNode;
 }) {
   return (
-    <CardHeader className="border-b px-3 py-2">
+    <CardHeader className="border-b border-slate-800 px-3 py-2">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <CardTitle className="truncate text-sm font-semibold">{title}</CardTitle>
-          {subtitle ? <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p> : null}
         </div>
         {badge ? <div className="shrink-0">{badge}</div> : null}
       </div>
@@ -339,7 +339,7 @@ function PanelHeader({
 
 function EmptyState({ children }: { children: ReactNode }) {
   return (
-    <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+    <div className="px-3 py-8 text-center text-sm text-slate-400">
       {children}
     </div>
   );
@@ -357,22 +357,22 @@ function MiniStat({
   tone?: Tone;
 }) {
   return (
-    <div className="min-w-0 border-b px-3 py-2 last:border-b-0">
+    <div className="min-w-0 border-b border-slate-800 px-3 py-2 last:border-b-0">
       <div className="flex items-center justify-between gap-3">
-        <p className="truncate text-xs text-muted-foreground">{label}</p>
+        <p className="truncate text-xs text-slate-400">{label}</p>
         <span
           className={cn(
             'shrink-0 font-mono text-xs font-semibold tabular-nums',
-            tone === 'good' && 'text-emerald-700',
-            tone === 'blue' && 'text-blue-700',
-            tone === 'warn' && 'text-amber-700',
-            tone === 'bad' && 'text-red-700',
+            tone === 'good' && 'text-emerald-300',
+            tone === 'blue' && 'text-blue-300',
+            tone === 'warn' && 'text-amber-300',
+            tone === 'bad' && 'text-red-300',
           )}
         >
           {value}
         </span>
       </div>
-      {detail ? <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{detail}</p> : null}
+      {detail ? <p className="mt-0.5 truncate text-[11px] text-slate-400">{detail}</p> : null}
     </div>
   );
 }
@@ -394,7 +394,7 @@ function ProductReportHeader({
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="break-words font-mono text-2xl font-semibold tracking-tight">
+          <h1 className="break-words font-mono text-2xl font-semibold tracking-tight text-slate-50">
             {product.itemName}
           </h1>
           <CompactBadge tone="blue">{periodLabel}</CompactBadge>
@@ -402,7 +402,7 @@ function ProductReportHeader({
           {status ? <CompactBadge tone={inventoryTone(status)}>{readableCode(status)}</CompactBadge> : null}
         </div>
         {product.salesDescription ? (
-          <p className="mt-1 max-w-5xl text-sm text-muted-foreground">{product.salesDescription}</p>
+          <p className="mt-1 max-w-5xl text-sm text-slate-400">{product.salesDescription}</p>
         ) : null}
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Link href={`/families/${encodeURIComponent(product.productFamily)}`}>
@@ -415,19 +415,19 @@ function ProductReportHeader({
         </div>
       </div>
       <div className="grid min-w-64 gap-2 sm:grid-cols-2">
-        <div className="rounded-md border bg-card px-3 py-2 text-right">
-          <p className="text-xs text-muted-foreground">Recommendation</p>
-          <p className={cn('font-semibold', planning && operationalBuyQty(planning) > 0 && 'text-blue-700')}>
+        <div className="rounded-md border border-slate-800 bg-[#0b1322] px-3 py-2 text-right">
+          <p className="text-xs text-slate-400">Recommendation</p>
+          <p className={cn('font-semibold', planning && operationalBuyQty(planning) > 0 && 'text-blue-300')}>
             {planning ? operationalBuyLabel(planning) : 'No plan'}
           </p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-xs text-slate-400">
             {planning ? compactCurrency(operationalBuyQty(planning) * toNumber(planning.purchaseCost)) : 'Planning unavailable'}
           </p>
         </div>
-        <div className="rounded-md border bg-card px-3 py-2 text-right">
-          <p className="text-xs text-muted-foreground">Inventory date</p>
+        <div className="rounded-md border border-slate-800 bg-[#0b1322] px-3 py-2 text-right">
+          <p className="text-xs text-slate-400">Inventory date</p>
           <p className="font-semibold">{formatDate(planning?.inventoryAsOfDate || inventory?.inventoryDate)}</p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className="truncate text-xs text-slate-400">
             Anchor {formatDate(inventory?.anchorDate)}
           </p>
         </div>
@@ -488,10 +488,10 @@ function SupplyDemandPanel({
       />
       <CardContent className="p-0">
         {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[7.5rem_minmax(0,1fr)_5rem] items-center gap-2 border-b px-3 py-2 last:border-b-0">
+          <div key={row.label} className="grid grid-cols-[7.5rem_minmax(0,1fr)_5rem] items-center gap-2 border-b border-slate-800 px-3 py-2 last:border-b-0">
             <div className="min-w-0">
               <p className="truncate text-xs font-medium">{row.label}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{row.detail}</p>
+              <p className="truncate text-[11px] text-slate-400">{row.detail}</p>
             </div>
             <InlineBar value={(row.value / maxValue) * 100} tone={barToneFromTone(row.tone)} />
             <p className="text-right font-mono text-xs font-semibold tabular-nums">{formatNumber(row.value, 0)}</p>
@@ -569,7 +569,7 @@ function SalesTrendPanel({
                         title={`${label.long}: ${compactCurrency(revenue)}, ${item.orderCount} orders`}
                       />
                     </div>
-                    <span className="whitespace-nowrap text-center text-[10px] text-muted-foreground">
+                    <span className="whitespace-nowrap text-center text-[10px] text-slate-400">
                       <span className="sm:hidden">{label.short}</span>
                       <span className="hidden sm:inline">{label.long}</span>
                     </span>
@@ -615,7 +615,7 @@ function CustomerMixPanel({
             const spend = toNumber(company.totalAmountSpent);
             const share = periodRevenue > 0 ? (spend / periodRevenue) * 100 : 0;
             return (
-              <div key={`${company.companyDomainKey}-${company.companyName}`} className="grid grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+              <div key={`${company.companyDomainKey}-${company.companyName}`} className="grid grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
                 <div className="min-w-0">
                   {company.companyDomainKey ? (
                     <Link href={`/companies/${encodeURIComponent(company.companyDomainKey)}`} className="truncate text-sm font-medium hover:underline">
@@ -624,7 +624,7 @@ function CustomerMixPanel({
                   ) : (
                     <p className="truncate text-sm font-medium">{company.companyName}</p>
                   )}
-                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 truncate text-[11px] text-slate-400">
                     {formatInteger(company.totalTransactions)} orders, {formatInteger(company.totalQuantityPurchased)} units, avg {formatCurrency(company.avgUnitPrice)}
                   </p>
                 </div>
@@ -632,7 +632,7 @@ function CustomerMixPanel({
                   <p className="font-mono text-xs font-semibold">{compactCurrency(spend)}</p>
                   <div className="flex items-center gap-2">
                     <InlineBar value={(spend / maxSpend) * 100} tone={share >= 40 ? 'amber' : 'green'} />
-                    <span className="w-10 font-mono text-[11px] text-muted-foreground">{formatNumber(share, 1)}%</span>
+                    <span className="w-10 font-mono text-[11px] text-slate-400">{formatNumber(share, 1)}%</span>
                   </div>
                 </div>
               </div>
@@ -664,7 +664,7 @@ function PricingPanel({
         badge={<CompactBadge tone={marginTone(margin)}>{formatNumber(margin, 1)}% GM</CompactBadge>}
       />
       <CardContent className="p-0">
-        <div className="grid grid-cols-2 border-b md:grid-cols-4">
+        <div className="grid grid-cols-2 border-b border-slate-800 md:grid-cols-4">
           <MiniStat label="Avg sell price" value={formatCurrency(distribution.avgPrice)} detail={`Catalog ${formatCurrency(product.salesPrice)}`} />
           <MiniStat label="Median price" value={formatCurrency(distribution.medianPrice)} detail={`${formatInteger(distribution.totalSales)} priced units`} />
           <MiniStat label="Low / high" value={`${formatCurrency(distribution.minPrice)} - ${formatCurrency(distribution.maxPrice)}`} detail={`${formatNumber(spreadPct, 1)}% spread`} tone={spreadPct > 25 ? 'warn' : 'blue'} />
@@ -677,7 +677,7 @@ function PricingPanel({
             <div className="space-y-2">
               {distribution.priceRanges.map((range) => (
                 <div key={range.rangeLabel} className="grid grid-cols-[5.5rem_minmax(0,1fr)_4.25rem] items-center gap-2">
-                  <p className="truncate text-xs text-muted-foreground">{range.rangeLabel}</p>
+                  <p className="truncate text-xs text-slate-400">{range.rangeLabel}</p>
                   <InlineBar value={(range.count / maxCount) * 100} tone="blue" />
                   <p className="text-right font-mono text-xs">{formatInteger(range.count)}</p>
                 </div>
@@ -730,10 +730,10 @@ function ForecastPanel({ planning }: { planning: ProductReorderPlanningDetail | 
         <div className="max-w-full overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/30">
-                <TableHead className="h-8 px-3 text-[11px] uppercase text-muted-foreground">Input</TableHead>
-                <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Value</TableHead>
-                <TableHead className="h-8 min-w-48 text-[11px] uppercase text-muted-foreground">Readout</TableHead>
+              <TableRow className="bg-slate-950/40">
+                <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-400">Input</TableHead>
+                <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Value</TableHead>
+                <TableHead className="h-8 min-w-48 text-[11px] uppercase text-slate-400">Readout</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -741,7 +741,7 @@ function ForecastPanel({ planning }: { planning: ProductReorderPlanningDetail | 
                 <TableRow key={row.input} className="h-9">
                   <TableCell className="px-3 py-2 text-xs font-medium">{row.input}</TableCell>
                   <TableCell className="py-2 text-right font-mono text-xs">{row.value}</TableCell>
-                  <TableCell className="py-2 text-xs text-muted-foreground">{row.readout}</TableCell>
+                  <TableCell className="py-2 text-xs text-slate-400">{row.readout}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -781,15 +781,15 @@ function InboundLinesPanel({
           <div className="max-w-full overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/30">
-                  <TableHead className="h-8 px-3 text-[11px] uppercase text-muted-foreground">Type</TableHead>
-                  <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Document</TableHead>
-                  <TableHead className="h-8 min-w-40 text-[11px] uppercase text-muted-foreground">Vendor</TableHead>
-                  <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Expected</TableHead>
-                  <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Qty</TableHead>
-                  <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Rate</TableHead>
-                  <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Amount</TableHead>
-                  <TableHead className="h-8 min-w-52 text-[11px] uppercase text-muted-foreground">Note</TableHead>
+                <TableRow className="bg-slate-950/40">
+                  <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-400">Type</TableHead>
+                  <TableHead className="h-8 text-[11px] uppercase text-slate-400">Document</TableHead>
+                  <TableHead className="h-8 min-w-40 text-[11px] uppercase text-slate-400">Vendor</TableHead>
+                  <TableHead className="h-8 text-[11px] uppercase text-slate-400">Expected</TableHead>
+                  <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Qty</TableHead>
+                  <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Rate</TableHead>
+                  <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Amount</TableHead>
+                  <TableHead className="h-8 min-w-52 text-[11px] uppercase text-slate-400">Note</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -798,14 +798,14 @@ function InboundLinesPanel({
                     <TableCell className="px-3 py-2"><CompactBadge tone={line.inboundType === 'OPEN_PO' ? 'blue' : 'good'}>{line.inboundType === 'OPEN_PO' ? 'PO' : 'Receipt'}</CompactBadge></TableCell>
                     <TableCell className="py-2 font-mono text-xs">{line.documentNumber || '-'}</TableCell>
                     <TableCell className="py-2 text-xs">{line.vendor || '-'}</TableCell>
-                    <TableCell className="py-2 text-xs text-muted-foreground">{formatDate(line.expectedOrReceiptDate)}</TableCell>
+                    <TableCell className="py-2 text-xs text-slate-400">{formatDate(line.expectedOrReceiptDate)}</TableCell>
                     <TableCell className="py-2 text-right font-mono text-xs">{formatInteger(line.quantity)}</TableCell>
                     <TableCell className="py-2 text-right font-mono text-xs">{toNumber(line.rate) ? formatCurrency(line.rate) : '-'}</TableCell>
                     <TableCell className="py-2 text-right font-mono text-xs">{toNumber(line.amount) ? formatCurrency(line.amount) : '-'}</TableCell>
-                    <TableCell className="max-w-64 whitespace-normal py-2 text-xs text-muted-foreground">{line.inboundNote || line.status || '-'}</TableCell>
+                    <TableCell className="max-w-64 whitespace-normal py-2 text-xs text-slate-400">{line.inboundNote || line.status || '-'}</TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="h-9 bg-muted/20">
+                <TableRow className="h-9 bg-[#07101d]">
                   <TableCell className="px-3 py-2 text-xs font-semibold" colSpan={4}>Total inbound</TableCell>
                   <TableCell className="py-2 text-right font-mono text-xs font-semibold">{formatInteger(totalQty)}</TableCell>
                   <TableCell />
@@ -859,7 +859,7 @@ function InventoryTrendPanel({
                         {item.isAnchorDay ? <span className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 -translate-y-2 rounded-full bg-foreground" /> : null}
                       </div>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">{compactDate(item.date)}</span>
+                    <span className="text-[10px] text-slate-400">{compactDate(item.date)}</span>
                   </div>
                 );
               })}
@@ -952,7 +952,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d]/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
         <div className="flex w-full items-center justify-between gap-3 px-3">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="-ml-1" />
@@ -975,7 +975,7 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         </div>
       </header>
 
-      <main className="flex-1 space-y-4 overflow-x-hidden bg-muted/20 p-3 md:p-4">
+      <main className="flex-1 space-y-4 overflow-x-hidden bg-[#07101d] p-3 md:p-4">
         <div className="lg:hidden">
           <PeriodSelector currentPeriod={filters.period || '1y'} filters={filters as Record<string, string | number | boolean | undefined>} />
         </div>
@@ -1051,36 +1051,36 @@ export default async function ProductDetailPage({ params, searchParams }: Produc
         <section className="grid gap-3 md:grid-cols-3">
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <Gauge className="h-4 w-4 text-blue-600" />
+              <Gauge className="h-4 w-4 text-blue-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Average Selling Price</p>
+                <p className="text-xs text-slate-400">Average Selling Price</p>
                 <p className="text-sm font-semibold tabular-nums">{formatCurrency(priceDistribution.avgPrice)}</p>
               </div>
             </CardContent>
           </Card>
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <Package className="h-4 w-4 text-emerald-600" />
+              <Package className="h-4 w-4 text-emerald-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Inbound Visibility</p>
+                <p className="text-xs text-slate-400">Inbound Visibility</p>
                 <p className="text-sm font-semibold tabular-nums">{compactInboundLabel(planning)}</p>
               </div>
             </CardContent>
           </Card>
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="grid grid-cols-[1rem_minmax(0,1fr)] items-center gap-3 p-3">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTriangle className="h-4 w-4 text-amber-300" />
               <div className="grid min-w-0 grid-cols-3 gap-3 text-xs">
                 <div>
-                  <p className="text-muted-foreground">Stockout</p>
+                  <p className="text-slate-400">Stockout</p>
                   <p className="truncate font-semibold tabular-nums">{formatDate(planning?.stockoutDate || inventoryStatus?.estimatedStockoutDate)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Reorder</p>
+                  <p className="text-slate-400">Reorder</p>
                   <p className="truncate font-semibold tabular-nums">{formatDate(planning?.reorderByDate || null)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Receipt</p>
+                  <p className="text-slate-400">Receipt</p>
                   <p className="truncate font-semibold tabular-nums">{formatDate(planning?.expectedReceiptDate || null)}</p>
                 </div>
               </div>

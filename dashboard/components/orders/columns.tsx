@@ -87,7 +87,7 @@ export const createColumns = (
       return (
         <Link 
           href={`/orders/${encodeURIComponent(orderNumber)}`}
-          className="text-blue-600 hover:underline font-medium"
+          className="text-blue-300 hover:underline font-medium"
         >
           {orderNumber}
         </Link>
@@ -113,7 +113,7 @@ export const createColumns = (
           {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
             <Link 
               href={`/companies/${encodeURIComponent(order.companyDomain!)}`}
-              className="text-blue-600 hover:underline"
+              className="text-blue-300 hover:underline"
             >
               {customer}
             </Link>
@@ -153,7 +153,7 @@ export const createColumns = (
     header: "Channel",
     cell: ({ row }) => {
       const salesChannel = row.getValue("salesChannel") as string | null
-      if (!salesChannel) return <span className="text-muted-foreground">-</span>
+      if (!salesChannel) return <span className="text-slate-400">-</span>
       
       return (
         <div className="max-w-[120px] truncate">
@@ -169,7 +169,7 @@ export const createColumns = (
     header: "Segment",
     cell: ({ row }) => {
       const customerSegment = row.getValue("customerSegment") as string | null
-      if (!customerSegment) return <span className="text-muted-foreground">-</span>
+      if (!customerSegment) return <span className="text-slate-400">-</span>
       
       return (
         <div className="max-w-[120px] truncate">

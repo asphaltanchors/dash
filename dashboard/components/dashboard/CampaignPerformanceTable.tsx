@@ -10,7 +10,7 @@ interface CampaignPerformanceTableProps {
 export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTableProps) {
   if (campaigns.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
+      <div className="text-center py-8 text-slate-400">
         <p>No campaign data available for the selected period</p>
         <p className="text-sm mt-1">UTM parameters must be present for attribution</p>
       </div>
@@ -18,7 +18,7 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border border-slate-800">
       <Table>
         <TableHeader>
           <TableRow>
@@ -41,7 +41,7 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
             return (
               <TableRow key={campaignKey}>
                 <TableCell className="font-medium">
-                  {campaign.utmCampaign || <span className="text-muted-foreground italic">(not set)</span>}
+                  {campaign.utmCampaign || <span className="text-slate-400 italic">(not set)</span>}
                 </TableCell>
                 <TableCell>
                   {campaign.utmSource ? (
@@ -49,7 +49,7 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
                       {campaign.utmSource}
                     </Badge>
                   ) : (
-                    <span className="text-muted-foreground italic text-sm">(not set)</span>
+                    <span className="text-slate-400 italic text-sm">(not set)</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -58,7 +58,7 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
                       {campaign.utmMedium}
                     </Badge>
                   ) : (
-                    <span className="text-muted-foreground italic text-sm">(not set)</span>
+                    <span className="text-slate-400 italic text-sm">(not set)</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium">
@@ -74,7 +74,7 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
                   {formatCurrency(parseFloat(campaign.avgOrderValue))}
                 </TableCell>
                 <TableCell className="text-right">
-                  <span className="text-muted-foreground">
+                  <span className="text-slate-400">
                     {formatNumber(campaign.marketingOptIns, 0)}
                   </span>
                 </TableCell>

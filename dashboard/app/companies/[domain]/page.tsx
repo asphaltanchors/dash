@@ -90,10 +90,10 @@ function CompactBadge({
       variant="outline"
       className={cn(
         'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
-        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
-        tone === 'bad' && 'border-red-200 bg-red-50 text-red-800',
+        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
       )}
     >
       {children}
@@ -119,14 +119,14 @@ function MetricTile({
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
               <Icon
                 className={cn(
                   'h-3.5 w-3.5',
-                  tone === 'good' && 'text-emerald-600',
-                  tone === 'blue' && 'text-blue-600',
-                  tone === 'warn' && 'text-amber-600',
-                  tone === 'bad' && 'text-red-600',
+                  tone === 'good' && 'text-emerald-300',
+                  tone === 'blue' && 'text-blue-300',
+                  tone === 'warn' && 'text-amber-300',
+                  tone === 'bad' && 'text-red-300',
                 )}
               />
               <span className="truncate">{label}</span>
@@ -134,7 +134,7 @@ function MetricTile({
             <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
           </div>
         </div>
-        <div className="mt-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
       </CardContent>
     </Card>
   );
@@ -142,7 +142,7 @@ function MetricTile({
 
 function InlineBar({ value, tone = 'blue' }: { value: number; tone?: 'blue' | 'green' | 'amber' | 'red' }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
       <div
         className={cn(
           'h-full rounded-full',
@@ -163,11 +163,11 @@ function QuarterPanel({ quarters }: { quarters: CompanyTimeSeriesQuarter[] }) {
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Quarterly Revenue Signal</CardTitle>
-            <p className="text-xs text-muted-foreground">Recent performance, YoY movement, and activity classification</p>
+            <p className="text-xs text-slate-400">Recent performance, YoY movement, and activity classification</p>
           </div>
           <CompactBadge tone="blue">{recent.length} qtrs</CompactBadge>
         </div>
@@ -177,14 +177,14 @@ function QuarterPanel({ quarters }: { quarters: CompanyTimeSeriesQuarter[] }) {
           const revenue = toNumber(quarter.totalRevenue);
           const yoy = toNumber(quarter.yoyRevenueGrowthPct);
           return (
-            <div key={`${quarter.orderYear}-${quarter.orderQuarter}`} className="grid grid-cols-[6rem_minmax(0,1fr)_7rem_4.5rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+            <div key={`${quarter.orderYear}-${quarter.orderQuarter}`} className="grid grid-cols-[6rem_minmax(0,1fr)_7rem_4.5rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
               <div>
                 <p className="font-mono text-xs font-medium">{quarter.orderYear} {quarter.quarterLabel}</p>
                 {quarter.isCurrentQuarter && <CompactBadge tone="blue">current</CompactBadge>}
               </div>
               <InlineBar value={(revenue / maxRevenue) * 100} tone={yoy < 0 ? 'red' : yoy > 0 ? 'green' : 'blue'} />
               <p className="text-right font-mono text-xs font-semibold">{compactCurrency(revenue)}</p>
-              <p className={cn('text-right font-mono text-xs', yoy < 0 ? 'text-red-600' : yoy > 0 ? 'text-emerald-700' : 'text-muted-foreground')}>
+              <p className={cn('text-right font-mono text-xs', yoy < 0 ? 'text-red-300' : yoy > 0 ? 'text-emerald-300' : 'text-slate-400')}>
                 {formatNumber(yoy, 1)}%
               </p>
             </div>
@@ -200,11 +200,11 @@ function ContactsPanel({ contacts, companyName }: { contacts: Contact[]; company
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Contact Coverage</CardTitle>
-            <p className="text-xs text-muted-foreground">{marketable} marketable emails across {contacts.length} contacts</p>
+            <p className="text-xs text-slate-400">{marketable} marketable emails across {contacts.length} contacts</p>
           </div>
           <Link href={`/contacts?search=${encodeURIComponent(companyName)}`}>
             <CompactBadge tone="blue">open queue</CompactBadge>
@@ -213,7 +213,7 @@ function ContactsPanel({ contacts, companyName }: { contacts: Contact[]; company
       </CardHeader>
       <CardContent className="p-0">
         {contacts.length > 0 ? contacts.slice(0, 6).map((contact, index) => (
-          <div key={`${contact.contactDimKey || contact.primaryEmail || contact.fullName}-${index}`} className="border-b px-3 py-2 last:border-b-0">
+          <div key={`${contact.contactDimKey || contact.primaryEmail || contact.fullName}-${index}`} className="border-b border-slate-800 px-3 py-2 last:border-b-0">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -221,13 +221,13 @@ function ContactsPanel({ contacts, companyName }: { contacts: Contact[]; company
                   {contact.isPrimaryCompanyContact && <CompactBadge tone="good">primary</CompactBadge>}
                   {contact.keyAccountContact && <CompactBadge tone="warn">key</CompactBadge>}
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{contact.jobTitle || contact.contactRole || 'Role unknown'}</p>
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">{contact.jobTitle || contact.contactRole || 'Role unknown'}</p>
               </div>
               <CompactBadge tone={contact.contactDataQuality === 'complete' ? 'good' : contact.contactDataQuality === 'minimal' ? 'bad' : 'warn'}>
                 {contact.contactDataQuality || 'unknown'}
               </CompactBadge>
             </div>
-            <div className="mt-1 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
+            <div className="mt-1 grid gap-1 text-[11px] text-slate-400 sm:grid-cols-2">
               <div className="flex min-w-0 items-center gap-1">
                 <Mail className="h-3 w-3 shrink-0" />
                 <span className="truncate font-mono">{contact.primaryEmail || 'No email'}</span>
@@ -239,7 +239,7 @@ function ContactsPanel({ contacts, companyName }: { contacts: Contact[]; company
             </div>
           </div>
         )) : (
-          <div className="px-3 py-6 text-sm text-muted-foreground">No contact records found.</div>
+          <div className="px-3 py-6 text-sm text-slate-400">No contact records found.</div>
         )}
       </CardContent>
     </Card>
@@ -252,11 +252,11 @@ function ProductsPanel({ products }: { products: CompanyProduct[] }) {
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Product Affinity</CardTitle>
-            <p className="text-xs text-muted-foreground">Top products bought by this account</p>
+            <p className="text-xs text-slate-400">Top products bought by this account</p>
           </div>
           <CompactBadge tone="blue">{products.length} SKUs</CompactBadge>
         </div>
@@ -265,12 +265,12 @@ function ProductsPanel({ products }: { products: CompanyProduct[] }) {
         {leaders.map((product) => {
           const spend = toNumber(product.totalAmountSpent);
           return (
-            <div key={product.productService} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+            <div key={product.productService} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
               <div className="min-w-0">
                 <Link href={`/products/${encodeURIComponent(product.productService)}`} className="truncate font-mono text-sm font-medium hover:underline">
                   {product.productService}
                 </Link>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">
                   {product.productFamily || 'Unknown family'} · {formatNumber(product.totalTransactions, 0)} orders · {formatNumber(product.daysSinceLastPurchase, 0)}d since buy
                 </p>
               </div>
@@ -289,11 +289,11 @@ function ProductsPanel({ products }: { products: CompanyProduct[] }) {
 function OrdersTable({ orders }: { orders: CompanyOrder[] }) {
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Recent Order History</CardTitle>
-            <p className="text-xs text-muted-foreground">Latest order activity and value by invoice/order number</p>
+            <p className="text-xs text-slate-400">Latest order activity and value by invoice/order number</p>
           </div>
           <CompactBadge tone="blue">{orders.length} orders</CompactBadge>
         </div>
@@ -356,7 +356,7 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d]/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
@@ -374,38 +374,38 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
         </div>
       </header>
 
-      <div className="flex-1 space-y-4 p-4 md:p-5">
+      <div className="flex-1 space-y-4 bg-[#07101d] p-4 text-slate-100 md:p-5">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-2xl font-semibold tracking-tight">{company.companyName}</h1>
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-slate-50">{company.companyName}</h1>
               <CompactBadge tone={healthToneValue}>{company.healthCategory}</CompactBadge>
               {company.atRiskFlag && <CompactBadge tone="bad">risk</CompactBadge>}
               {company.growthOpportunityFlag && <CompactBadge tone="good">growth</CompactBadge>}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-slate-400">
               {company.enrichedIndustry || 'Industry not available'} · {company.businessSizeCategory} · {company.primaryCountry || 'Unknown location'}
             </p>
             {company.enrichedDescription && (
-              <p className="mt-2 max-w-5xl text-sm leading-5 text-muted-foreground">{company.enrichedDescription}</p>
+              <p className="mt-2 max-w-5xl text-sm leading-5 text-slate-400">{company.enrichedDescription}</p>
             )}
           </div>
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="grid grid-cols-2 gap-3 p-3 text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">Domain Key</p>
+                <p className="text-xs text-slate-400">Domain Key</p>
                 <p className="truncate font-mono text-xs">{company.companyDomainKey}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Archetype</p>
+                <p className="text-xs text-slate-400">Archetype</p>
                 <p className="font-medium">{company.customerArchetype || 'Unknown'}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Founded</p>
+                <p className="text-xs text-slate-400">Founded</p>
                 <p className="font-medium">{company.enrichedFoundedYear || '-'}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Employees</p>
+                <p className="text-xs text-slate-400">Employees</p>
                 <p className="font-medium">{company.enrichedEmployeeCount ? formatNumber(company.enrichedEmployeeCount, 0) : '-'}</p>
               </div>
             </CardContent>
@@ -429,11 +429,11 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
         <div className="grid gap-3 xl:grid-cols-[0.9fr_1.1fr]">
           <ProductsPanel products={products} />
           <Card className="rounded-md py-0 shadow-none">
-            <CardHeader className="border-b px-3 py-2">
+            <CardHeader className="border-b border-slate-800 px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold">Account Intelligence</CardTitle>
-                  <p className="text-xs text-muted-foreground">Profile, enrichment, and relationship flags</p>
+                  <p className="text-xs text-slate-400">Profile, enrichment, and relationship flags</p>
                 </div>
                 <CompactBadge tone={company.growthOpportunityFlag ? 'good' : company.atRiskFlag ? 'bad' : 'blue'}>
                   {company.growthTrendDirection || 'trend unknown'}
@@ -441,24 +441,24 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
               </div>
             </CardHeader>
             <CardContent className="grid gap-3 p-3 text-sm md:grid-cols-2">
-              <div className="rounded-md border p-3">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
+              <div className="rounded-md border border-slate-800 p-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase text-slate-400">
                   <Building2 className="h-3.5 w-3.5" />
                   Profile
                 </div>
                 <dl className="mt-2 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-                  <dt className="text-muted-foreground">Revenue tier</dt>
+                  <dt className="text-slate-400">Revenue tier</dt>
                   <dd>{company.revenueCategory}</dd>
-                  <dt className="text-muted-foreground">Percentile</dt>
+                  <dt className="text-slate-400">Percentile</dt>
                   <dd>{formatNumber(company.revenuePercentile * 100, 0)}th</dd>
-                  <dt className="text-muted-foreground">Region</dt>
+                  <dt className="text-slate-400">Region</dt>
                   <dd>{company.region || '-'}</dd>
-                  <dt className="text-muted-foreground">Data source</dt>
+                  <dt className="text-slate-400">Data source</dt>
                   <dd>{company.enrichmentSource || '-'}</dd>
                 </dl>
               </div>
-              <div className="rounded-md border p-3">
-                <div className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
+              <div className="rounded-md border border-slate-800 p-3">
+                <div className="flex items-center gap-2 text-xs font-medium uppercase text-slate-400">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   Relationship Flags
                 </div>
@@ -468,7 +468,7 @@ export default async function CompanyPage({ params }: CompanyPageProps) {
                   <CompactBadge tone="blue">{company.engagementLevel || 'engagement unknown'}</CompactBadge>
                   <CompactBadge tone="blue">{company.domainType}</CompactBadge>
                 </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                <p className="mt-2 text-xs leading-5 text-slate-400">
                   {company.primaryEmail || company.primaryPhone
                     ? `Legacy contact fields: ${company.primaryEmail || 'no email'} ${company.primaryPhone || 'no phone'}`
                     : 'No legacy contact fields available beyond contact records.'}

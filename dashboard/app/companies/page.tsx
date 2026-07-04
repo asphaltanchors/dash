@@ -74,10 +74,10 @@ function CompactBadge({
       variant="outline"
       className={cn(
         'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
-        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
-        tone === 'bad' && 'border-red-200 bg-red-50 text-red-800',
+        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
       )}
     >
       {children}
@@ -93,7 +93,7 @@ function InlineBar({
   tone?: 'blue' | 'green' | 'amber' | 'red';
 }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
       <div
         className={cn(
           'h-full rounded-full',
@@ -126,14 +126,14 @@ function MetricTile({
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
               <Icon
                 className={cn(
                   'h-3.5 w-3.5',
-                  tone === 'good' && 'text-emerald-600',
-                  tone === 'blue' && 'text-blue-600',
-                  tone === 'warn' && 'text-amber-600',
-                  tone === 'bad' && 'text-red-600',
+                  tone === 'good' && 'text-emerald-300',
+                  tone === 'blue' && 'text-blue-300',
+                  tone === 'warn' && 'text-amber-300',
+                  tone === 'bad' && 'text-red-300',
                 )}
               />
               <span className="truncate">{label}</span>
@@ -141,7 +141,7 @@ function MetricTile({
             <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
           </div>
         </div>
-        <div className="mt-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
       </CardContent>
     </Card>
   );
@@ -159,11 +159,11 @@ function AccountLeadersPanel({
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Account Revenue Leaders</CardTitle>
-            <p className="text-xs text-muted-foreground">Largest accounts in the current filtered result set</p>
+            <p className="text-xs text-slate-400">Largest accounts in the current filtered result set</p>
           </div>
           <CompactBadge tone="blue">{leaders.length} shown</CompactBadge>
         </div>
@@ -176,7 +176,7 @@ function AccountLeadersPanel({
           const tone = healthTone(health);
 
           return (
-            <div key={`${company.companyDomainKey || company.companyName}-${index}`} className="grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+            <div key={`${company.companyDomainKey || company.companyName}-${index}`} className="grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span
@@ -192,7 +192,7 @@ function AccountLeadersPanel({
                     {company.companyName}
                   </Link>
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">
                   {company.activityStatus} · {company.revenueCategory} · {formatNumber(company.daysSinceLastOrder, 0)}d since order
                 </p>
               </div>
@@ -200,7 +200,7 @@ function AccountLeadersPanel({
                 <p className="font-mono text-xs font-semibold">{compactCurrency(revenue)}</p>
                 <div className="flex items-center gap-2">
                   <InlineBar value={(revenue / maxRevenue) * 100} tone={tone === 'good' ? 'green' : tone === 'bad' ? 'red' : tone === 'warn' ? 'amber' : 'blue'} />
-                  <span className="w-10 font-mono text-[11px] text-muted-foreground">{formatNumber(share, 1)}%</span>
+                  <span className="w-10 font-mono text-[11px] text-slate-400">{formatNumber(share, 1)}%</span>
                 </div>
               </div>
             </div>
@@ -226,11 +226,11 @@ function MixPanel({
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">{title}</CardTitle>
-            <p className="text-xs text-muted-foreground">{description}</p>
+            <p className="text-xs text-slate-400">{description}</p>
           </div>
           <CompactBadge tone="blue">{total} rows</CompactBadge>
         </div>
@@ -238,7 +238,7 @@ function MixPanel({
       <CardContent className="space-y-3 p-3">
         {rows.map((row) => (
           <div key={row.label} className="grid grid-cols-[8rem_minmax(0,1fr)_2.5rem] items-center gap-2">
-            <p className="truncate text-xs text-muted-foreground" title={row.label}>{row.label}</p>
+            <p className="truncate text-xs text-slate-400" title={row.label}>{row.label}</p>
             <InlineBar value={(row.count / maxCount) * 100} tone={row.tone} />
             <p className="text-right font-mono text-xs">{row.count}</p>
           </div>
@@ -320,7 +320,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d]/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
         <div className="flex w-full items-center justify-between gap-3 px-3">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="-ml-1" />
@@ -343,7 +343,7 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
         </div>
       </header>
 
-      <main className="flex-1 space-y-4 overflow-x-hidden bg-muted/20 p-3 md:p-4">
+      <main className="flex-1 space-y-4 overflow-x-hidden bg-[#07101d] p-3 md:p-4">
         <div className="flex flex-col gap-3 lg:hidden">
           <PeriodSelector currentPeriod={filters.period || 'all'} filters={filters as Record<string, string | number | boolean | undefined>} />
         </div>
@@ -391,18 +391,18 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
         <section className="grid gap-3 md:grid-cols-3">
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertTriangle className="h-4 w-4 text-red-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Risk Flags</p>
+                <p className="text-xs text-slate-400">Risk Flags</p>
                 <p className="text-sm font-semibold">{formatNumber(atRisk, 0)}</p>
               </div>
             </CardContent>
           </Card>
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <Target className="h-4 w-4 text-emerald-600" />
+              <Target className="h-4 w-4 text-emerald-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Growth Opportunities</p>
+                <p className="text-xs text-slate-400">Growth Opportunities</p>
                 <p className="text-sm font-semibold">{formatNumber(growthOpportunities, 0)}</p>
               </div>
             </CardContent>
@@ -410,15 +410,15 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="grid grid-cols-3 gap-3 p-3 text-xs">
               <div>
-                <p className="text-muted-foreground">Accounts</p>
+                <p className="text-slate-400">Accounts</p>
                 <p className="font-semibold tabular-nums">{formatNumber(totalCount, 0)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Countries</p>
+                <p className="text-slate-400">Countries</p>
                 <p className="font-semibold tabular-nums">{countBy(companies, 'primaryCountry').size}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Page</p>
+                <p className="text-slate-400">Page</p>
                 <p className="font-semibold tabular-nums">{currentPage}</p>
               </div>
             </CardContent>
@@ -426,11 +426,11 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
         </section>
 
         <Card className="rounded-md py-0 shadow-none">
-          <CardHeader className="border-b px-3 py-2">
+          <CardHeader className="border-b border-slate-800 px-3 py-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-sm font-semibold">Company Detail</CardTitle>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-400">
                   Searchable account table with server-side filters, sort, and pagination
                 </p>
               </div>

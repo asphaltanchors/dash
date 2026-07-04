@@ -60,7 +60,7 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                 <TableCell className="font-medium">
                   <Link 
                     href={`/orders/${encodeURIComponent(order.orderNumber)}`}
-                    className="text-blue-600 hover:underline"
+                    className="text-blue-300 hover:underline"
                   >
                     {order.orderNumber}
                   </Link>
@@ -70,7 +70,7 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                     {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
                       <Link 
                         href={`/companies/${encodeURIComponent(order.companyDomain!)}`}
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-300 hover:underline"
                       >
                         {order.customer}
                       </Link>

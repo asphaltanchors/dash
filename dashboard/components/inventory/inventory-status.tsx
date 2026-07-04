@@ -10,12 +10,12 @@ interface InventoryStatusProps {
 }
 
 const statusClasses: Record<string, string> = {
-  NEGATIVE_OR_ZERO: 'bg-red-100 text-red-800 border-red-300',
-  CRITICAL: 'bg-red-100 text-red-800 border-red-300',
-  LOW: 'bg-orange-100 text-orange-800 border-orange-300',
-  MODERATE: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-  SUFFICIENT: 'bg-green-100 text-green-800 border-green-300',
-  NO_RECENT_SALES: 'bg-slate-100 text-slate-800 border-slate-300',
+  NEGATIVE_OR_ZERO: 'border-red-500/30 bg-red-500/10 text-red-200',
+  CRITICAL: 'border-red-500/30 bg-red-500/10 text-red-200',
+  LOW: 'border-orange-500/30 bg-orange-500/10 text-orange-200',
+  MODERATE: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+  SUFFICIENT: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+  NO_RECENT_SALES: 'border-slate-700 bg-slate-900/80 text-slate-300',
 };
 
 function formatDate(date: string) {

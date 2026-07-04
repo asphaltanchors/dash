@@ -123,7 +123,7 @@ export function CompaniesFilters({ className }: FiltersProps) {
   return (
     <div className={className}>
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-400">
           <Filter className="h-4 w-4" />
           Filters
         </div>
@@ -212,7 +212,7 @@ export function CompaniesFilters({ className }: FiltersProps) {
 
       {hasActiveFilters && (
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-xs text-muted-foreground">Active:</span>
+          <span className="text-xs text-slate-400">Active:</span>
           
           {activityStatus && (
             <Badge variant="secondary" className="gap-1 text-xs">

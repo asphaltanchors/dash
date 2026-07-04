@@ -102,10 +102,10 @@ function CompactBadge({
       variant="outline"
       className={cn(
         'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
-        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
-        tone === 'bad' && 'border-red-200 bg-red-50 text-red-800',
+        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
       )}
     >
       {children}
@@ -121,7 +121,7 @@ function InlineBar({
   tone?: 'blue' | 'green' | 'amber' | 'red';
 }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
       <div
         className={cn(
           'h-full rounded-full',
@@ -138,14 +138,14 @@ function InlineBar({
 
 function Delta({ value }: { value: number | null }) {
   if (value == null) {
-    return <span className="text-xs font-semibold text-emerald-700">New</span>;
+    return <span className="text-xs font-semibold text-emerald-300">New</span>;
   }
 
   const positive = value >= 0;
   const Icon = positive ? ArrowUpRight : ArrowDownRight;
 
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums', positive ? 'text-emerald-700' : 'text-red-700')}>
+    <span className={cn('inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums', positive ? 'text-emerald-300' : 'text-red-300')}>
       <Icon className="h-3 w-3" />
       {formatNumber(Math.abs(value), 1)}%
     </span>
@@ -170,14 +170,14 @@ function MetricTile({
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
               <Icon
                 className={cn(
                   'h-3.5 w-3.5',
-                  tone === 'good' && 'text-emerald-600',
-                  tone === 'blue' && 'text-blue-600',
-                  tone === 'warn' && 'text-amber-600',
-                  tone === 'bad' && 'text-red-600',
+                  tone === 'good' && 'text-emerald-300',
+                  tone === 'blue' && 'text-blue-300',
+                  tone === 'warn' && 'text-amber-300',
+                  tone === 'bad' && 'text-red-300',
                 )}
               />
               <span className="truncate">{label}</span>
@@ -185,7 +185,7 @@ function MetricTile({
             <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
           </div>
         </div>
-        <div className="mt-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
       </CardContent>
     </Card>
   );
@@ -205,11 +205,11 @@ function HighlightsPanel({
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Channel Leaders</CardTitle>
-            <p className="text-xs text-muted-foreground">Largest current revenue channels and mix pressure</p>
+            <p className="text-xs text-slate-400">Largest current revenue channels and mix pressure</p>
           </div>
           <CompactBadge tone="blue">{leaders.length} leaders</CompactBadge>
         </div>
@@ -224,13 +224,13 @@ function HighlightsPanel({
           const change = revenueChange(channel);
 
           return (
-            <div key={channel.sales_channel} className="grid grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+            <div key={channel.sales_channel} className="grid grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-blue-500" />
                   <p className="truncate text-sm font-medium">{displayChannelName(channel.sales_channel || 'Unknown')}</p>
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">
                   {formatNumber(orders, 0)} orders · {formatCurrency(aov, { showCents: false })} AOV · <Delta value={change} />
                 </p>
               </div>
@@ -238,7 +238,7 @@ function HighlightsPanel({
                 <p className="font-mono text-xs">{formatCurrency(revenue, { showCents: false })}</p>
                 <div className="flex items-center gap-2">
                   <InlineBar value={(revenue / maxRevenue) * 100} tone="blue" />
-                  <span className="w-9 text-[11px] text-muted-foreground">{formatNumber(share, 1)}%</span>
+                  <span className="w-9 text-[11px] text-slate-400">{formatNumber(share, 1)}%</span>
                 </div>
               </div>
             </div>
@@ -264,7 +264,7 @@ function MixPanel({
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <CardTitle className="text-sm font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -275,7 +275,7 @@ function MixPanel({
           const change = revenueChange(row);
 
           return (
-            <div key={row.sales_channel} className="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-3 border-b px-3 py-1.5 last:border-b-0">
+            <div key={row.sales_channel} className="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-3 border-b border-slate-800 px-3 py-1.5 last:border-b-0">
               <div className="min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <p className="truncate text-xs font-medium">{displayChannelName(row.sales_channel || 'Unknown')}</p>
@@ -283,12 +283,12 @@ function MixPanel({
                 </div>
                 <div className="mt-1 flex items-center gap-2">
                   <InlineBar value={share} tone={share >= 35 ? 'green' : 'blue'} />
-                  <span className="w-9 text-[11px] text-muted-foreground">{formatNumber(share, 1)}%</span>
+                  <span className="w-9 text-[11px] text-slate-400">{formatNumber(share, 1)}%</span>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-mono text-xs">{formatCurrency(revenue, { showCents: false })}</p>
-                <p className="font-mono text-[11px] text-muted-foreground">{formatNumber(toNumber(period?.order_count), 0)} orders</p>
+                <p className="font-mono text-[11px] text-slate-400">{formatNumber(toNumber(period?.order_count), 0)} orders</p>
               </div>
             </div>
           );
@@ -316,7 +316,7 @@ export default async function SalesPerformancePage() {
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d]/95">
         <div className="flex w-full items-center justify-between gap-3 px-3">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="-ml-1" />
@@ -329,14 +329,14 @@ export default async function SalesPerformancePage() {
               </BreadcrumbList>
             </Breadcrumb>
           </div>
-          <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
+          <div className="hidden items-center gap-2 text-xs text-slate-400 md:flex">
             <span>{channelMetrics.length} channels</span>
             <CompactBadge tone={topChannelShare >= 45 ? 'warn' : 'blue'}>{formatNumber(topChannelShare, 1)}% top-channel share</CompactBadge>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 space-y-3 bg-muted/20 p-3 md:p-4">
+      <main className="flex-1 space-y-3 bg-[#07101d] p-3 md:p-4">
         <section className="grid gap-3 xl:grid-cols-[1fr_1fr]">
           <div className="space-y-3">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -381,11 +381,11 @@ export default async function SalesPerformancePage() {
 
         <section className="grid gap-3 2xl:grid-cols-[1fr_1fr]">
           <Card className="rounded-md py-0 shadow-none">
-            <CardHeader className="border-b px-3 py-2">
+            <CardHeader className="border-b border-slate-800 px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold">Sales by Channel</CardTitle>
-                  <p className="text-xs text-muted-foreground">Revenue share, order share, average order, and four-period trend</p>
+                  <p className="text-xs text-slate-400">Revenue share, order share, average order, and four-period trend</p>
                 </div>
                 <CompactBadge tone="blue">{formatCurrency(channelTotals.revenue, { showCents: false })}</CompactBadge>
               </div>
@@ -396,11 +396,11 @@ export default async function SalesPerformancePage() {
           </Card>
 
           <Card className="rounded-md py-0 shadow-none">
-            <CardHeader className="border-b px-3 py-2">
+            <CardHeader className="border-b border-slate-800 px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold">Sales by Customer Segment</CardTitle>
-                  <p className="text-xs text-muted-foreground">Revenue concentration by customer type and business model</p>
+                  <p className="text-xs text-slate-400">Revenue concentration by customer type and business model</p>
                 </div>
                 <CompactBadge tone="good">{segmentMetrics.length} segments</CompactBadge>
               </div>
@@ -412,35 +412,35 @@ export default async function SalesPerformancePage() {
         </section>
 
         <section className="grid gap-3 md:grid-cols-3">
-          <Link href="/marketing-attribution" className="group rounded-md border bg-card p-3 text-card-foreground shadow-none transition-colors hover:border-blue-300">
+          <Link href="/marketing-attribution" className="group rounded-md border border-slate-800 bg-[#0b1322] p-3 text-slate-100 shadow-none transition-colors hover:border-blue-500/50">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-blue-600" />
+                <Gauge className="h-4 w-4 text-blue-300" />
                 <span className="text-sm font-semibold">Marketing Attribution</span>
               </div>
-              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-700" />
+              <ArrowUpRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-300" />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Acquisition channel, campaign, referral, and landing-page readouts</p>
+            <p className="mt-1 text-xs text-slate-400">Acquisition channel, campaign, referral, and landing-page readouts</p>
           </Link>
-          <Link href="/orders" className="group rounded-md border bg-card p-3 text-card-foreground shadow-none transition-colors hover:border-blue-300">
+          <Link href="/orders" className="group rounded-md border border-slate-800 bg-[#0b1322] p-3 text-slate-100 shadow-none transition-colors hover:border-blue-500/50">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-emerald-600" />
+                <BarChart3 className="h-4 w-4 text-emerald-300" />
                 <span className="text-sm font-semibold">Orders</span>
               </div>
-              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-700" />
+              <ArrowUpRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-300" />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Order-level customer, status, amount, channel, and payment detail</p>
+            <p className="mt-1 text-xs text-slate-400">Order-level customer, status, amount, channel, and payment detail</p>
           </Link>
-          <Link href="/" className="group rounded-md border bg-card p-3 text-card-foreground shadow-none transition-colors hover:border-blue-300">
+          <Link href="/" className="group rounded-md border border-slate-800 bg-[#0b1322] p-3 text-slate-100 shadow-none transition-colors hover:border-blue-500/50">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Layers3 className="h-4 w-4 text-amber-600" />
+                <Layers3 className="h-4 w-4 text-amber-300" />
                 <span className="text-sm font-semibold">Business Cockpit</span>
               </div>
-              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-700" />
+              <ArrowUpRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-300" />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Revenue, cash, inventory, attribution, and exception context</p>
+            <p className="mt-1 text-xs text-slate-400">Revenue, cash, inventory, attribution, and exception context</p>
           </Link>
         </section>
       </main>

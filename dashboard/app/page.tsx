@@ -165,7 +165,7 @@ function Delta({ value, suffix = '%' }: { value: number | string | null | undefi
 
 function Panel({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <section className={cn('rounded-md border border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
+    <section className={cn('rounded-md border border-slate-800 border-slate-800/90 bg-[#0b1322] shadow-[0_10px_24px_rgba(0,0,0,0.16)]', className)}>
       {children}
     </section>
   )
@@ -181,7 +181,7 @@ function PanelHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800 px-3 py-2">
+    <div className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-800 border-slate-800 px-3 py-2">
       <div className="min-w-0">
         <h2 className="truncate text-sm font-semibold text-slate-100">{title}</h2>
         {eyebrow ? <p className="mt-0.5 truncate text-xs text-slate-400">{eyebrow}</p> : null}
@@ -220,7 +220,7 @@ function IconButton({ icon: Icon, label }: { icon: ComponentType<{ className?: s
       type="button"
       aria-label={label}
       title={label}
-      className="inline-flex size-8 items-center justify-center rounded-md border border-slate-700 bg-slate-950/30 text-slate-300 transition hover:border-slate-500 hover:text-slate-50"
+      className="inline-flex size-8 items-center justify-center rounded-md border border-slate-800 border-slate-700 bg-slate-950/30 text-slate-300 transition hover:border-slate-500 hover:text-slate-50"
     >
       <Icon className="size-4" />
     </button>
@@ -329,7 +329,7 @@ function RatioRow({
   tone: Tone
 }) {
   return (
-    <div className="border-b border-slate-800 py-2 last:border-b-0">
+    <div className="border-b border-slate-800 border-slate-800 py-2 last:border-b-0">
       <div className="flex items-center justify-between gap-3">
         <p className="truncate text-xs font-medium text-slate-200">{label}</p>
         <p className="shrink-0 font-mono text-xs text-slate-100">{value}</p>
@@ -368,7 +368,7 @@ function ReportHealthPanel({
       <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_12rem] 2xl:grid-cols-1">
         <div className="space-y-1">
           {flags.length === 0 ? (
-            <div className="rounded-md border border-slate-800 bg-slate-950/30 px-3 py-2 text-xs text-slate-500">No health checks returned.</div>
+            <div className="rounded-md border border-slate-800 border-slate-800 bg-slate-950/30 px-3 py-2 text-xs text-slate-500">No health checks returned.</div>
           ) : flags.slice(0, 5).map((flag) => (
             <div key={flag.flagKey} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-sm px-1 py-1.5 text-xs">
               <SeverityDot severity={flag.severity} />
@@ -430,7 +430,7 @@ function RevenueTrendPanel({
         title="Revenue Trend"
         eyebrow="Trailing 12 months from current-safe paid order data"
         action={
-          <div className="hidden items-center gap-1 rounded-md border border-slate-800 bg-slate-950/40 p-0.5 text-[11px] text-slate-400 sm:flex">
+          <div className="hidden items-center gap-1 rounded-md border border-slate-800 border-slate-800 bg-slate-950/40 p-0.5 text-[11px] text-slate-400 sm:flex">
             <span className="rounded-sm bg-blue-500/20 px-2 py-1 text-blue-200">12M</span>
             <span className="px-2 py-1">YTD</span>
             <span className="px-2 py-1">3Y</span>
@@ -699,7 +699,7 @@ function ChannelMixPanel({ rows, title = 'Revenue by Channel' }: { rows: Channel
       />
       <div className="space-y-3 p-3">
         {rows.length === 0 ? (
-          <div className="rounded-md border border-slate-800 bg-slate-950/30 px-3 py-5 text-center text-xs text-slate-500">No channel mix available.</div>
+          <div className="rounded-md border border-slate-800 border-slate-800 bg-slate-950/30 px-3 py-5 text-center text-xs text-slate-500">No channel mix available.</div>
         ) : rows.map((row, index) => {
           const tone = tones[index % tones.length]
 
@@ -886,7 +886,7 @@ function MiniStat({
   tone: Tone
 }) {
   return (
-    <div className={cn('rounded-md border p-2', toneStyles[tone].border, toneStyles[tone].bg)}>
+    <div className={cn('rounded-md border border-slate-800 p-2', toneStyles[tone].border, toneStyles[tone].bg)}>
       <p className="text-[11px] text-slate-400">{label}</p>
       <p className="mt-1 truncate text-sm font-semibold tabular-nums text-slate-50">{value}</p>
       {delta != null ? <Delta value={delta} /> : null}
@@ -906,7 +906,7 @@ function FutureDemandAlert({ summary }: { summary: BusinessCockpitSummary }) {
             {formatNumber(summary.futureOrderCount, 0)} future-dated invoices remain in committed demand through {formatIsoDate(summary.latestFutureOrderDate)}.
           </p>
         </div>
-        <Link href="/orders" className="hidden shrink-0 items-center gap-1 rounded-md border border-amber-400/40 px-2 py-1 text-xs font-medium text-amber-200 hover:bg-amber-400/10 sm:inline-flex">
+        <Link href="/orders" className="hidden shrink-0 items-center gap-1 rounded-md border border-slate-800 border-amber-400/40 px-2 py-1 text-xs font-medium text-amber-200 hover:bg-amber-400/10 sm:inline-flex">
           Review <ArrowRight className="size-3" />
         </Link>
       </div>
@@ -945,7 +945,7 @@ export default async function HomePage() {
   if (!summary) {
     return (
       <>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d] text-slate-100">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-800 border-slate-800 bg-[#07101d] text-slate-100">
           <div className="flex items-center gap-2 px-3">
             <SidebarTrigger className="-ml-1 text-slate-300 hover:bg-slate-800 hover:text-slate-50" />
             <Separator orientation="vertical" className="mr-1 bg-slate-800 data-[orientation=vertical]:h-4" />
@@ -976,7 +976,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-slate-800 bg-[#07101d]/95 text-slate-100 backdrop-blur">
+      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-slate-800 border-slate-800 bg-[#07101d]/95 text-slate-100 backdrop-blur">
         <div className="flex w-full items-center justify-between gap-3 px-3">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="-ml-1 text-slate-300 hover:bg-slate-800 hover:text-slate-50" />
@@ -987,14 +987,14 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <div className="hidden items-center gap-1 rounded-md border border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-200 md:flex">
+            <div className="hidden items-center gap-1 rounded-md border border-slate-800 border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-200 md:flex">
               <CalendarDays className="size-3.5 text-slate-400" />
               <span className="font-mono">{formatIsoDate(summary.asOfDate)}</span>
             </div>
-            <div className="hidden rounded-md border border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-300 lg:block">
+            <div className="hidden rounded-md border border-slate-800 border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-300 lg:block">
               Snapshot <span className="font-semibold text-slate-100">Auto</span>
             </div>
-            <div className="hidden items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300 sm:flex">
+            <div className="hidden items-center gap-1 rounded-full border border-slate-800 border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300 sm:flex">
               <span className="size-2 rounded-full bg-emerald-400" />
               Live
             </div>
@@ -1124,7 +1124,7 @@ function QuickLink({
   tone: Tone
 }) {
   return (
-    <Link href={href} className={cn('group rounded-md border border-slate-800 bg-[#0b1322] p-3 transition hover:border-slate-600', toneStyles[tone].border)}>
+    <Link href={href} className={cn('group rounded-md border border-slate-800 border-slate-800 bg-[#0b1322] p-3 transition hover:border-slate-600', toneStyles[tone].border)}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Icon className={cn('size-4 shrink-0', toneStyles[tone].icon)} />

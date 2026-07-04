@@ -76,29 +76,29 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --background: #07101d;
+  --foreground: #e5edf7;
+  --card: #0b1322;
+  --card-foreground: #e5edf7;
+  --popover: #0b1322;
+  --popover-foreground: #e5edf7;
   
   /* Primary brand colors - professional blue */
   --primary: oklch(0.45 0.15 250);
   --primary-foreground: oklch(0.985 0 0);
   
   /* Secondary colors - neutral */
-  --secondary: oklch(0.94 0.01 250);
-  --secondary-foreground: oklch(0.25 0.05 250);
+  --secondary: #111c2f;
+  --secondary-foreground: #dbeafe;
   
   /* Status and utility colors */
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.94 0.02 250);
-  --accent-foreground: oklch(0.25 0.05 250);
+  --muted: #111c2f;
+  --muted-foreground: #94a3b8;
+  --accent: #10234a;
+  --accent-foreground: #eff6ff;
   --destructive: oklch(0.6 0.22 25);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: #1e293b;
+  --input: #334155;
   --ring: oklch(0.45 0.15 250);
   
   /* Health indicator colors - Gentle/Subdued system */
@@ -132,13 +132,13 @@
   --chart-4: oklch(0.6 0.22 25);     /* Red */
   --chart-5: oklch(0.45 0.12 280);   /* Purple */
   
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.45 0.15 250);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.94 0.02 250);
-  --sidebar-accent-foreground: oklch(0.25 0.05 250);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar: #07101d;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #eff6ff;
+  --sidebar-accent: #10234a;
+  --sidebar-accent-foreground: #eff6ff;
+  --sidebar-border: #1e293b;
   --sidebar-ring: oklch(0.45 0.15 250);
 }
 

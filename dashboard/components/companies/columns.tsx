@@ -26,7 +26,7 @@ export const createColumns = (): ColumnDef<CompanyWithHealth>[] => [
       return (
         <Link 
           href={`/companies/${encodeURIComponent(row.original.companyDomainKey)}`}
-          className="hover:underline text-blue-600 font-medium"
+          className="hover:underline text-blue-300 font-medium"
         >
           {row.getValue("companyName")}
         </Link>
@@ -53,9 +53,9 @@ export const createColumns = (): ColumnDef<CompanyWithHealth>[] => [
           <Badge 
             variant="outline"
             className={
-              score >= 80 ? 'bg-health-excellent text-health-excellent-foreground border-health-excellent' :
-              score >= 50 ? 'bg-health-good text-health-good-foreground border-health-good' :
-              'bg-health-poor text-health-poor-foreground border-health-poor'
+              score >= 80 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' :
+              score >= 50 ? 'border-amber-500/30 bg-amber-500/10 text-amber-200' :
+              'border-red-500/30 bg-red-500/10 text-red-200'
             }
           >
             {score}/100
@@ -87,13 +87,13 @@ export const createColumns = (): ColumnDef<CompanyWithHealth>[] => [
           <Badge 
             variant={status === 'Active' || status === 'Highly Active' ? 'outline' : 'secondary'}
             className={
-              status === 'Active' || status === 'Highly Active' ? 'bg-status-active text-status-active-foreground border-status-active' : ''
+              status === 'Active' || status === 'Highly Active' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : ''
             }
           >
             {status}
           </Badge>
-          {atRisk && <Badge variant="outline" className="border-red-200 bg-red-50 text-red-800">risk</Badge>}
-          {growthOpp && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">growth</Badge>}
+          {atRisk && <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-200">risk</Badge>}
+          {growthOpp && <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200">growth</Badge>}
         </div>
       )
     },
@@ -118,9 +118,9 @@ export const createColumns = (): ColumnDef<CompanyWithHealth>[] => [
         <Badge 
           variant="outline"
           className={
-            category.includes('High') ? 'bg-revenue-high text-revenue-high-foreground border-revenue-high' :
-            category.includes('Medium') ? 'bg-revenue-medium text-revenue-medium-foreground border-revenue-medium' :
-            'bg-revenue-low text-revenue-low-foreground border-revenue-low'
+            category.includes('High') ? 'border-violet-500/30 bg-violet-500/10 text-violet-200' :
+            category.includes('Medium') ? 'border-blue-500/30 bg-blue-500/10 text-blue-200' :
+            'border-slate-700 bg-slate-900/80 text-slate-300'
           }
         >
           {category}

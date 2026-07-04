@@ -67,10 +67,10 @@ function CompactBadge({
       variant="outline"
       className={cn(
         'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
-        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
-        tone === 'bad' && 'border-red-200 bg-red-50 text-red-800',
+        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
       )}
     >
       {children}
@@ -86,7 +86,7 @@ function InlineBar({
   tone?: 'blue' | 'green' | 'amber' | 'red';
 }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
       <div
         className={cn(
           'h-full rounded-full',
@@ -119,14 +119,14 @@ function MetricTile({
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
               <Icon
                 className={cn(
                   'h-3.5 w-3.5',
-                  tone === 'good' && 'text-emerald-600',
-                  tone === 'blue' && 'text-blue-600',
-                  tone === 'warn' && 'text-amber-600',
-                  tone === 'bad' && 'text-red-600',
+                  tone === 'good' && 'text-emerald-300',
+                  tone === 'blue' && 'text-blue-300',
+                  tone === 'warn' && 'text-amber-300',
+                  tone === 'bad' && 'text-red-300',
                 )}
               />
               <span className="truncate">{label}</span>
@@ -134,7 +134,7 @@ function MetricTile({
             <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
           </div>
         </div>
-        <div className="mt-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
       </CardContent>
     </Card>
   );
@@ -170,11 +170,11 @@ function TopAccountsPanel({ accounts }: { accounts: AccountAttentionItem[] }) {
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Priority Queue</CardTitle>
-            <p className="text-xs text-muted-foreground">Highest combined attention score with revenue context</p>
+            <p className="text-xs text-slate-400">Highest combined attention score with revenue context</p>
           </div>
           <CompactBadge tone="bad">{leaders.length} shown</CompactBadge>
         </div>
@@ -185,7 +185,7 @@ function TopAccountsPanel({ accounts }: { accounts: AccountAttentionItem[] }) {
           const barTone = tone === 'bad' ? 'red' : tone === 'warn' ? 'amber' : tone === 'good' ? 'green' : 'blue';
 
           return (
-            <div key={account.companyDomainKey} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+            <div key={account.companyDomainKey} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span
@@ -201,7 +201,7 @@ function TopAccountsPanel({ accounts }: { accounts: AccountAttentionItem[] }) {
                     {account.companyName}
                   </Link>
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">
                   {compactCurrency(account.totalRevenue)} total · {account.daysSinceLastOrder}d since order · {account.activityStatus}
                 </p>
               </div>
@@ -229,11 +229,11 @@ function ReasonMixPanel({ accounts }: { accounts: AccountAttentionItem[] }) {
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Why Accounts Are Here</CardTitle>
-            <p className="text-xs text-muted-foreground">Reason code concentration across the queue</p>
+            <p className="text-xs text-slate-400">Reason code concentration across the queue</p>
           </div>
           <CompactBadge tone="blue">{reasons.size} codes</CompactBadge>
         </div>
@@ -271,11 +271,11 @@ function ContactReadinessPanel({ accounts }: { accounts: AccountAttentionItem[] 
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Contact Readiness</CardTitle>
-            <p className="text-xs text-muted-foreground">How reachable the current queue appears</p>
+            <p className="text-xs text-slate-400">How reachable the current queue appears</p>
           </div>
           <CompactBadge tone={missing > 0 ? 'warn' : 'good'}>{formatNumber((human / total) * 100, 0)}% human</CompactBadge>
         </div>
@@ -283,7 +283,7 @@ function ContactReadinessPanel({ accounts }: { accounts: AccountAttentionItem[] 
       <CardContent className="space-y-3 p-3">
         {rows.map((row) => (
           <div key={row.label} className="grid grid-cols-[7.5rem_minmax(0,1fr)_2rem] items-center gap-2">
-            <p className="truncate text-xs text-muted-foreground">{row.label}</p>
+            <p className="truncate text-xs text-slate-400">{row.label}</p>
             <InlineBar value={(row.count / total) * 100} tone={row.tone} />
             <p className="text-right font-mono text-xs">{row.count}</p>
           </div>
@@ -305,7 +305,7 @@ export default async function AccountAttentionPage() {
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d]/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
         <div className="flex w-full items-center justify-between gap-3 px-3">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="-ml-1" />
@@ -320,15 +320,15 @@ export default async function AccountAttentionPage() {
             <CompactBadge tone="warn">{accounts.length} queued</CompactBadge>
           </div>
           {topAccount ? (
-            <div className="hidden min-w-0 items-center gap-2 text-xs text-muted-foreground lg:flex">
-              <Target className="h-3.5 w-3.5 text-red-600" />
+            <div className="hidden min-w-0 items-center gap-2 text-xs text-slate-400 lg:flex">
+              <Target className="h-3.5 w-3.5 text-red-300" />
               <span className="truncate">Top account: {topAccount.companyName}</span>
             </div>
           ) : null}
         </div>
       </header>
 
-      <main className="flex-1 space-y-4 overflow-x-hidden bg-muted/20 p-3 md:p-4">
+      <main className="flex-1 space-y-4 overflow-x-hidden bg-[#07101d] p-3 md:p-4">
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
             label="Revenue at Risk"
@@ -369,11 +369,11 @@ export default async function AccountAttentionPage() {
         </section>
 
         <Card className="rounded-md py-0 shadow-none">
-          <CardHeader className="border-b px-3 py-2">
+          <CardHeader className="border-b border-slate-800 px-3 py-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-sm font-semibold">Detailed Account Queue</CardTitle>
-                <p className="text-xs text-muted-foreground">Prioritized current-safe company risk and opportunity queue</p>
+                <p className="text-xs text-slate-400">Prioritized current-safe company risk and opportunity queue</p>
               </div>
               <CompactBadge tone="blue">{accounts.length} rows</CompactBadge>
             </div>
@@ -382,15 +382,15 @@ export default async function AccountAttentionPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead className="h-8 min-w-64 px-3 text-[11px] uppercase text-muted-foreground">Company</TableHead>
-                    <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Score</TableHead>
-                    <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">1Y Revenue</TableHead>
-                    <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">90D Revenue</TableHead>
-                    <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Days</TableHead>
-                    <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Health</TableHead>
-                    <TableHead className="h-8 min-w-72 text-[11px] uppercase text-muted-foreground">Reasons</TableHead>
-                    <TableHead className="h-8 min-w-72 text-[11px] uppercase text-muted-foreground">Contact</TableHead>
+                  <TableRow className="bg-slate-950/40">
+                    <TableHead className="h-8 min-w-64 px-3 text-[11px] uppercase text-slate-400">Company</TableHead>
+                    <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Score</TableHead>
+                    <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">1Y Revenue</TableHead>
+                    <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">90D Revenue</TableHead>
+                    <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Days</TableHead>
+                    <TableHead className="h-8 text-[11px] uppercase text-slate-400">Health</TableHead>
+                    <TableHead className="h-8 min-w-72 text-[11px] uppercase text-slate-400">Reasons</TableHead>
+                    <TableHead className="h-8 min-w-72 text-[11px] uppercase text-slate-400">Contact</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -407,7 +407,7 @@ export default async function AccountAttentionPage() {
                             </Link>
                             <div className="mt-1 flex min-w-0 items-center gap-1">
                               <CompactBadge tone="blue">{account.revenueCategory}</CompactBadge>
-                              <span className="truncate text-[11px] text-muted-foreground">{account.combinedGrowthTrend}</span>
+                              <span className="truncate text-[11px] text-slate-400">{account.combinedGrowthTrend}</span>
                             </div>
                           </div>
                         </TableCell>
@@ -420,7 +420,7 @@ export default async function AccountAttentionPage() {
                         <TableCell className="py-2">
                           <div className="flex items-center gap-2">
                             <CompactBadge tone={accountHealthTone}>{account.healthScore}</CompactBadge>
-                            <span className="truncate text-xs text-muted-foreground">{account.activityStatus}</span>
+                            <span className="truncate text-xs text-slate-400">{account.activityStatus}</span>
                           </div>
                         </TableCell>
                         <TableCell className="py-2">
@@ -439,11 +439,11 @@ export default async function AccountAttentionPage() {
                         <TableCell className="py-2">
                           <div className="min-w-0">
                             <div className="flex min-w-0 items-center gap-2">
-                              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Users className="h-3.5 w-3.5 text-slate-400" />
                               <span className="truncate text-sm">{account.bestContactName || 'No named contact'}</span>
                               <CompactBadge tone={contactTone(account)}>{contactLabel(account)}</CompactBadge>
                             </div>
-                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{account.bestContactEmail || account.bestContactRole || 'No contact detail'}</p>
+                            <p className="mt-0.5 truncate text-[11px] text-slate-400">{account.bestContactEmail || account.bestContactRole || 'No contact detail'}</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -458,18 +458,18 @@ export default async function AccountAttentionPage() {
         <section className="grid gap-3 md:grid-cols-3">
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <Building2 className="h-4 w-4 text-blue-600" />
+              <Building2 className="h-4 w-4 text-blue-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Queue Revenue</p>
+                <p className="text-xs text-slate-400">Queue Revenue</p>
                 <p className="text-sm font-semibold">{compactCurrency(totalQueueRevenue)}</p>
               </div>
             </CardContent>
           </Card>
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <ArrowDownRight className="h-4 w-4 text-red-600" />
+              <ArrowDownRight className="h-4 w-4 text-red-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Low Health Accounts</p>
+                <p className="text-xs text-slate-400">Low Health Accounts</p>
                 <p className="text-sm font-semibold">{formatNumber(lowHealth.length, 0)}</p>
               </div>
             </CardContent>
@@ -477,15 +477,15 @@ export default async function AccountAttentionPage() {
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="grid grid-cols-3 gap-3 p-3 text-xs">
               <div>
-                <p className="text-muted-foreground">High</p>
+                <p className="text-slate-400">High</p>
                 <p className="font-semibold tabular-nums">{formatNumber(highPriority.length, 0)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Stale</p>
+                <p className="text-slate-400">Stale</p>
                 <p className="font-semibold tabular-nums">{formatNumber(staleAccounts.length, 0)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Human</p>
+                <p className="text-slate-400">Human</p>
                 <p className="font-semibold tabular-nums">{formatNumber(humanContacts, 0)}</p>
               </div>
             </CardContent>

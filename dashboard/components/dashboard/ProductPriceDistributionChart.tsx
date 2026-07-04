@@ -29,7 +29,7 @@ export function ProductPriceDistributionChart({ data }: ProductPriceDistribution
           <CardTitle>Price Distribution</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center text-muted-foreground py-8">
+          <div className="text-center text-slate-400 py-8">
             No sales data available for the selected period
           </div>
         </CardContent>
@@ -59,25 +59,25 @@ export function ProductPriceDistributionChart({ data }: ProductPriceDistribution
       <CardContent className="space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Lowest Price</div>
+            <div className="text-xs text-slate-400">Lowest Price</div>
             <div className="text-lg font-semibold text-green-600">
               {formatCurrency(data.minPrice)}
             </div>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Highest Price</div>
-            <div className="text-lg font-semibold text-red-600">
+            <div className="text-xs text-slate-400">Highest Price</div>
+            <div className="text-lg font-semibold text-red-300">
               {formatCurrency(data.maxPrice)}
             </div>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Average Price</div>
+            <div className="text-xs text-slate-400">Average Price</div>
             <div className="text-lg font-semibold">
               {formatCurrency(data.avgPrice)}
             </div>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Median Price</div>
+            <div className="text-xs text-slate-400">Median Price</div>
             <div className="text-lg font-semibold">
               {formatCurrency(data.medianPrice)}
             </div>

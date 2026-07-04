@@ -30,7 +30,7 @@ export function FamilySalesCard({ familySales, period = '1y' }: FamilySalesCardP
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No family sales data available</p>
+          <p className="text-sm text-slate-400">No family sales data available</p>
         </CardContent>
       </Card>
     );
@@ -64,24 +64,24 @@ export function FamilySalesCard({ familySales, period = '1y' }: FamilySalesCardP
                 <TableCell className="font-medium">
                   <Link 
                     href={`/families/${encodeURIComponent(family.productFamily)}`}
-                    className="hover:underline text-blue-600 hover:text-blue-800"
+                    className="hover:underline text-blue-300 hover:text-blue-200"
                   >
                     {family.productFamily}
                   </Link>
                 </TableCell>
                 <TableCell className="text-right">
                   <div>{formatCurrency(family.currentPeriodSales, { showCents: false })}</div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-slate-400">
                     vs {formatCurrency(family.previousPeriodSales, { showCents: false })}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div>{family.currentPeriodOrders}</div>
-                  <div className="text-xs text-muted-foreground">vs {family.previousPeriodOrders}</div>
+                  <div className="text-xs text-slate-400">vs {family.previousPeriodOrders}</div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div>{family.currentPeriodUnits}</div>
-                  <div className="text-xs text-muted-foreground">vs {family.previousPeriodUnits}</div>
+                  <div className="text-xs text-slate-400">vs {family.previousPeriodUnits}</div>
                 </TableCell>
                 <TableCell className="text-right">
                   {family.salesGrowth !== 0 && (

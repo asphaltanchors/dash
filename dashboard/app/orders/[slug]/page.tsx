@@ -65,10 +65,10 @@ function CompactBadge({
       variant="outline"
       className={cn(
         'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
-        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
-        tone === 'bad' && 'border-red-200 bg-red-50 text-red-800',
+        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
       )}
     >
       {children}
@@ -92,20 +92,20 @@ function MetricTile({
   return (
     <Card className="rounded-md py-0 shadow-none">
       <CardContent className="p-3">
-        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
           <Icon
             className={cn(
               'h-3.5 w-3.5',
-              tone === 'good' && 'text-emerald-600',
-              tone === 'blue' && 'text-blue-600',
-              tone === 'warn' && 'text-amber-600',
-              tone === 'bad' && 'text-red-600',
+              tone === 'good' && 'text-emerald-300',
+              tone === 'blue' && 'text-blue-300',
+              tone === 'warn' && 'text-amber-300',
+              tone === 'bad' && 'text-red-300',
             )}
           />
           <span className="truncate">{label}</span>
         </div>
         <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
-        <div className="mt-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
       </CardContent>
     </Card>
   );
@@ -113,7 +113,7 @@ function MetricTile({
 
 function InlineBar({ value, tone = 'blue' }: { value: number; tone?: 'blue' | 'green' | 'amber' | 'red' }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
       <div
         className={cn(
           'h-full rounded-full',
@@ -151,12 +151,12 @@ function AddressBlock({
   address: ReturnType<typeof formatCompleteAddress>;
 }) {
   return (
-    <div className="rounded-md border p-3">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
+    <div className="rounded-md border border-slate-800 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase text-slate-400">
         <MapPin className="h-3.5 w-3.5" />
         {title}
       </div>
-      <p className="whitespace-pre-line text-sm leading-5 text-muted-foreground">{address || 'No address on file'}</p>
+      <p className="whitespace-pre-line text-sm leading-5 text-slate-400">{address || 'No address on file'}</p>
     </div>
   );
 }
@@ -198,7 +198,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
 
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d]/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
@@ -218,8 +218,8 @@ export default async function OrderPage({ params }: OrderPageProps) {
         </div>
       </header>
 
-      <div className="flex-1 space-y-4 p-4 md:p-5">
-        <Link href="/orders" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <div className="flex-1 space-y-4 bg-[#07101d] p-4 text-slate-100 md:p-5">
+        <Link href="/orders" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-slate-100">
           <ArrowLeft className="h-4 w-4" />
           Back to Orders
         </Link>
@@ -227,17 +227,17 @@ export default async function OrderPage({ params }: OrderPageProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-mono text-2xl font-semibold tracking-tight">Order {order.orderNumber}</h1>
+              <h1 className="font-mono text-2xl font-semibold tracking-tight text-slate-50">Order {order.orderNumber}</h1>
               <CompactBadge tone={order.isPaid ? 'good' : 'warn'}>{order.isPaid ? 'paid' : 'open'}</CompactBadge>
               <CompactBadge tone="blue">{order.status}</CompactBadge>
               {order.salesChannel && <CompactBadge>{order.salesChannel}</CompactBadge>}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-slate-400">
               {formatDate(order.orderDate)} · {order.customerSegment || 'Unknown segment'} · {order.currency || 'USD'}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">Customer</p>
+            <p className="text-xs text-slate-400">Customer</p>
             {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
               <Link href={`/companies/${encodeURIComponent(order.companyDomain!)}`} className="text-sm font-medium hover:underline">
                 {order.customer}
@@ -259,23 +259,23 @@ export default async function OrderPage({ params }: OrderPageProps) {
 
         <div className="grid gap-3 xl:grid-cols-[0.9fr_1.1fr]">
           <Card className="rounded-md py-0 shadow-none">
-            <CardHeader className="border-b px-3 py-2">
+            <CardHeader className="border-b border-slate-800 px-3 py-2">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                <User className="h-4 w-4 text-blue-600" />
+                <User className="h-4 w-4 text-blue-300" />
                 Customer, Payment, Timeline
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 p-3 text-sm md:grid-cols-2 xl:grid-cols-1">
-              <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-md border p-3 text-xs">
-                <dt className="text-muted-foreground">Customer</dt>
+              <div className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-md border border-slate-800 p-3 text-xs">
+                <dt className="text-slate-400">Customer</dt>
                 <dd className="truncate">{order.customer}</dd>
-                <dt className="text-muted-foreground">Sales rep</dt>
+                <dt className="text-slate-400">Sales rep</dt>
                 <dd>{order.salesRep || '-'}</dd>
-                <dt className="text-muted-foreground">Channel</dt>
+                <dt className="text-slate-400">Channel</dt>
                 <dd>{order.salesChannel || '-'}</dd>
-                <dt className="text-muted-foreground">Payment</dt>
+                <dt className="text-slate-400">Payment</dt>
                 <dd>{order.paymentMethod || '-'}</dd>
-                <dt className="text-muted-foreground">Tax rate</dt>
+                <dt className="text-slate-400">Tax rate</dt>
                 <dd>{formatNumber(toNumber(order.effectiveTaxRate) * 100, 2)}%</dd>
               </div>
               <AddressBlock title="Billing" address={billingAddress} />
@@ -284,11 +284,11 @@ export default async function OrderPage({ params }: OrderPageProps) {
           </Card>
 
           <Card className="rounded-md py-0 shadow-none">
-            <CardHeader className="border-b px-3 py-2">
+            <CardHeader className="border-b border-slate-800 px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold">Family Mix</CardTitle>
-                  <p className="text-xs text-muted-foreground">Line value grouped by product family</p>
+                  <p className="text-xs text-slate-400">Line value grouped by product family</p>
                 </div>
                 <CompactBadge tone="blue">{families.length} families</CompactBadge>
               </div>
@@ -296,10 +296,10 @@ export default async function OrderPage({ params }: OrderPageProps) {
             <CardContent className="space-y-3 p-3">
               {families.slice(0, 8).map((family) => (
                 <div key={family.family} className="grid grid-cols-[9rem_minmax(0,1fr)_6rem_3rem] items-center gap-2">
-                  <p className="truncate text-xs text-muted-foreground" title={family.family}>{family.family}</p>
+                  <p className="truncate text-xs text-slate-400" title={family.family}>{family.family}</p>
                   <InlineBar value={(family.amount / maxFamilyAmount) * 100} tone="blue" />
                   <p className="text-right font-mono text-xs">{compactCurrency(family.amount)}</p>
-                  <p className="text-right text-xs text-muted-foreground">{family.lines}</p>
+                  <p className="text-right text-xs text-slate-400">{family.lines}</p>
                 </div>
               ))}
             </CardContent>
@@ -307,11 +307,11 @@ export default async function OrderPage({ params }: OrderPageProps) {
         </div>
 
         <Card className="rounded-md py-0 shadow-none">
-          <CardHeader className="border-b px-3 py-2">
+          <CardHeader className="border-b border-slate-800 px-3 py-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <CardTitle className="text-sm font-semibold">Line Item Detail</CardTitle>
-                <p className="text-xs text-muted-foreground">Product, rate, retail reference, discount, amount, and margin</p>
+                <p className="text-xs text-slate-400">Product, rate, retail reference, discount, amount, and margin</p>
               </div>
               <CompactBadge tone="blue">{lineItems.length} lines</CompactBadge>
             </div>
@@ -343,7 +343,7 @@ export default async function OrderPage({ params }: OrderPageProps) {
                         ) : '-'}
                       </TableCell>
                       <TableCell>
-                        <p className="max-w-72 truncate text-xs text-muted-foreground" title={item.productServiceDescription || undefined}>
+                        <p className="max-w-72 truncate text-xs text-slate-400" title={item.productServiceDescription || undefined}>
                           {item.productServiceDescription || '-'}
                         </p>
                       </TableCell>
@@ -355,14 +355,14 @@ export default async function OrderPage({ params }: OrderPageProps) {
                       <TableCell>
                         <div className="max-w-36">
                           <p className="truncate text-xs">{item.productFamily || '-'}</p>
-                          <p className="truncate text-[11px] text-muted-foreground">{item.materialType || '-'}</p>
+                          <p className="truncate text-[11px] text-slate-400">{item.materialType || '-'}</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-right font-mono text-xs">
                         {item.marginPercentage ? (
                           <div>
                             <p className="font-semibold">{item.marginPercentage}%</p>
-                            <p className="text-[11px] text-muted-foreground">{compactCurrency(item.marginAmount)}</p>
+                            <p className="text-[11px] text-slate-400">{compactCurrency(item.marginAmount)}</p>
                           </div>
                         ) : '-'}
                       </TableCell>

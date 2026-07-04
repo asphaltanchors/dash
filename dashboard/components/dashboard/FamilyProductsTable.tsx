@@ -21,7 +21,7 @@ interface FamilyProductsTableProps {
 export function FamilyProductsTable({ products }: FamilyProductsTableProps) {
   if (products.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
+      <div className="text-center py-8 text-slate-400">
         <p>No products found in this family for the selected period</p>
       </div>
     );
@@ -50,7 +50,7 @@ export function FamilyProductsTable({ products }: FamilyProductsTableProps) {
                   <div className="flex items-center gap-2">
                     <Link 
                       href={`/products/${encodeURIComponent(product.itemName)}`}
-                      className="truncate hover:underline text-blue-600 hover:text-blue-800"
+                      className="truncate hover:underline text-blue-300 hover:text-blue-200"
                     >
                       {product.itemName}
                     </Link>
@@ -62,7 +62,7 @@ export function FamilyProductsTable({ products }: FamilyProductsTableProps) {
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="hidden lg:table-cell text-sm text-muted-foreground max-w-60">
+              <TableCell className="hidden lg:table-cell text-sm text-slate-400 max-w-60">
                 <div className="truncate">
                   {product.salesDescription || '-'}
                 </div>
@@ -82,7 +82,7 @@ export function FamilyProductsTable({ products }: FamilyProductsTableProps) {
                       ? 'text-green-600' 
                       : Number(product.marginPercentage) >= 50 
                       ? 'text-yellow-600' 
-                      : 'text-red-600'
+                      : 'text-red-300'
                   }`}
                 >
                   {product.marginPercentage}%
@@ -92,12 +92,12 @@ export function FamilyProductsTable({ products }: FamilyProductsTableProps) {
                 {formatCurrency(parseFloat(product.periodRevenue))}
               </TableCell>
               <TableCell className="text-right font-mono hidden lg:table-cell">
-                <span className={`${Number(product.periodUnits) > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                <span className={`${Number(product.periodUnits) > 0 ? 'text-blue-300' : 'text-slate-400'}`}>
                   {Number(product.periodUnits).toLocaleString()}
                 </span>
               </TableCell>
               <TableCell className="text-right font-mono hidden xl:table-cell">
-                <span className={`${product.periodOrders > 0 ? 'text-purple-600' : 'text-muted-foreground'}`}>
+                <span className={`${product.periodOrders > 0 ? 'text-purple-600' : 'text-slate-400'}`}>
                   {product.periodOrders}
                 </span>
               </TableCell>

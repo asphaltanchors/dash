@@ -105,7 +105,7 @@ export function DataTable({
         <SearchInput initialValue={searchTerm} />
         <div className="flex items-center gap-4">
           {searchResults && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-400">
               {searchResults}
             </p>
           )}
@@ -137,7 +137,7 @@ export function DataTable({
         </DropdownMenu>
         </div>
       </div>
-      <div className="max-w-full overflow-x-auto rounded-md border">
+      <div className="max-w-full overflow-x-auto rounded-md border border-slate-800">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -188,7 +188,7 @@ export function DataTable({
         </Table>
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
+        <div className="flex-1 text-sm text-slate-400">
           Showing {startRow} to {endRow} of {totalCount} orders
         </div>
         <div className="space-x-2">
@@ -201,7 +201,7 @@ export function DataTable({
             <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
-          <span className="inline-flex min-w-20 justify-center text-sm text-muted-foreground">
+          <span className="inline-flex min-w-20 justify-center text-sm text-slate-400">
             Page {currentPage} of {totalPages}
           </span>
           <Button

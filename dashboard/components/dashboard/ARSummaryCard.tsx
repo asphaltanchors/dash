@@ -31,11 +31,11 @@ export default function ARSummaryCard({ arDetails }: Props) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Accounts Receivable</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <DollarSign className="h-4 w-4 text-slate-400" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">—</div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-400">
             No AR data available
           </p>
         </CardContent>
@@ -47,7 +47,7 @@ export default function ARSummaryCard({ arDetails }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Accounts Receivable</CardTitle>
-        <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <DollarSign className="h-4 w-4 text-slate-400" />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">
@@ -55,12 +55,12 @@ export default function ARSummaryCard({ arDetails }: Props) {
         </div>
         
         <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-slate-400">
             {totalInvoices} open invoices
           </span>
           
           {problemAccounts > 0 && (
-            <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100">
+            <Badge variant="secondary" className="border-orange-500/30 bg-orange-500/10 text-orange-200 hover:bg-orange-500/20">
               <AlertTriangle className="w-3 h-3 mr-1" />
               {problemAccounts} at risk
             </Badge>

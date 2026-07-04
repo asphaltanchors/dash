@@ -20,7 +20,7 @@ function formatAxisCurrency(value: number) {
 export function ProductRevenueBars({ data }: { data: ProductRevenueBarPoint[] }) {
   if (data.length === 0) {
     return (
-      <div className="flex h-52 items-center justify-center rounded-md border border-slate-800 bg-slate-950/30 text-xs text-slate-500">
+      <div className="flex h-52 items-center justify-center rounded-md border border-slate-800 border-slate-800 bg-slate-950/30 text-xs text-slate-500">
         No product revenue trend available
       </div>
     )
@@ -59,7 +59,7 @@ export function ProductRevenueBars({ data }: { data: ProductRevenueBarPoint[] })
               const point = payload[0].payload as ProductRevenueBarPoint
 
               return (
-                <div className="rounded-md border border-slate-700 bg-[#08111f] px-3 py-2 text-xs shadow-xl">
+                <div className="rounded-md border border-slate-800 border-slate-700 bg-[#08111f] px-3 py-2 text-xs shadow-xl">
                   <p className="mb-1 font-medium text-slate-100">{label}</p>
                   <div className="grid gap-1 text-slate-300">
                     <div className="flex min-w-40 justify-between gap-4">

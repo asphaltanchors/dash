@@ -40,11 +40,11 @@ const actionLabels = {
 };
 
 const actionClasses = {
-  OUT_OF_STOCK: 'bg-red-100 text-red-800 border-red-300',
-  BUY: 'bg-blue-100 text-blue-800 border-blue-300',
-  REVIEW: 'bg-amber-100 text-amber-800 border-amber-300',
-  WATCH: 'bg-orange-100 text-orange-800 border-orange-300',
-  OK: 'bg-green-100 text-green-800 border-green-300',
+  OUT_OF_STOCK: 'border-red-500/30 bg-red-500/10 text-red-200',
+  BUY: 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+  REVIEW: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+  WATCH: 'border-orange-500/30 bg-orange-500/10 text-orange-200',
+  OK: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
 };
 
 function formatInteger(value: string): string {
@@ -165,7 +165,7 @@ function PlanningDetailsTooltip({ item }: { item: InventoryPlanningItem }) {
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
           aria-label={`Show planning details for ${item.sku}`}
         >
           <Info className="h-3.5 w-3.5" />
@@ -173,7 +173,7 @@ function PlanningDetailsTooltip({ item }: { item: InventoryPlanningItem }) {
       </TooltipTrigger>
       <TooltipContent side="left" className="max-w-[360px] bg-popover text-popover-foreground shadow-md">
         <div className="space-y-1.5 text-xs">
-          <div className="font-medium text-foreground">{item.sku}</div>
+          <div className="font-medium text-slate-100">{item.sku}</div>
           <div>{forecastBasis(item)}</div>
           <div>{layerBasisDetail(item)}</div>
           <div>
@@ -184,7 +184,7 @@ function PlanningDetailsTooltip({ item }: { item: InventoryPlanningItem }) {
           )}
           <div>{item.policyAssignmentReason.replaceAll('_', ' ')}</div>
           {item.policyReviewFlags && (
-            <div className="text-amber-700">{item.policyReviewFlags.replaceAll('_', ' ')}</div>
+            <div className="text-amber-300">{item.policyReviewFlags.replaceAll('_', ' ')}</div>
           )}
           <div>{item.recommendationReason}</div>
         </div>
@@ -294,14 +294,14 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
 
   function renderWwdSection(section: SectionDefinition) {
     return (
-      <Card key={section.key} className="rounded-md border-blue-200 py-0 shadow-none">
-        <CardHeader className="border-b px-3 py-2">
+      <Card key={section.key} className="rounded-md border-blue-500/30 py-0 shadow-none">
+        <CardHeader className="border-b border-slate-800 px-3 py-2">
           <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <CardTitle className="text-sm font-semibold">{section.title}</CardTitle>
               <CardDescription className="text-xs">{section.description}</CardDescription>
             </div>
-            <Badge variant="outline" className="max-w-[min(100%,28rem)] truncate border-blue-300 bg-blue-50 text-xs text-blue-800">
+            <Badge variant="outline" className="max-w-[min(100%,28rem)] truncate border-blue-500/40 bg-blue-500/10 text-xs text-blue-200">
               {compactSectionSummary(section.items, { useLayerPlan: true })}
             </Badge>
           </div>
@@ -309,7 +309,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <div className="min-w-[860px]">
-              <div className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_8rem_8rem_6rem_2rem] gap-3 border-b bg-muted/30 px-3 py-2 text-[11px] font-medium uppercase text-muted-foreground">
+              <div className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_8rem_8rem_6rem_2rem] gap-3 border-b border-slate-800 bg-slate-950/40 px-3 py-2 text-[11px] font-medium uppercase text-slate-400">
                 <div>SKU</div>
                 <div>Item</div>
                 <div className="text-right">Inventory</div>
@@ -321,12 +321,12 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
               {section.items.map((item) => (
                 <div
                   key={item.sku}
-                  className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_8rem_8rem_6rem_2rem] items-start gap-3 border-b px-3 py-2 last:border-b-0"
+                  className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_8rem_8rem_6rem_2rem] items-start gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0"
                 >
                   <div className="min-w-0">
                     <Link
                       href={`/products/${encodeURIComponent(item.sku)}`}
-                      className="block truncate font-mono text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                      className="block truncate font-mono text-sm font-semibold text-blue-300 hover:text-blue-200 hover:underline"
                     >
                       {item.sku}
                     </Link>
@@ -346,34 +346,34 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
                         {item.confidenceLevel}
                       </Badge>
                       {item.policyValidationStatus === 'review' && (
-                        <Badge variant="outline" className="h-5 rounded-sm border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800">
+                        <Badge variant="outline" className="h-5 rounded-sm border-amber-300 bg-amber-500/10 px-1.5 text-[11px] text-amber-200">
                           policy review
                         </Badge>
                       )}
                     </div>
                   </div>
                   <div className="text-right font-mono text-sm">
-                    <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-600' : 'font-semibold'}>
+                    <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-300' : 'font-semibold'}>
                       {formatInteger(item.onHandQty)}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{item.positionDays || '-'}d</div>
+                    <div className="text-[11px] text-slate-400">{item.positionDays || '-'}d</div>
                   </div>
                   <div className="min-w-0 text-right font-mono text-sm">
                     <div className="truncate">{inboundLabel(item)}</div>
-                    <div className="truncate text-[11px] text-muted-foreground" title={inboundDetail(item)}>
+                    <div className="truncate text-[11px] text-slate-400" title={inboundDetail(item)}>
                       {inboundDetail(item)}
                     </div>
                   </div>
                   <div className="min-w-0 text-right font-mono text-sm font-semibold">
-                    <div className={operationalBuyQty(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                    <div className={operationalBuyQty(item, true) > 0 ? 'text-blue-300' : 'text-slate-400'}>
                       {buyPlanPrimary(item, true)}
                     </div>
-                    <div className="truncate text-[11px] font-normal text-muted-foreground" title={buyPlanDetail(item, true)}>
+                    <div className="truncate text-[11px] font-normal text-slate-400" title={buyPlanDetail(item, true)}>
                       {buyPlanDetail(item, true)}
                     </div>
                   </div>
                   <div className="text-right font-mono text-sm font-semibold">
-                    <span className={operationalBuyCost(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                    <span className={operationalBuyCost(item, true) > 0 ? 'text-blue-300' : 'text-slate-400'}>
                       {formatCurrency(operationalBuyCost(item, true), { showCents: false })}
                     </span>
                   </div>
@@ -398,7 +398,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
 
     return (
       <Card key={section.key} className="rounded-md py-0 shadow-none">
-        <CardHeader className="border-b px-3 py-2">
+        <CardHeader className="border-b border-slate-800 px-3 py-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-sm font-semibold">{section.title}</CardTitle>
@@ -406,7 +406,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
                 {section.description}
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-xs text-muted-foreground">
+            <Badge variant="outline" className="text-xs text-slate-400">
               {compactSectionSummary(section.items)}
             </Badge>
           </div>
@@ -414,7 +414,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <div className="min-w-[760px]">
-              <div className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_5rem_9rem_8rem] gap-3 border-b bg-muted/30 px-3 py-2 text-[11px] font-medium uppercase text-muted-foreground">
+              <div className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_5rem_9rem_8rem] gap-3 border-b border-slate-800 bg-slate-950/40 px-3 py-2 text-[11px] font-medium uppercase text-slate-400">
                 <div>SKU</div>
                 <div>Item</div>
                 <div>Action</div>
@@ -425,16 +425,16 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
               {section.items.map((item) => (
                 <div
                   key={item.sku}
-                  className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_5rem_9rem_8rem] items-start gap-3 border-b px-3 py-2 last:border-b-0"
+                  className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_5rem_9rem_8rem] items-start gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0"
                 >
                   <div className="min-w-0">
                     <Link
                       href={`/products/${encodeURIComponent(item.sku)}`}
-                      className="block truncate font-mono text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                      className="block truncate font-mono text-sm font-semibold text-blue-300 hover:text-blue-200 hover:underline"
                     >
                       {item.sku}
                     </Link>
-                    <div className="truncate text-[11px] text-muted-foreground">{item.preferredVendor}</div>
+                    <div className="truncate text-[11px] text-slate-400">{item.preferredVendor}</div>
                   </div>
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{item.salesDescription || '-'}</div>
@@ -453,20 +453,20 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
                     </Badge>
                   </div>
                   <div className="text-right font-mono text-sm">
-                    <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-600' : 'font-semibold'}>
+                    <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-300' : 'font-semibold'}>
                       {formatInteger(item.onHandQty)}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">{item.positionDays || '-'}d</div>
+                    <div className="text-[11px] text-slate-400">{item.positionDays || '-'}d</div>
                   </div>
                   <div className="min-w-0 text-right font-mono text-sm">
                     <div className="truncate">{inboundLabel(item)}</div>
-                    <div className="truncate text-[11px] text-muted-foreground">{formatDaily(item.forecastDailyQty)}/d</div>
+                    <div className="truncate text-[11px] text-slate-400">{formatDaily(item.forecastDailyQty)}/d</div>
                   </div>
                   <div className="min-w-0 text-right font-mono text-sm font-semibold">
-                    <div className={operationalBuyQty(item, false) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                    <div className={operationalBuyQty(item, false) > 0 ? 'text-blue-300' : 'text-slate-400'}>
                       {buyPlanPrimary(item, false)}
                     </div>
-                    <div className="truncate text-[11px] font-normal text-muted-foreground">
+                    <div className="truncate text-[11px] font-normal text-slate-400">
                       {formatCurrency(operationalBuyCost(item, false), { showCents: false })}
                     </div>
                   </div>
@@ -486,11 +486,11 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
     <div className="space-y-4">
       {wwdSection && renderSection(wwdSection)}
 
-      <div className="rounded-md border bg-card p-3">
+      <div className="rounded-md border border-slate-800 bg-[#0b1322] p-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold">Planning Buckets Under Review</h3>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-slate-400">
               {filteredData.length} SKUs grouped by vendor and current planning focus; WWD remains the primary vetted section
             </p>
           </div>

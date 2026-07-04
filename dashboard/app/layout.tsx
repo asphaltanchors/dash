@@ -34,7 +34,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} bg-[#07101d] text-slate-100 antialiased`}
       >
         <SidebarProvider defaultOpen={defaultOpen}>
           <AppSidebar />

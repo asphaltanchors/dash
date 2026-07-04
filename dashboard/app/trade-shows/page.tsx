@@ -62,10 +62,10 @@ function CompactBadge({
       variant="outline"
       className={cn(
         'h-5 rounded-sm px-1.5 text-[11px] font-medium',
-        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
-        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
-        tone === 'bad' && 'border-red-200 bg-red-50 text-red-800',
+        tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
+        tone === 'blue' && 'border-blue-500/30 bg-blue-500/10 text-blue-200',
+        tone === 'warn' && 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+        tone === 'bad' && 'border-red-500/30 bg-red-500/10 text-red-200',
       )}
     >
       {children}
@@ -81,7 +81,7 @@ function InlineBar({
   tone?: 'blue' | 'green' | 'amber' | 'red';
 }) {
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
       <div
         className={cn(
           'h-full rounded-full',
@@ -114,14 +114,14 @@ function MetricTile({
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-slate-400">
               <Icon
                 className={cn(
                   'h-3.5 w-3.5',
-                  tone === 'good' && 'text-emerald-600',
-                  tone === 'blue' && 'text-blue-600',
-                  tone === 'warn' && 'text-amber-600',
-                  tone === 'bad' && 'text-red-600',
+                  tone === 'good' && 'text-emerald-300',
+                  tone === 'blue' && 'text-blue-300',
+                  tone === 'warn' && 'text-amber-300',
+                  tone === 'bad' && 'text-red-300',
                 )}
               />
               <span className="truncate">{label}</span>
@@ -129,7 +129,7 @@ function MetricTile({
             <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
           </div>
         </div>
-        <div className="mt-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+        <div className="mt-2 text-xs leading-4 text-slate-400">{detail}</div>
       </CardContent>
     </Card>
   );
@@ -143,11 +143,11 @@ function ShowPerformancePanel({ shows }: { shows: TradeShowSummary[] }) {
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Show ROI Leaders</CardTitle>
-            <p className="text-xs text-muted-foreground">365-day attribution by event with lead quality context</p>
+            <p className="text-xs text-slate-400">365-day attribution by event with lead quality context</p>
           </div>
           <CompactBadge tone="blue">{shows.length} shows</CompactBadge>
         </div>
@@ -158,13 +158,13 @@ function ShowPerformancePanel({ shows }: { shows: TradeShowSummary[] }) {
           const conversion = toNumber(show.conversionRate365d);
 
           return (
-            <div key={`${show.showName}-${show.showDate}`} className="grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+            <div key={`${show.showName}-${show.showDate}`} className="grid grid-cols-[minmax(0,1fr)_9rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className={cn('h-2 w-2 rounded-full', revenue > 0 ? 'bg-emerald-500' : 'bg-muted-foreground')} />
+                  <span className={cn('h-2 w-2 rounded-full', revenue > 0 ? 'bg-emerald-500' : 'bg-slate-600')} />
                   <p className="truncate text-sm font-medium">{show.showName}</p>
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">
                   {displayDate(show.showDate)} · {show.location || 'No location'} · {formatNumber(show.totalLeads, 0)} leads · {show.matchRate}% matched
                 </p>
               </div>
@@ -172,7 +172,7 @@ function ShowPerformancePanel({ shows }: { shows: TradeShowSummary[] }) {
                 <p className="font-mono text-xs font-semibold">{compactCurrency(revenue)}</p>
                 <div className="flex items-center gap-2">
                   <InlineBar value={(revenue / maxRevenue) * 100} tone={conversion >= 10 ? 'green' : 'blue'} />
-                  <span className="w-10 font-mono text-[11px] text-muted-foreground">{formatNumber(conversion, 1)}%</span>
+                  <span className="w-10 font-mono text-[11px] text-slate-400">{formatNumber(conversion, 1)}%</span>
                 </div>
               </div>
             </div>
@@ -201,11 +201,11 @@ function AttributionWindowPanel({
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Attribution Window</CardTitle>
-            <p className="text-xs text-muted-foreground">Revenue maturity from short to long horizon</p>
+            <p className="text-xs text-slate-400">Revenue maturity from short to long horizon</p>
           </div>
           <CompactBadge tone="good">{compactCurrency(revenue365d)}</CompactBadge>
         </div>
@@ -213,7 +213,7 @@ function AttributionWindowPanel({
       <CardContent className="space-y-3 p-3">
         {rows.map((row) => (
           <div key={row.label} className="grid grid-cols-[4rem_minmax(0,1fr)_5.5rem] items-center gap-2">
-            <p className="text-xs text-muted-foreground">{row.label}</p>
+            <p className="text-xs text-slate-400">{row.label}</p>
             <InlineBar value={(row.revenue / maxRevenue) * 100} tone={row.tone} />
             <p className="text-right font-mono text-xs font-semibold">{compactCurrency(row.revenue)}</p>
           </div>
@@ -238,11 +238,11 @@ function LeadQualityPanel({ leads }: { leads: TradeShowLead[] }) {
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Lead Quality</CardTitle>
-            <p className="text-xs text-muted-foreground">Match and conversion readiness across sampled leads</p>
+            <p className="text-xs text-slate-400">Match and conversion readiness across sampled leads</p>
           </div>
           <CompactBadge tone={noMatch > 0 ? 'warn' : 'good'}>{formatNumber((matched / total) * 100, 0)}% matched</CompactBadge>
         </div>
@@ -250,7 +250,7 @@ function LeadQualityPanel({ leads }: { leads: TradeShowLead[] }) {
       <CardContent className="space-y-3 p-3">
         {rows.map((row) => (
           <div key={row.label} className="grid grid-cols-[6rem_minmax(0,1fr)_2rem] items-center gap-2">
-            <p className="truncate text-xs text-muted-foreground">{row.label}</p>
+            <p className="truncate text-xs text-slate-400">{row.label}</p>
             <InlineBar value={(row.count / total) * 100} tone={row.tone} />
             <p className="text-right font-mono text-xs">{row.count}</p>
           </div>
@@ -267,11 +267,11 @@ function LeadExceptionPanel({ leads }: { leads: TradeShowLead[] }) {
 
   return (
     <Card className="rounded-md py-0 shadow-none">
-      <CardHeader className="border-b px-3 py-2">
+      <CardHeader className="border-b border-slate-800 px-3 py-2">
         <div className="flex items-center justify-between gap-3">
           <div>
             <CardTitle className="text-sm font-semibold">Lead Exceptions</CardTitle>
-            <p className="text-xs text-muted-foreground">Rows worth inspecting before trusting attribution totals</p>
+            <p className="text-xs text-slate-400">Rows worth inspecting before trusting attribution totals</p>
           </div>
           <CompactBadge tone="warn">{exceptions.length} leads</CompactBadge>
         </div>
@@ -283,19 +283,19 @@ function LeadExceptionPanel({ leads }: { leads: TradeShowLead[] }) {
           const matched = Boolean(lead.companyDomain);
 
           return (
-            <div key={lead.leadId} className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-3 border-b px-3 py-2 last:border-b-0">
+            <div key={lead.leadId} className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={cn('h-2 w-2 rounded-full', matched ? 'bg-blue-500' : 'bg-red-500')} />
                   <p className="truncate text-sm font-medium">{lead.leadName || lead.leadEmail || 'Unnamed lead'}</p>
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">
                   {lead.showName} · {lead.leadCompany || 'No company'} · {matched ? lead.companyDomain : 'no match'}
                 </p>
               </div>
               <div className="text-right">
                 <p className="font-mono text-xs font-semibold">{compactCurrency(revenue)}</p>
-                <p className="text-[11px] text-muted-foreground">{compactCurrency(lifetime)} lifetime</p>
+                <p className="text-[11px] text-slate-400">{compactCurrency(lifetime)} lifetime</p>
               </div>
             </div>
           );
@@ -340,7 +340,7 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
 
   return (
     <>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-slate-800 bg-[#07101d]/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
         <div className="flex w-full items-center justify-between gap-3 px-3">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="-ml-1" />
@@ -363,7 +363,7 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
         </div>
       </header>
 
-      <main className="flex-1 space-y-4 overflow-x-hidden bg-muted/20 p-3 md:p-4">
+      <main className="flex-1 space-y-4 overflow-x-hidden bg-[#07101d] p-3 md:p-4">
         <div className="flex flex-col gap-3 lg:hidden">
           <PeriodSelector currentPeriod={filters.period} filters={filters as Record<string, string | number | boolean | undefined>} />
         </div>
@@ -410,11 +410,11 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
 
         <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,.95fr)]">
           <Card className="min-w-0 rounded-md py-0 shadow-none">
-            <CardHeader className="border-b px-3 py-2">
+            <CardHeader className="border-b border-slate-800 px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold">Show Performance Detail</CardTitle>
-                  <p className="text-xs text-muted-foreground">Trade show attribution analysis for {periodLabel.toLowerCase()}</p>
+                  <p className="text-xs text-slate-400">Trade show attribution analysis for {periodLabel.toLowerCase()}</p>
                 </div>
                 <CompactBadge tone="blue">{shows.length} rows</CompactBadge>
               </div>
@@ -423,14 +423,14 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/30">
-                      <TableHead className="h-8 min-w-64 px-3 text-[11px] uppercase text-muted-foreground">Show</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Leads</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Match</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">30D</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">90D</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">365D</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Conv.</TableHead>
+                    <TableRow className="bg-slate-950/40">
+                      <TableHead className="h-8 min-w-64 px-3 text-[11px] uppercase text-slate-400">Show</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Leads</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Match</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">30D</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">90D</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">365D</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Conv.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -439,7 +439,7 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
                         <TableCell className="px-3 py-2">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{show.showName}</p>
-                            <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+                            <div className="mt-1 flex min-w-0 items-center gap-2 text-[11px] text-slate-400">
                               <Calendar className="h-3 w-3" />
                               <span>{displayDate(show.showDate)}</span>
                               <MapPin className="h-3 w-3" />
@@ -449,7 +449,7 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
                         </TableCell>
                         <TableCell className="py-2 text-right">
                           <div className="font-mono text-xs font-semibold">{formatNumber(show.totalLeads, 0)}</div>
-                          <div className="text-[11px] text-muted-foreground">{formatNumber(show.leadsMatched, 0)} matched</div>
+                          <div className="text-[11px] text-slate-400">{formatNumber(show.leadsMatched, 0)} matched</div>
                         </TableCell>
                         <TableCell className="py-2 text-right">
                           <CompactBadge tone={toNumber(show.matchRate) >= 70 ? 'good' : toNumber(show.matchRate) >= 50 ? 'warn' : 'bad'}>{show.matchRate}%</CompactBadge>
@@ -469,11 +469,11 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
           </Card>
 
           <Card className="min-w-0 rounded-md py-0 shadow-none">
-            <CardHeader className="border-b px-3 py-2">
+            <CardHeader className="border-b border-slate-800 px-3 py-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold">Lead Detail</CardTitle>
-                  <p className="text-xs text-muted-foreground">Individual lead matching and revenue attribution</p>
+                  <p className="text-xs text-slate-400">Individual lead matching and revenue attribution</p>
                 </div>
                 <CompactBadge tone="blue">{leads.length} rows</CompactBadge>
               </div>
@@ -482,12 +482,12 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/30">
-                      <TableHead className="h-8 min-w-60 px-3 text-[11px] uppercase text-muted-foreground">Lead</TableHead>
-                      <TableHead className="h-8 min-w-48 text-[11px] uppercase text-muted-foreground">Show / Company</TableHead>
-                      <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Match</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Lifetime</TableHead>
-                      <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">365D</TableHead>
+                    <TableRow className="bg-slate-950/40">
+                      <TableHead className="h-8 min-w-60 px-3 text-[11px] uppercase text-slate-400">Lead</TableHead>
+                      <TableHead className="h-8 min-w-48 text-[11px] uppercase text-slate-400">Show / Company</TableHead>
+                      <TableHead className="h-8 text-[11px] uppercase text-slate-400">Match</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Lifetime</TableHead>
+                      <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">365D</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -496,20 +496,20 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
                         <TableCell className="px-3 py-2">
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium">{lead.leadName || 'Unnamed lead'}</p>
-                            <p className="truncate font-mono text-[11px] text-muted-foreground">{lead.leadEmail || 'No email'}</p>
+                            <p className="truncate font-mono text-[11px] text-slate-400">{lead.leadEmail || 'No email'}</p>
                           </div>
                         </TableCell>
                         <TableCell className="py-2">
                           <div className="min-w-0">
                             <p className="truncate text-xs">{lead.showName}</p>
-                            <p className="truncate text-[11px] text-muted-foreground">{lead.matchedCustomerName || lead.leadCompany || 'No company'}</p>
+                            <p className="truncate text-[11px] text-slate-400">{lead.matchedCustomerName || lead.leadCompany || 'No company'}</p>
                           </div>
                         </TableCell>
                         <TableCell className="py-2">{matchStatusBadge(lead)}</TableCell>
                         <TableCell className="py-2 text-right font-mono text-xs">{toNumber(lead.lifetimeRevenue) > 0 ? compactCurrency(lead.lifetimeRevenue) : '-'}</TableCell>
                         <TableCell className="py-2 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {lead.hasConverted365d ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : null}
+                            {lead.hasConverted365d ? <CheckCircle2 className="h-3 w-3 text-emerald-300" /> : null}
                             <span className="font-mono text-xs">{toNumber(lead.attributedRevenue365d) > 0 ? compactCurrency(lead.attributedRevenue365d) : '-'}</span>
                           </div>
                         </TableCell>
@@ -525,18 +525,18 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
         <section className="grid gap-3 md:grid-cols-3">
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <Target className="h-4 w-4 text-blue-600" />
+              <Target className="h-4 w-4 text-blue-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">365D Converted Leads</p>
+                <p className="text-xs text-slate-400">365D Converted Leads</p>
                 <p className="text-sm font-semibold">{formatNumber(converted365d, 0)}</p>
               </div>
             </CardContent>
           </Card>
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="flex items-center gap-3 p-3">
-              <Users className="h-4 w-4 text-emerald-600" />
+              <Users className="h-4 w-4 text-emerald-300" />
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Matched Lead Rows</p>
+                <p className="text-xs text-slate-400">Matched Lead Rows</p>
                 <p className="text-sm font-semibold">{formatNumber(matchedLeads, 0)}</p>
               </div>
             </CardContent>
@@ -544,15 +544,15 @@ export default async function TradeShowsPage({ searchParams }: TradeShowsPagePro
           <Card className="rounded-md py-0 shadow-none">
             <CardContent className="grid grid-cols-3 gap-3 p-3 text-xs">
               <div>
-                <p className="text-muted-foreground">30D</p>
+                <p className="text-slate-400">30D</p>
                 <p className="font-semibold tabular-nums">{compactCurrency(revenue30d)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">90D</p>
+                <p className="text-slate-400">90D</p>
                 <p className="font-semibold tabular-nums">{compactCurrency(revenue90d)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">365D</p>
+                <p className="text-slate-400">365D</p>
                 <p className="font-semibold tabular-nums">{compactCurrency(revenue365d)}</p>
               </div>
             </CardContent>

@@ -109,7 +109,7 @@ export function DataTable({
           <div className="flex items-center gap-4">
             <SearchInput initialValue={searchTerm} />
             {searchResults && (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-slate-400">
                 {searchResults}
               </div>
             )}
@@ -119,7 +119,7 @@ export function DataTable({
           </div>
         </div>
       </div>
-      <div className="max-w-full overflow-x-auto rounded-md border">
+      <div className="max-w-full overflow-x-auto rounded-md border border-slate-800">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -170,7 +170,7 @@ export function DataTable({
         </Table>
       </div>
       <div className="flex items-center justify-between space-x-2 py-4">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-slate-400">
           Showing {startRow} to {endRow} of {totalCount} companies
         </div>
         <div className="flex items-center space-x-2">

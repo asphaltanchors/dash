@@ -41,45 +41,44 @@ export function ChannelRevenueChart({ data, monthlyData }: ChannelRevenueChartPr
   const channelNames = data.slice(0, 5).map(c => c.acquisitionChannel);
 
   return (
-    <div className="grid gap-6">
-      {/* Channel Revenue Bar Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Revenue by Acquisition Channel</CardTitle>
+    <div className="grid gap-3">
+      <Card className="rounded-md py-0 shadow-none">
+        <CardHeader className="border-b border-slate-800 px-3 py-2">
+          <CardTitle className="text-sm font-semibold">Revenue by Acquisition Channel</CardTitle>
           <CardDescription>Total revenue comparison across channels</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3">
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={barChartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis
                 dataKey="name"
-                className="text-xs"
+                tick={{ fill: '#94a3b8', fontSize: 11 }}
                 angle={-45}
                 textAnchor="end"
                 height={100}
               />
               <YAxis
-                className="text-xs"
+                tick={{ fill: '#94a3b8', fontSize: 11 }}
                 tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
               />
               <Tooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="rounded-lg border bg-background p-3 shadow-sm">
-                        <div className="font-medium mb-2">{payload[0].payload.name}</div>
+                      <div className="rounded-md border border-slate-700 bg-[#07101d] p-3 text-slate-100 shadow-[0_10px_24px_rgba(0,0,0,0.25)]">
+                        <div className="mb-2 font-medium">{payload[0].payload.name}</div>
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">Revenue:</span>
+                            <span className="text-slate-400">Revenue:</span>
                             <span className="font-medium">{formatCurrency(payload[0].value as number)}</span>
                           </div>
                           <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">Orders:</span>
+                            <span className="text-slate-400">Orders:</span>
                             <span className="font-medium">{payload[0].payload.orders}</span>
                           </div>
                           <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">Customers:</span>
+                            <span className="text-slate-400">Customers:</span>
                             <span className="font-medium">{payload[0].payload.customers}</span>
                           </div>
                         </div>
@@ -95,35 +94,34 @@ export function ChannelRevenueChart({ data, monthlyData }: ChannelRevenueChartPr
         </CardContent>
       </Card>
 
-      {/* Monthly Trend Chart */}
       {trendChartData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Channel Revenue Trends</CardTitle>
+        <Card className="rounded-md py-0 shadow-none">
+          <CardHeader className="border-b border-slate-800 px-3 py-2">
+            <CardTitle className="text-sm font-semibold">Channel Revenue Trends</CardTitle>
             <CardDescription>Monthly revenue trends for top 5 channels</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3">
             <ResponsiveContainer width="100%" height={350}>
               <ComposedChart data={trendChartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis
                   dataKey="month"
-                  className="text-xs"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
                 />
                 <YAxis
-                  className="text-xs"
+                  tick={{ fill: '#94a3b8', fontSize: 11 }}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="rounded-lg border bg-background p-3 shadow-sm">
-                          <div className="font-medium mb-2">{label}</div>
+                        <div className="rounded-md border border-slate-700 bg-[#07101d] p-3 text-slate-100 shadow-[0_10px_24px_rgba(0,0,0,0.25)]">
+                          <div className="mb-2 font-medium">{label}</div>
                           <div className="space-y-1 text-sm">
                             {payload.map((entry, index) => (
                               <div key={index} className="flex justify-between gap-4">
-                                <span className="text-muted-foreground">{entry.name}:</span>
+                                <span className="text-slate-400">{entry.name}:</span>
                                 <span className="font-medium" style={{ color: entry.color }}>
                                   {formatCurrency(entry.value as number)}
                                 </span>
@@ -136,7 +134,7 @@ export function ChannelRevenueChart({ data, monthlyData }: ChannelRevenueChartPr
                     return null;
                   }}
                 />
-                <Legend />
+                <Legend wrapperStyle={{ color: '#cbd5e1', fontSize: 11 }} />
                 {channelNames.map((channel, index) => (
                   <Line
                     key={channel}

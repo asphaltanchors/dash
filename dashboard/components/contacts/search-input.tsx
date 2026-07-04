@@ -42,7 +42,7 @@ export function SearchInput({ initialValue = '' }: SearchInputProps) {
 
   return (
     <div className="relative w-80">
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <Input
         placeholder="Search contacts by name, email, or company..."
         value={searchTerm}

@@ -29,11 +29,11 @@ export default function TopChannelsCard({ channelMetrics }: Props) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Top Sales Channels</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <TrendingUp className="h-4 w-4 text-slate-400" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">—</div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-400">
             No channel data available
           </p>
         </CardContent>
@@ -52,7 +52,7 @@ export default function TopChannelsCard({ channelMetrics }: Props) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">Top Sales Channels</CardTitle>
-        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <TrendingUp className="h-4 w-4 text-slate-400" />
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
@@ -74,7 +74,7 @@ export default function TopChannelsCard({ channelMetrics }: Props) {
                   <div className="text-sm font-semibold">
                     {formatCurrency(channel.revenue, { showCents: false })}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-slate-400">
                     {percentage.toFixed(1)}%
                   </div>
                 </div>
@@ -85,7 +85,7 @@ export default function TopChannelsCard({ channelMetrics }: Props) {
         
         <div className="mt-3 pt-3 border-t">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-muted-foreground">Total</span>
+            <span className="text-xs text-slate-400">Total</span>
             <span className="text-sm font-bold">
               {formatCurrency(totalRevenue, { showCents: false })}
             </span>
