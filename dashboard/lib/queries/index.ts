@@ -58,9 +58,11 @@ export {
   getProducts,
   getProductByName,
   getProductMonthlyRevenue,
+  getProductRevenueTrend,
   getProductPriceDistribution,
   type ProductMetrics,
   type Product,
+  type ProductRevenueTrendPoint,
   type ProductPriceDistribution,
 } from './products';
 

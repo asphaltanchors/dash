@@ -53,6 +53,13 @@ export interface WeeklyRevenue {
   orderCount: number;
 }
 
+export interface ProductRevenueTrendPoint {
+  date: string;
+  revenue: string;
+  orderCount: number;
+  unitsSold: string;
+}
+
 export interface ProductPriceDistribution {
   minPrice: string;
   maxPrice: string;
@@ -141,6 +148,38 @@ export async function getProducts(limit: number = 50, _filters?: ProductFilters)
     periodSales: product.revenue,
     periodUnits: Math.floor(Number(product.unitsSold || 0)),
     periodOrders: product.orderCount,
+  }));
+}
+
+export async function getProductRevenueTrend(filters: ProductFilters = {}): Promise<ProductRevenueTrendPoint[]> {
+  const dateRange = getDateRange(filters.period || '1y', false);
+
+  const rows = await db.execute(sql`
+    SELECT
+      DATE_TRUNC('month', sale_date) AS month_start,
+      SUM(total_revenue) AS revenue,
+      SUM(line_item_count) AS order_count,
+      SUM(total_units_sold) AS units_sold
+    FROM analytics_mart.mart_product_unit_sales
+    WHERE sale_date >= ${dateRange.start}
+      AND sale_date <= ${dateRange.end}
+      AND total_revenue IS NOT NULL
+    GROUP BY DATE_TRUNC('month', sale_date)
+    ORDER BY month_start
+  `);
+
+  const results = rows as unknown as Array<{
+    month_start: string;
+    revenue: string;
+    order_count: string;
+    units_sold: string;
+  }>;
+
+  return results.map((row) => ({
+    date: row.month_start,
+    revenue: Number(row.revenue || 0).toFixed(2),
+    orderCount: Number(row.order_count || 0),
+    unitsSold: Number(row.units_sold || 0).toFixed(0),
   }));
 }
 

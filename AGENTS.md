@@ -160,6 +160,8 @@ docker-compose logs -f dashboard
 docker-compose exec dashboard /bin/sh
 ```
 
+**Dashboard verification note:** Do not run `npm run build` locally for dashboard changes; development runs through the Docker Compose dashboard container and local builds can poison the running container state. Use `npm run lint` locally, and use container-based rebuilds only when a dependency or deployment change requires it.
+
 ### Database Operations
 
 ```bash
