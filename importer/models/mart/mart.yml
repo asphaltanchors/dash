@@ -1625,6 +1625,10 @@ models:
         tests:
           - not_null
           - unique
+      - name: prior_trailing_365d_revenue
+        description: Revenue from the 365-day comparison window immediately before the current trailing 365 days, used to calculate rolling annual growth.
+      - name: trailing_365d_revenue_growth_pct
+        description: Percent change between current trailing 365-day revenue and the prior 365-day comparison window; null when the prior window has no revenue.
 
   - name: mart_data_quality_flags
     description: >

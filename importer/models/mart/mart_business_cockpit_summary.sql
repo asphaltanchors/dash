@@ -38,7 +38,17 @@ revenue_summary AS (
             THEN 1
         END) AS prior_ytd_orders,
         COALESCE(SUM(CASE WHEN order_date >= CURRENT_DATE - INTERVAL '365 days' THEN total_amount ELSE 0 END), 0) AS trailing_365d_revenue,
-        COUNT(CASE WHEN order_date >= CURRENT_DATE - INTERVAL '365 days' THEN 1 END) AS trailing_365d_orders
+        COUNT(CASE WHEN order_date >= CURRENT_DATE - INTERVAL '365 days' THEN 1 END) AS trailing_365d_orders,
+        COALESCE(SUM(CASE
+            WHEN order_date >= CURRENT_DATE - INTERVAL '730 days'
+                AND order_date < CURRENT_DATE - INTERVAL '365 days'
+            THEN total_amount ELSE 0
+        END), 0) AS prior_trailing_365d_revenue,
+        COUNT(CASE
+            WHEN order_date >= CURRENT_DATE - INTERVAL '730 days'
+                AND order_date < CURRENT_DATE - INTERVAL '365 days'
+            THEN 1
+        END) AS prior_trailing_365d_orders
     FROM current_orders
 ),
 
@@ -102,6 +112,12 @@ SELECT
     END AS ytd_order_growth_pct,
     rs.trailing_365d_revenue,
     rs.trailing_365d_orders,
+    rs.prior_trailing_365d_revenue,
+    rs.prior_trailing_365d_orders,
+    CASE
+        WHEN rs.prior_trailing_365d_revenue > 0 THEN ROUND(CAST((rs.trailing_365d_revenue - rs.prior_trailing_365d_revenue) * 100.0 / rs.prior_trailing_365d_revenue AS NUMERIC), 2)
+        ELSE NULL
+    END AS trailing_365d_revenue_growth_pct,
     ars.open_invoice_count,
     ars.open_ar_amount,
     ars.overdue_invoice_count,

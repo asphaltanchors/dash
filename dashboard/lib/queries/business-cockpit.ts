@@ -15,6 +15,9 @@ export interface BusinessCockpitSummary {
   ytdOrderGrowthPct: string | null;
   trailing365dRevenue: string;
   trailing365dOrders: number;
+  priorTrailing365dRevenue: string;
+  priorTrailing365dOrders: number;
+  trailing365dRevenueGrowthPct: string | null;
   openInvoiceCount: number;
   openArAmount: string;
   overdueInvoiceCount: number;
@@ -87,6 +90,9 @@ export async function getBusinessCockpitData(): Promise<BusinessCockpitData> {
       ytdOrderGrowthPct: summary.ytd_order_growth_pct == null ? null : Number(summary.ytd_order_growth_pct).toFixed(1),
       trailing365dRevenue: Number(summary.trailing_365d_revenue || 0).toFixed(2),
       trailing365dOrders: Number(summary.trailing_365d_orders || 0),
+      priorTrailing365dRevenue: Number(summary.prior_trailing_365d_revenue || 0).toFixed(2),
+      priorTrailing365dOrders: Number(summary.prior_trailing_365d_orders || 0),
+      trailing365dRevenueGrowthPct: summary.trailing_365d_revenue_growth_pct == null ? null : Number(summary.trailing_365d_revenue_growth_pct).toFixed(1),
       openInvoiceCount: Number(summary.open_invoice_count || 0),
       openArAmount: Number(summary.open_ar_amount || 0).toFixed(2),
       overdueInvoiceCount: Number(summary.overdue_invoice_count || 0),

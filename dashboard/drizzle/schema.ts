@@ -318,6 +318,10 @@ export const martBusinessCockpitSummaryInAnalyticsMart = analyticsMart.table("ma
 	trailing365DRevenue: numeric("trailing_365d_revenue"),
 	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 	trailing365DOrders: bigint("trailing_365d_orders", { mode: "number" }),
+	priorTrailing365DRevenue: numeric("prior_trailing_365d_revenue"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	priorTrailing365DOrders: bigint("prior_trailing_365d_orders", { mode: "number" }),
+	trailing365DRevenueGrowthPct: numeric("trailing_365d_revenue_growth_pct"),
 	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
 	openInvoiceCount: bigint("open_invoice_count", { mode: "number" }),
 	openArAmount: numeric("open_ar_amount"),

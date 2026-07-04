@@ -706,7 +706,7 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
           <MetricTile
             label="Trailing 365D"
             value={formatCurrency(summary.trailing365dRevenue, { showCents: false })}
-            detail={`${formatNumber(summary.trailing365dOrders, 0)} current-safe orders`}
+            detail={<><Delta value={summary.trailing365dRevenueGrowthPct} /> <span className="text-slate-400">vs prior 365D</span><br />{formatNumber(summary.trailing365dOrders, 0)} current-safe orders</>}
             icon={LineChart}
             tone="purple"
             trend={revenueValues}
