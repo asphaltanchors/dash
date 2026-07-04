@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   ColumnFiltersState,
   SortingState,
@@ -11,7 +12,7 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -29,10 +30,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { createColumns, OrderTableItem } from "./columns"
+import { SearchInput } from "./search-input"
 
 interface DataTableProps {
   data: OrderTableItem[]
-  searchInput?: React.ReactNode
+  totalCount: number
+  currentPage: number
+  pageSize: number
+  searchTerm?: string
   searchResults?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
@@ -40,11 +45,16 @@ interface DataTableProps {
 
 export function DataTable({
   data,
-  searchInput,
+  totalCount,
+  currentPage,
+  pageSize,
+  searchTerm = '',
   searchResults,
   sortBy = 'orderDate',
   sortOrder = 'desc',
 }: DataTableProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   // Create columns on client-side with current sort state
   const columns = createColumns(sortBy, sortOrder);
   // Initialize sorting state from props (server state)
@@ -61,7 +71,10 @@ export function DataTable({
   const table = useReactTable({
     data,
     columns,
+    getRowId: (row) => row.orderNumber,
     manualSorting: true, // Disable client-side sorting
+    manualPagination: true,
+    pageCount: Math.ceil(totalCount / pageSize),
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -76,10 +89,20 @@ export function DataTable({
     },
   })
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
+  const startRow = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const endRow = Math.min(currentPage * pageSize, totalCount)
+
+  const handlePageChange = (newPage: number) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('page', newPage.toString())
+    router.push(`/orders?${params.toString()}`)
+  }
+
   return (
     <div className="w-full">
       <div className="flex items-center justify-between py-4">
-        {searchInput}
+        <SearchInput initialValue={searchTerm} />
         <div className="flex items-center gap-4">
           {searchResults && (
             <p className="text-sm text-muted-foreground">
@@ -114,7 +137,7 @@ export function DataTable({
         </DropdownMenu>
         </div>
       </div>
-      <div className="rounded-md border">
+      <div className="max-w-full overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -166,25 +189,29 @@ export function DataTable({
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          Showing {startRow} to {endRow} of {totalCount} orders
         </div>
         <div className="space-x-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage <= 1}
           >
+            <ChevronLeft className="h-4 w-4" />
             Previous
           </Button>
+          <span className="inline-flex min-w-20 justify-center text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages}
           >
             Next
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

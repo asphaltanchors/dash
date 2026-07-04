@@ -1,296 +1,509 @@
-// ABOUTME: Cash Flow Dashboard with DSO metrics and accounts receivable aging analysis
-// ABOUTME: Displays Days Sales Outstanding, AR aging, and collection risk analytics
-import { Suspense } from 'react'
+// ABOUTME: Dense cash-flow report focused on DSO, A/R aging, and collection risk
+// ABOUTME: Keeps summary context and invoice-level exceptions visible together
+import type { ComponentType, ReactNode } from 'react';
+import Link from 'next/link';
+import {
+  AlertTriangle,
+  ArrowUpRight,
+  CalendarClock,
+  CircleDollarSign,
+  Clock3,
+  Gauge,
+  ReceiptText,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbList,
   BreadcrumbPage,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import {
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertTriangle, TrendingUp, DollarSign, Calendar, Users } from "lucide-react"
-import { getCurrentDSO, getARAgingDetails, getProblemAccounts } from "@/lib/queries"
-import { formatCurrency, formatNumber } from "@/lib/utils"
+} from '@/components/ui/breadcrumb';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { getARAgingDetails, getCurrentDSO, getProblemAccounts } from '@/lib/queries';
+import type { ARAgingDetail, DSOMetric } from '@/lib/queries';
+import { cn, formatCurrency, formatNumber } from '@/lib/utils';
 
-async function DSOSummary() {
-  const currentDSO = await getCurrentDSO()
-  
-  if (!currentDSO) {
-    return (
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>DSO data is not available</AlertDescription>
-      </Alert>
-    )
-  }
+function toNumber(value: number | string | null | undefined) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
 
-  const dsoValue = Number(currentDSO.dsoDays)
-  const assessmentColor = currentDSO.dsoAssessment === 'Excellent' ? 'text-green-600' : 
-                         currentDSO.dsoAssessment === 'Good' ? 'text-blue-600' :
-                         currentDSO.dsoAssessment === 'Fair' ? 'text-yellow-600' : 'text-red-600'
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, value));
+}
 
+function riskTone(risk: string | null | undefined): 'good' | 'warn' | 'bad' | 'critical' | 'neutral' {
+  if (risk === 'Low Risk') return 'good';
+  if (risk === 'Medium Risk') return 'warn';
+  if (risk === 'High Risk') return 'bad';
+  if (risk === 'Critical Risk') return 'critical';
+  return 'neutral';
+}
+
+function assessmentTone(assessment: string | null | undefined): 'good' | 'blue' | 'warn' | 'bad' {
+  if (assessment === 'Excellent') return 'good';
+  if (assessment === 'Good') return 'blue';
+  if (assessment === 'Fair') return 'warn';
+  return 'bad';
+}
+
+function ToneDot({ tone }: { tone: 'good' | 'warn' | 'bad' | 'critical' | 'neutral' | 'blue' }) {
   return (
-    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">Current DSO</p>
-          </div>
-          <p className="text-2xl font-bold">{dsoValue.toFixed(0)} days</p>
-          <p className={`text-xs font-medium ${assessmentColor}`}>{currentDSO.dsoAssessment}</p>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-2">
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">Total A/R</p>
-          </div>
-          <p className="text-2xl font-bold">{formatCurrency(currentDSO.totalAccountsReceivable, { showCents: false })}</p>
-          <p className="text-xs text-muted-foreground">{currentDSO.openInvoiceCount} open invoices</p>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">Collection Efficiency</p>
-          </div>
-          <p className="text-2xl font-bold">{currentDSO.collectionEfficiencyPct}%</p>
-          <p className="text-xs text-muted-foreground">AR as % of recent sales</p>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-2">
-            <Users className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium text-muted-foreground">Daily Avg Sales</p>
-          </div>
-          <p className="text-2xl font-bold">{formatCurrency(currentDSO.dailyAvgSales, { showCents: false })}</p>
-          <p className="text-xs text-muted-foreground">Used in DSO calculation</p>
-        </CardContent>
-      </Card>
+    <span
+      className={cn(
+        'h-2 w-2 rounded-full',
+        tone === 'good' && 'bg-emerald-500',
+        tone === 'blue' && 'bg-blue-500',
+        tone === 'warn' && 'bg-amber-500',
+        tone === 'bad' && 'bg-orange-500',
+        tone === 'critical' && 'bg-red-500',
+        tone === 'neutral' && 'bg-muted-foreground',
+      )}
+    />
+  );
+}
+
+function CompactBadge({
+  children,
+  tone = 'neutral',
+}: {
+  children: ReactNode;
+  tone?: 'neutral' | 'good' | 'blue' | 'warn' | 'bad' | 'critical';
+}) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'h-5 rounded-sm px-1.5 text-[11px] font-medium',
+        tone === 'good' && 'border-emerald-200 bg-emerald-50 text-emerald-800',
+        tone === 'blue' && 'border-blue-200 bg-blue-50 text-blue-800',
+        tone === 'warn' && 'border-amber-200 bg-amber-50 text-amber-800',
+        tone === 'bad' && 'border-orange-200 bg-orange-50 text-orange-800',
+        tone === 'critical' && 'border-red-200 bg-red-50 text-red-800',
+      )}
+    >
+      {children}
+    </Badge>
+  );
+}
+
+function InlineBar({
+  value,
+  tone = 'blue',
+}: {
+  value: number;
+  tone?: 'blue' | 'green' | 'amber' | 'orange' | 'red';
+}) {
+  return (
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      <div
+        className={cn(
+          'h-full rounded-full',
+          tone === 'blue' && 'bg-blue-500',
+          tone === 'green' && 'bg-emerald-500',
+          tone === 'amber' && 'bg-amber-500',
+          tone === 'orange' && 'bg-orange-500',
+          tone === 'red' && 'bg-red-500',
+        )}
+        style={{ width: `${clampPercent(value)}%` }}
+      />
     </div>
-  )
+  );
 }
 
-async function ARAgingBreakdown() {
-  const arDetails = await getARAgingDetails()
-  const summaryData = arDetails.filter(item => item.analysisLevel === 'Aging Summary')
-  
+function MetricTile({
+  label,
+  value,
+  detail,
+  icon: Icon,
+  tone = 'blue',
+}: {
+  label: string;
+  value: string;
+  detail: ReactNode;
+  icon: ComponentType<{ className?: string }>;
+  tone?: 'good' | 'blue' | 'warn' | 'bad';
+}) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Aging Bucket</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead className="text-right">Invoices</TableHead>
-          <TableHead className="text-right">Avg Days</TableHead>
-          <TableHead>Risk Level</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {summaryData
-          .sort((a, b) => {
-            const order = ['Current', 'Past Due', 'Overdue', 'Severely Overdue']
-            const aOrder = order.findIndex(o => a.agingBucket?.includes(o)) ?? 999
-            const bOrder = order.findIndex(o => b.agingBucket?.includes(o)) ?? 999
-            return aOrder - bOrder
-          })
-          .map((item, index) => {
-          const riskColor = item.collectionRisk === 'Low Risk' ? 'bg-green-100 text-green-800' :
-                           item.collectionRisk === 'Medium Risk' ? 'bg-yellow-100 text-yellow-800' :
-                           item.collectionRisk === 'High Risk' ? 'bg-orange-100 text-orange-800' :
-                           'bg-red-100 text-red-800'
-          
-          return (
-            <TableRow key={index}>
-              <TableCell className="font-medium">{item.agingBucket}</TableCell>
-              <TableCell className="text-right font-semibold">
-                {formatCurrency(item.totalArAmount, { showCents: false })}
-              </TableCell>
-              <TableCell className="text-right">{formatNumber(item.openInvoiceCount)}</TableCell>
-              <TableCell className="text-right">{item.avgDaysOutstanding}</TableCell>
-              <TableCell>
-                <Badge variant="secondary" className={riskColor}>
-                  {item.collectionRisk}
-                </Badge>
-              </TableCell>
-            </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
-  )
-}
-
-async function ProblemAccountsTable() {
-  const problemAccounts = await getProblemAccounts()
-  
-  if (problemAccounts.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>No high-risk accounts found</p>
-      </div>
-    )
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Customer</TableHead>
-          <TableHead>Invoice</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead className="text-right">Days Outstanding</TableHead>
-          <TableHead>Risk</TableHead>
-          <TableHead>Payment Pattern</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {problemAccounts.slice(0, 10).map((account, index) => {
-          const riskColor = account.collectionRisk === 'High Risk' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'
-          
-          return (
-            <TableRow key={index}>
-              <TableCell className="font-medium">{account.customer}</TableCell>
-              <TableCell>
-                <span className="font-mono text-sm">{account.orderNumber}</span>
-              </TableCell>
-              <TableCell className="text-right font-semibold">
-                {formatCurrency(account.totalAmount)}
-              </TableCell>
-              <TableCell className="text-right">
-                <span className="font-medium">{account.daysOutstanding}</span> days
-              </TableCell>
-              <TableCell>
-                <Badge variant="secondary" className={riskColor}>
-                  {account.collectionRisk}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <span className="text-sm">{account.paymentPattern || 'Unknown'}</span>
-              </TableCell>
-            </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
-  )
-}
-
-function LoadingCard() {
-  return (
-    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i}>
-          <CardContent className="p-6">
-            <div className="space-y-3">
-              <div className="h-4 bg-muted rounded animate-pulse"></div>
-              <div className="h-8 bg-muted rounded animate-pulse"></div>
-              <div className="h-3 bg-muted rounded w-3/4 animate-pulse"></div>
+    <Card className="rounded-md py-0 shadow-none">
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+              <Icon
+                className={cn(
+                  'h-3.5 w-3.5',
+                  tone === 'good' && 'text-emerald-600',
+                  tone === 'blue' && 'text-blue-600',
+                  tone === 'warn' && 'text-amber-600',
+                  tone === 'bad' && 'text-red-600',
+                )}
+              />
+              <span className="truncate">{label}</span>
             </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
+            <div className="mt-1 truncate text-xl font-semibold tabular-nums">{value}</div>
+          </div>
+        </div>
+        <div className="mt-2 text-xs leading-4 text-muted-foreground">{detail}</div>
+      </CardContent>
+    </Card>
+  );
 }
 
-function LoadingTable() {
+function AgingPanel({ rows }: { rows: ARAgingDetail[] }) {
+  const summaryRows = rows
+    .filter((item) => item.analysisLevel === 'Aging Summary')
+    .sort((a, b) => {
+      const order = ['Current', 'Past Due', 'Overdue', 'Severely Overdue'];
+      const aOrder = order.findIndex((bucket) => a.agingBucket?.includes(bucket));
+      const bOrder = order.findIndex((bucket) => b.agingBucket?.includes(bucket));
+      return (aOrder === -1 ? 999 : aOrder) - (bOrder === -1 ? 999 : bOrder);
+    });
+  const maxAmount = Math.max(...summaryRows.map((item) => toNumber(item.totalArAmount)), 1);
+
   return (
-    <div className="space-y-3">
-      <div className="h-12 bg-muted/20 border-b animate-pulse"></div>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex space-x-4">
-          <div className="h-4 bg-muted rounded flex-1 animate-pulse"></div>
-          <div className="h-4 bg-muted rounded w-24 animate-pulse"></div>
-          <div className="h-4 bg-muted rounded w-16 animate-pulse"></div>
-          <div className="h-4 bg-muted rounded w-20 animate-pulse"></div>
+    <Card className="rounded-md py-0 shadow-none">
+      <CardHeader className="border-b px-3 py-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-sm font-semibold">A/R Aging Distribution</CardTitle>
+            <p className="text-xs text-muted-foreground">Exposure by aging bucket and collection risk</p>
+          </div>
+          <CompactBadge tone={summaryRows.some((row) => row.collectionRisk === 'Critical Risk') ? 'critical' : 'warn'}>
+            {summaryRows.length} buckets
+          </CompactBadge>
         </div>
-      ))}
-    </div>
-  )
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30">
+              <TableHead className="h-8 px-3 text-[11px] uppercase text-muted-foreground">Bucket</TableHead>
+              <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Amount</TableHead>
+              <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Invoices</TableHead>
+              <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Avg Days</TableHead>
+              <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Risk</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {summaryRows.map((item) => {
+              const amount = toNumber(item.totalArAmount);
+              const tone = riskTone(item.collectionRisk);
+              const barTone = tone === 'critical' ? 'red' : tone === 'bad' ? 'orange' : tone === 'warn' ? 'amber' : 'green';
+
+              return (
+                <TableRow key={`${item.agingBucket}-${item.collectionRisk}`} className="h-10">
+                  <TableCell className="max-w-[12rem] px-3 py-1.5">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <ToneDot tone={tone} />
+                      <span className="truncate text-sm font-medium">{item.agingBucket}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-1.5 text-right">
+                    <div className="ml-auto w-32 space-y-1">
+                      <p className="font-mono text-xs">{formatCurrency(amount, { showCents: false })}</p>
+                      <InlineBar value={(amount / maxAmount) * 100} tone={barTone} />
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-1.5 text-right font-mono text-xs">
+                    {formatNumber(item.openInvoiceCount, 0)}
+                  </TableCell>
+                  <TableCell className="py-1.5 text-right font-mono text-xs">
+                    {item.avgDaysOutstanding}
+                  </TableCell>
+                  <TableCell className="py-1.5">
+                    <CompactBadge tone={tone}>{item.collectionRisk}</CompactBadge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CollectionPosture({
+  dso,
+  problemAccounts,
+}: {
+  dso: DSOMetric;
+  problemAccounts: ARAgingDetail[];
+}) {
+  const highRiskAmount = problemAccounts.reduce((total, account) => total + toNumber(account.totalAmount), 0);
+  const totalAr = toNumber(dso.totalAccountsReceivable);
+  const riskShare = totalAr > 0 ? (highRiskAmount / totalAr) * 100 : 0;
+  const assessment = assessmentTone(dso.dsoAssessment);
+
+  return (
+    <Card className="rounded-md py-0 shadow-none">
+      <CardHeader className="border-b px-3 py-2">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-sm font-semibold">Collection Posture</CardTitle>
+          <CompactBadge tone={assessment}>{dso.dsoAssessment}</CompactBadge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 p-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-sm border bg-muted/20 p-2">
+            <p className="text-[11px] font-medium uppercase text-muted-foreground">High-risk exposure</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums">{formatCurrency(highRiskAmount, { showCents: false })}</p>
+            <p className="text-xs text-muted-foreground">{problemAccounts.length} invoices</p>
+          </div>
+          <div className="rounded-sm border bg-muted/20 p-2">
+            <p className="text-[11px] font-medium uppercase text-muted-foreground">Exposure share</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums">{formatNumber(riskShare, 1)}%</p>
+            <p className="text-xs text-muted-foreground">of total A/R</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium">Collection efficiency</span>
+            <span className="font-mono">{dso.collectionEfficiencyPct}%</span>
+          </div>
+          <InlineBar value={toNumber(dso.collectionEfficiencyPct)} tone={toNumber(dso.collectionEfficiencyPct) >= 80 ? 'green' : 'amber'} />
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium">Risk concentration</span>
+            <span className="font-mono">{formatNumber(riskShare, 1)}%</span>
+          </div>
+          <InlineBar value={riskShare} tone={riskShare >= 30 ? 'red' : riskShare >= 12 ? 'amber' : 'green'} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProblemAccountsTable({ accounts }: { accounts: ARAgingDetail[] }) {
+  const maxAmount = Math.max(...accounts.map((account) => toNumber(account.totalAmount)), 1);
+
+  return (
+    <Card className="rounded-md py-0 shadow-none">
+      <CardHeader className="border-b px-3 py-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-sm font-semibold">Collection Risk Queue</CardTitle>
+            <p className="text-xs text-muted-foreground">Oldest high-risk open invoices ranked by days outstanding</p>
+          </div>
+          <CompactBadge tone={accounts.some((account) => account.collectionRisk === 'Critical Risk') ? 'critical' : 'bad'}>
+            {accounts.length} invoices
+          </CompactBadge>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {accounts.length === 0 ? (
+          <div className="p-4 text-sm text-muted-foreground">No high-risk accounts found.</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30">
+                <TableHead className="h-8 px-3 text-[11px] uppercase text-muted-foreground">Customer</TableHead>
+                <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Invoice</TableHead>
+                <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Amount</TableHead>
+                <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Outstanding</TableHead>
+                <TableHead className="h-8 text-right text-[11px] uppercase text-muted-foreground">Past Due</TableHead>
+                <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Risk</TableHead>
+                <TableHead className="h-8 text-[11px] uppercase text-muted-foreground">Terms</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {accounts.slice(0, 12).map((account) => {
+                const amount = toNumber(account.totalAmount);
+                const tone = riskTone(account.collectionRisk);
+
+                return (
+                  <TableRow key={`${account.orderNumber}-${account.customer}`} className="h-9">
+                    <TableCell className="max-w-[18rem] px-3 py-1.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <ToneDot tone={tone} />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{account.customer || 'Unknown customer'}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">{account.customerSegment || 'Unsegmented'} · {account.paymentPattern || 'Unknown pattern'}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <span className="font-mono text-xs">{account.orderNumber || 'n/a'}</span>
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right">
+                      <div className="ml-auto w-28 space-y-1">
+                        <p className="font-mono text-xs">{formatCurrency(amount, { showCents: false })}</p>
+                        <InlineBar value={(amount / maxAmount) * 100} tone={tone === 'critical' ? 'red' : 'orange'} />
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right font-mono text-xs">
+                      {account.daysOutstanding}d
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right font-mono text-xs">
+                      {account.daysPastDue}d
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <CompactBadge tone={tone}>{account.collectionRisk}</CompactBadge>
+                    </TableCell>
+                    <TableCell className="max-w-[9rem] py-1.5">
+                      <span className="block truncate text-xs text-muted-foreground">{account.terms || 'n/a'}</span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default async function CashFlowPage() {
+  const [currentDSO, arDetails, problemAccounts] = await Promise.all([
+    getCurrentDSO(),
+    getARAgingDetails(),
+    getProblemAccounts(),
+  ]);
+
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Cash Flow</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background/95">
+        <div className="flex w-full items-center justify-between gap-3 px-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-1 data-[orientation=vertical]:h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Cash Flow</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+          {currentDSO && (
+            <div className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
+              <span>{currentDSO.openInvoiceCount} open invoices</span>
+              <CompactBadge tone={assessmentTone(currentDSO.dsoAssessment)}>{currentDSO.dsoAssessment}</CompactBadge>
+            </div>
+          )}
         </div>
       </header>
-      <div className="flex-1 space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Cash Flow Dashboard</h1>
-            <p className="text-muted-foreground">
-              Days Sales Outstanding, AR aging analysis, and collection performance
-            </p>
-          </div>
-        </div>
 
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>DSO Overview</CardTitle>
-              <CardDescription>Current Days Sales Outstanding metrics and collection efficiency</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Suspense fallback={<LoadingCard />}>
-                <DSOSummary />
-              </Suspense>
+      <main className="flex-1 space-y-3 bg-muted/20 p-3 md:p-4">
+        {!currentDSO ? (
+          <Card className="rounded-md py-0 shadow-none">
+            <CardContent className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              DSO data is not available.
             </CardContent>
           </Card>
+        ) : (
+          <>
+            <section className="grid gap-3 xl:grid-cols-[1fr_1fr]">
+              <div className="space-y-3">
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricTile
+                    label="Current DSO"
+                    value={`${toNumber(currentDSO.dsoDays).toFixed(0)} days`}
+                    detail={currentDSO.dsoAssessment}
+                    icon={CalendarClock}
+                    tone={assessmentTone(currentDSO.dsoAssessment)}
+                  />
+                  <MetricTile
+                    label="Total A/R"
+                    value={formatCurrency(currentDSO.totalAccountsReceivable, { showCents: false })}
+                    detail={`${formatNumber(currentDSO.openInvoiceCount, 0)} open invoices`}
+                    icon={CircleDollarSign}
+                    tone="blue"
+                  />
+                  <MetricTile
+                    label="Collection Efficiency"
+                    value={`${currentDSO.collectionEfficiencyPct}%`}
+                    detail="A/R as percentage of recent sales"
+                    icon={Gauge}
+                    tone={toNumber(currentDSO.collectionEfficiencyPct) >= 80 ? 'good' : 'warn'}
+                  />
+                  <MetricTile
+                    label="Daily Avg Sales"
+                    value={formatCurrency(currentDSO.dailyAvgSales, { showCents: false })}
+                    detail="Used in DSO calculation"
+                    icon={TrendingUp}
+                    tone="good"
+                  />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Accounts Receivable Aging</CardTitle>
-              <CardDescription>AR breakdown by aging buckets with collection risk assessment</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Suspense fallback={<LoadingTable />}>
-                <ARAgingBreakdown />
-              </Suspense>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Problem Accounts Alert</CardTitle>
-              <CardDescription>High-risk and critical accounts requiring attention</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Suspense fallback={<LoadingTable />}>
-                <ProblemAccountsTable />
-              </Suspense>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                <div className="grid gap-3 md:grid-cols-[0.8fr_1fr]">
+                  <CollectionPosture dso={currentDSO} problemAccounts={problemAccounts} />
+                  <Card className="rounded-md py-0 shadow-none">
+                    <CardHeader className="border-b px-3 py-2">
+                      <CardTitle className="text-sm font-semibold">Cash Report Read</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-2 p-3 text-xs text-muted-foreground">
+                      <div className="flex items-start gap-2">
+                        <ReceiptText className="mt-0.5 h-3.5 w-3.5 text-blue-600" />
+                        <span>DSO converts open receivables into days of current sales exposure.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Clock3 className="mt-0.5 h-3.5 w-3.5 text-amber-600" />
+                        <span>Past-due age and risk flags decide where collection attention starts.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Users className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
+                        <span>Invoice rows preserve the customer, terms, amount, and payment-pattern context.</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              <AgingPanel rows={arDetails} />
+            </section>
+
+            {problemAccounts.length > 0 && (
+              <section className="flex items-center gap-2 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{problemAccounts.length} high-risk invoices represent {formatCurrency(problemAccounts.reduce((sum, account) => sum + toNumber(account.totalAmount), 0), { showCents: false })} in collection exposure.</span>
+              </section>
+            )}
+
+            <ProblemAccountsTable accounts={problemAccounts} />
+
+            <section className="grid gap-3 md:grid-cols-3">
+              <Link href="/account-attention" className="group rounded-md border bg-card p-3 text-card-foreground shadow-none transition-colors hover:border-blue-300">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-semibold">Account Attention</span>
+                  </div>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-700" />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Prioritized account risk, growth, and contact context</p>
+              </Link>
+              <Link href="/orders" className="group rounded-md border bg-card p-3 text-card-foreground shadow-none transition-colors hover:border-blue-300">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <ReceiptText className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-semibold">Orders</span>
+                  </div>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-700" />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Invoice-level details, status, customer, and payment state</p>
+              </Link>
+              <Link href="/" className="group rounded-md border bg-card p-3 text-card-foreground shadow-none transition-colors hover:border-blue-300">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Gauge className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-semibold">Business Cockpit</span>
+                  </div>
+                  <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-700" />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Cash, revenue, inventory, attribution, and exception context</p>
+              </Link>
+            </section>
+          </>
+        )}
+      </main>
     </>
-  )
+  );
 }

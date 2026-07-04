@@ -79,12 +79,11 @@ export const createColumns = (): ColumnDef<CompanyWithHealth>[] => [
     },
     cell: ({ row }) => {
       const status = row.getValue("activityStatus") as string
-      const growthTrend = row.original.growthTrendDirection as string
       const atRisk = row.original.atRiskFlag
       const growthOpp = row.original.growthOpportunityFlag
       
       return (
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           <Badge 
             variant={status === 'Active' || status === 'Highly Active' ? 'outline' : 'secondary'}
             className={
@@ -93,12 +92,8 @@ export const createColumns = (): ColumnDef<CompanyWithHealth>[] => [
           >
             {status}
           </Badge>
-          {growthTrend === 'Growing' && <span className="text-green-600" title="Growing trend">↗️</span>}
-          {growthTrend === 'Declining' && <span className="text-red-600" title="Declining trend">↘️</span>}
-          {growthTrend === 'Stable' && <span className="text-blue-600" title="Stable trend">➡️</span>}
-          {growthTrend === 'New Customer' && <span className="text-purple-600" title="New customer">✨</span>}
-          {atRisk && <span className="text-red-600" title="At Risk">⚠️</span>}
-          {growthOpp && <span className="text-green-600" title="Growth Opportunity">🎯</span>}
+          {atRisk && <Badge variant="outline" className="border-red-200 bg-red-50 text-red-800">risk</Badge>}
+          {growthOpp && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800">growth</Badge>}
         </div>
       )
     },

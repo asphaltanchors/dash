@@ -34,6 +34,10 @@ export interface Product {
   customerCount?: number;
   yoyRevenueGrowthPct?: string;
   inventoryStatus?: string | null;
+  estimatedAvailableQuantity?: string | null;
+  reorderValueAtCost?: string | null;
+  topCustomer?: string | null;
+  topCustomerRevenueSharePct?: string | null;
   shouldReorder?: boolean;
   requiresManualReview?: boolean;
   isKit: boolean;
@@ -126,6 +130,10 @@ export async function getProducts(limit: number = 50, _filters?: ProductFilters)
     customerCount: product.customerCount,
     yoyRevenueGrowthPct: product.yoyRevenueGrowthPct,
     inventoryStatus: product.inventoryStatus,
+    estimatedAvailableQuantity: product.estimatedAvailableQuantity,
+    reorderValueAtCost: product.reorderValueAtCost,
+    topCustomer: product.topCustomer,
+    topCustomerRevenueSharePct: product.topCustomerRevenueSharePct,
     shouldReorder: product.shouldReorder,
     requiresManualReview: product.requiresManualReview,
     isKit: false,

@@ -24,10 +24,10 @@ export function PeriodSelector({ currentPeriod = '30d', filters = {} }: PeriodSe
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
       <Calendar className="h-4 w-4 text-muted-foreground" />
       <span className="text-sm text-muted-foreground">Period:</span>
-      <div className="flex items-center gap-1">
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
         {periods.map((period) => (
           <Button
             key={period.value}

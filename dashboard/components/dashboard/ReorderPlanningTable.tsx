@@ -14,14 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/utils';
 import { Info } from 'lucide-react';
@@ -236,14 +228,13 @@ function sortItems(items: InventoryPlanningItem[]): InventoryPlanningItem[] {
   });
 }
 
-function sectionSummary(items: InventoryPlanningItem[], options: { useLayerPlan?: boolean } = {}): string {
+function compactSectionSummary(items: InventoryPlanningItem[], options: { useLayerPlan?: boolean } = {}): string {
   const useLayerPlan = options.useLayerPlan ?? false;
   const buyItems = items.filter((item) => item.shouldReorder);
   const buyQty = buyItems.reduce((sum, item) => sum + operationalBuyQty(item, useLayerPlan), 0);
   const buyCost = buyItems.reduce((sum, item) => sum + operationalBuyCost(item, useLayerPlan), 0);
-  const quantityLabel = useLayerPlan ? 'layer-adjusted units' : 'units';
 
-  return `${items.length} SKUs, ${buyItems.length} buys, ${buyQty.toLocaleString()} ${quantityLabel}, ${formatCurrency(buyCost, { showCents: false })}`;
+  return `${items.length} SKUs · ${buyItems.length} buys · ${buyQty.toLocaleString()} units · ${formatCurrency(buyCost, { showCents: false })}`;
 }
 
 export function ReorderPlanningTable({ data, families }: InventoryPlanningTableProps) {
@@ -301,232 +292,206 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
 
   const sections = sectionCandidates.filter((section) => section.items.length > 0);
 
-  function renderCompactWwdRows(items: InventoryPlanningItem[]) {
-    return items.map((item) => (
-      <TableRow key={item.sku}>
-        <TableCell className="align-top">
-          <Link
-            href={`/products/${encodeURIComponent(item.sku)}`}
-            className="font-mono text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            {item.sku}
-          </Link>
-          <div className="mt-1 flex items-center gap-1">
-            <Badge variant="outline" className={`text-xs ${actionClasses[item.action]}`}>
-              {actionLabels[item.action]}
-            </Badge>
-          </div>
-        </TableCell>
-        <TableCell className="align-top">
-          <div className="max-w-[360px]">
-            <div className="truncate text-sm">{item.salesDescription || '-'}</div>
-            <div className="mt-1 flex flex-wrap gap-1">
-              <Badge variant="outline" className="text-xs">
-                {item.productFamily}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {item.confidenceLevel}
-              </Badge>
-              {item.policyValidationStatus === 'review' && (
-                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-xs text-amber-800">
-                  policy review
-                </Badge>
-              )}
-            </div>
-          </div>
-        </TableCell>
-        <TableCell className="align-top text-right font-mono text-sm">
-          <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-600' : 'font-semibold'}>
-            {formatInteger(item.onHandQty)}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {item.positionDays || '-'}d position
-          </div>
-        </TableCell>
-        <TableCell className="align-top text-right font-mono text-sm">
-          <div>{inboundLabel(item)}</div>
-          <div className="text-xs text-muted-foreground">{inboundDetail(item)}</div>
-        </TableCell>
-        <TableCell className="align-top text-right font-mono text-sm font-semibold">
-          <div className={operationalBuyQty(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
-            {buyPlanPrimary(item, true)}
-          </div>
-          <div className="text-xs font-normal text-muted-foreground">
-            {buyPlanDetail(item, true)}
-          </div>
-        </TableCell>
-        <TableCell className="align-top text-right font-mono text-sm font-semibold">
-          <span className={operationalBuyCost(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
-            {formatCurrency(operationalBuyCost(item, true), { showCents: false })}
-          </span>
-        </TableCell>
-        <TableCell className="align-top text-right">
-          <PlanningDetailsTooltip item={item} />
-        </TableCell>
-      </TableRow>
-    ));
-  }
-
-  function renderRows(items: InventoryPlanningItem[], options: { showLayerPlanning?: boolean } = {}) {
-    return items.map((item) => (
-      <TableRow key={item.sku}>
-        <TableCell className="font-mono text-sm font-medium">
-          <Link
-            href={`/products/${encodeURIComponent(item.sku)}`}
-            className="text-blue-600 hover:text-blue-800 hover:underline"
-          >
-            {item.sku}
-          </Link>
-          <div className="mt-1 text-xs text-muted-foreground">{item.preferredVendor}</div>
-        </TableCell>
-        <TableCell>
-          <div className="max-w-[320px]">
-            <div className="truncate text-sm">{item.salesDescription || '-'}</div>
-            <div className="mt-1 flex flex-wrap gap-1">
-              <Badge variant="outline" className="text-xs">
-                {item.productFamily}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {item.confidenceLevel}
-              </Badge>
-              {item.policyValidationStatus === 'review' && (
-                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-xs text-amber-800">
-                  policy review
-                </Badge>
-              )}
-            </div>
-          </div>
-        </TableCell>
-        <TableCell>
-          <Badge variant="outline" className={`text-xs ${actionClasses[item.action]}`}>
-            {actionLabels[item.action]}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-right font-mono text-sm">
-          {formatInteger(item.onHandQty)}
-        </TableCell>
-        <TableCell className="text-right font-mono text-sm">
-          <div>{inboundLabel(item)}</div>
-          <div className="text-xs text-muted-foreground">{inboundDetail(item)}</div>
-        </TableCell>
-        <TableCell className="text-right font-mono text-sm">
-          {formatDaily(item.forecastDailyQty)}
-        </TableCell>
-        <TableCell className="text-right font-mono text-sm">
-          <span className={Number(item.onHandDays) <= 0 ? 'font-semibold text-red-600' : ''}>
-            {item.onHandDays || '-'}
-          </span>
-        </TableCell>
-        <TableCell className="text-right font-mono text-sm">
-          {item.positionDays || '-'}
-        </TableCell>
-        <TableCell className="text-right font-mono text-sm font-semibold">
-          <span className={operationalBuyQty(item, Boolean(options.showLayerPlanning)) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
-            {buyPlanPrimary(item, Boolean(options.showLayerPlanning))}
-          </span>
-          <div className="text-xs font-normal text-muted-foreground">
-            {buyPlanDetail(item, Boolean(options.showLayerPlanning))}
-          </div>
-        </TableCell>
-        <TableCell className="text-right font-mono text-sm font-semibold hidden lg:table-cell">
-          <span className={operationalBuyCost(item, Boolean(options.showLayerPlanning)) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
-            {formatCurrency(operationalBuyCost(item, Boolean(options.showLayerPlanning)), { showCents: false })}
-          </span>
-        </TableCell>
-        <TableCell className="hidden xl:table-cell">
-          <div className="text-xs text-muted-foreground">
-            <div>{forecastBasis(item)}</div>
-            {options.showLayerPlanning && (
-              <div>
-                {layerBasisDetail(item)}
-              </div>
-            )}
-            {Number(item.cappedReductionQty12m) > 0 && (
-              <div>{formatInteger(item.cappedReductionQty12m)} units capped from 12m outliers</div>
-            )}
-            <div>
-              {item.targetCoverageDays}d target, {item.assumedLeadTimeDays}d lead, safety {formatInteger(item.safetyStockQty)}
-            </div>
-            <div>{item.policyAssignmentReason.replaceAll('_', ' ')}</div>
-            {item.policyReviewFlags && (
-              <div className="text-amber-700">{item.policyReviewFlags.replaceAll('_', ' ')}</div>
-            )}
-            <div>{item.recommendationReason}</div>
-          </div>
-        </TableCell>
-      </TableRow>
-    ));
-  }
-
-  function renderSection(section: SectionDefinition) {
-    const isPrimary = section.tone === 'primary';
-    const showLayerPlanning = section.key === 'wwd';
-
+  function renderWwdSection(section: SectionDefinition) {
     return (
-      <Card key={section.key} className={isPrimary ? 'border-blue-200' : undefined}>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <CardTitle>{section.title}</CardTitle>
-              <CardDescription>
-                {section.description}
-              </CardDescription>
+      <Card key={section.key} className="rounded-md border-blue-200 py-0 shadow-none">
+        <CardHeader className="border-b px-3 py-2">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-semibold">{section.title}</CardTitle>
+              <CardDescription className="text-xs">{section.description}</CardDescription>
             </div>
-            <Badge variant="outline" className={isPrimary ? 'border-blue-300 bg-blue-50 text-blue-800' : 'text-muted-foreground'}>
-              {sectionSummary(section.items, { useLayerPlan: showLayerPlanning })}
+            <Badge variant="outline" className="max-w-[min(100%,28rem)] truncate border-blue-300 bg-blue-50 text-xs text-blue-800">
+              {compactSectionSummary(section.items, { useLayerPlan: true })}
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                {showLayerPlanning ? (
-                  <TableRow>
-                    <TableHead className="min-w-[118px]">SKU</TableHead>
-                    <TableHead className="min-w-[260px]">Item</TableHead>
-                    <TableHead className="text-right">Inventory</TableHead>
-                    <TableHead className="text-right">Inbound</TableHead>
-                    <TableHead className="text-right">Buy Plan</TableHead>
-                    <TableHead className="text-right">Cost</TableHead>
-                    <TableHead className="w-[48px] text-right">Details</TableHead>
-                  </TableRow>
-                ) : (
-                  <TableRow>
-                    <TableHead className="min-w-[118px]">SKU</TableHead>
-                    <TableHead className="min-w-[240px]">Item</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead className="text-right">On Hand</TableHead>
-                    <TableHead className="text-right">Inbound</TableHead>
-                    <TableHead className="text-right">Forecast/Day</TableHead>
-                    <TableHead className="text-right">On-Hand Days</TableHead>
-                    <TableHead className="text-right">Position Days</TableHead>
-                    <TableHead className="text-right">Suggested Buy</TableHead>
-                    <TableHead className="text-right hidden lg:table-cell">Buy Cost</TableHead>
-                    <TableHead className="min-w-[300px] hidden xl:table-cell">Basis</TableHead>
-                  </TableRow>
-                )}
-              </TableHeader>
-              <TableBody>
-                {showLayerPlanning
-                  ? renderCompactWwdRows(section.items)
-                  : renderRows(section.items, { showLayerPlanning })}
-              </TableBody>
-            </Table>
+            <div className="min-w-[860px]">
+              <div className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_8rem_8rem_6rem_2rem] gap-3 border-b bg-muted/30 px-3 py-2 text-[11px] font-medium uppercase text-muted-foreground">
+                <div>SKU</div>
+                <div>Item</div>
+                <div className="text-right">Inventory</div>
+                <div className="text-right">Inbound</div>
+                <div className="text-right">Buy Plan</div>
+                <div className="text-right">Cost</div>
+                <div className="text-right">Details</div>
+              </div>
+              {section.items.map((item) => (
+                <div
+                  key={item.sku}
+                  className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_8rem_8rem_6rem_2rem] items-start gap-3 border-b px-3 py-2 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/products/${encodeURIComponent(item.sku)}`}
+                      className="block truncate font-mono text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {item.sku}
+                    </Link>
+                    <div className="mt-1 flex items-center gap-1">
+                      <Badge variant="outline" className={`text-xs ${actionClasses[item.action]}`}>
+                        {actionLabels[item.action]}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{item.salesDescription || '-'}</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge variant="outline" className="h-5 rounded-sm px-1.5 text-[11px]">
+                        {item.productFamily}
+                      </Badge>
+                      <Badge variant="outline" className="h-5 rounded-sm px-1.5 text-[11px]">
+                        {item.confidenceLevel}
+                      </Badge>
+                      {item.policyValidationStatus === 'review' && (
+                        <Badge variant="outline" className="h-5 rounded-sm border-amber-300 bg-amber-50 px-1.5 text-[11px] text-amber-800">
+                          policy review
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right font-mono text-sm">
+                    <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-600' : 'font-semibold'}>
+                      {formatInteger(item.onHandQty)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">{item.positionDays || '-'}d</div>
+                  </div>
+                  <div className="min-w-0 text-right font-mono text-sm">
+                    <div className="truncate">{inboundLabel(item)}</div>
+                    <div className="truncate text-[11px] text-muted-foreground" title={inboundDetail(item)}>
+                      {inboundDetail(item)}
+                    </div>
+                  </div>
+                  <div className="min-w-0 text-right font-mono text-sm font-semibold">
+                    <div className={operationalBuyQty(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                      {buyPlanPrimary(item, true)}
+                    </div>
+                    <div className="truncate text-[11px] font-normal text-muted-foreground" title={buyPlanDetail(item, true)}>
+                      {buyPlanDetail(item, true)}
+                    </div>
+                  </div>
+                  <div className="text-right font-mono text-sm font-semibold">
+                    <span className={operationalBuyCost(item, true) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                      {formatCurrency(operationalBuyCost(item, true), { showCents: false })}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <PlanningDetailsTooltip item={item} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
     );
   }
 
+  function renderSection(section: SectionDefinition) {
+    const showLayerPlanning = section.key === 'wwd';
+
+    if (showLayerPlanning) {
+      return renderWwdSection(section);
+    }
+
+    return (
+      <Card key={section.key} className="rounded-md py-0 shadow-none">
+        <CardHeader className="border-b px-3 py-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-sm font-semibold">{section.title}</CardTitle>
+              <CardDescription className="text-xs">
+                {section.description}
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="text-xs text-muted-foreground">
+              {compactSectionSummary(section.items)}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <div className="min-w-[760px]">
+              <div className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_5rem_9rem_8rem] gap-3 border-b bg-muted/30 px-3 py-2 text-[11px] font-medium uppercase text-muted-foreground">
+                <div>SKU</div>
+                <div>Item</div>
+                <div>Action</div>
+                <div className="text-right">On Hand</div>
+                <div className="text-right">Inbound</div>
+                <div className="text-right">Suggested Buy</div>
+              </div>
+              {section.items.map((item) => (
+                <div
+                  key={item.sku}
+                  className="grid grid-cols-[7rem_minmax(12rem,1fr)_5rem_5rem_9rem_8rem] items-start gap-3 border-b px-3 py-2 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/products/${encodeURIComponent(item.sku)}`}
+                      className="block truncate font-mono text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      {item.sku}
+                    </Link>
+                    <div className="truncate text-[11px] text-muted-foreground">{item.preferredVendor}</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{item.salesDescription || '-'}</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge variant="outline" className="h-5 rounded-sm px-1.5 text-[11px]">
+                        {item.productFamily}
+                      </Badge>
+                      <Badge variant="outline" className="h-5 rounded-sm px-1.5 text-[11px]">
+                        {item.confidenceLevel}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <Badge variant="outline" className={`h-5 rounded-sm px-1.5 text-[11px] ${actionClasses[item.action]}`}>
+                      {actionLabels[item.action]}
+                    </Badge>
+                  </div>
+                  <div className="text-right font-mono text-sm">
+                    <div className={Number(item.onHandQty) <= 0 ? 'font-semibold text-red-600' : 'font-semibold'}>
+                      {formatInteger(item.onHandQty)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">{item.positionDays || '-'}d</div>
+                  </div>
+                  <div className="min-w-0 text-right font-mono text-sm">
+                    <div className="truncate">{inboundLabel(item)}</div>
+                    <div className="truncate text-[11px] text-muted-foreground">{formatDaily(item.forecastDailyQty)}/d</div>
+                  </div>
+                  <div className="min-w-0 text-right font-mono text-sm font-semibold">
+                    <div className={operationalBuyQty(item, false) > 0 ? 'text-blue-600' : 'text-muted-foreground'}>
+                      {buyPlanPrimary(item, false)}
+                    </div>
+                    <div className="truncate text-[11px] font-normal text-muted-foreground">
+                      {formatCurrency(operationalBuyCost(item, false), { showCents: false })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const wwdSection = sections.find((section) => section.key === 'wwd');
+  const reviewSections = sections.filter((section) => section.key !== 'wwd');
+
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-card p-4">
+      {wwdSection && renderSection(wwdSection)}
+
+      <div className="rounded-md border bg-card p-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold">Inventory Worklist</h3>
-            <p className="text-sm text-muted-foreground">
-              {filteredData.length} SKUs grouped by vendor and current planning focus
+            <h3 className="text-sm font-semibold">Planning Buckets Under Review</h3>
+            <p className="text-xs text-muted-foreground">
+              {filteredData.length} SKUs grouped by vendor and current planning focus; WWD remains the primary vetted section
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -560,7 +525,7 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
         </div>
       </div>
 
-      {sections.map(renderSection)}
+      {reviewSections.map(renderSection)}
     </div>
   );
 }

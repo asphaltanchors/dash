@@ -55,6 +55,18 @@ function StatusBadge({ status }: { status: string; isPaid: boolean }) {
   )
 }
 
+function formatOrderDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number)
+  if (!year || !month || !day) return value
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day)))
+}
+
 export const createColumns = (
   currentSortBy?: string, 
   currentSortOrder?: 'asc' | 'desc'
@@ -124,12 +136,7 @@ export const createColumns = (
       </ServerSortButton>
     ),
     cell: ({ row }) => {
-      const date = new Date(row.getValue("orderDate"))
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
+      return formatOrderDate(row.getValue("orderDate"))
     },
   },
   {

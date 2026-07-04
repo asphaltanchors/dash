@@ -26,13 +26,14 @@ import {
 } from "@/components/ui/table"
 import { columns } from "./columns"
 import { Contact } from "@/lib/queries/contacts"
+import { SearchInput } from "./search-input"
 
 interface DataTableProps {
   data: Contact[]
   totalCount: number
   currentPage: number
   pageSize: number
-  searchInput?: React.ReactNode
+  searchTerm?: string
   searchResults?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
@@ -43,7 +44,7 @@ export function DataTable({
   totalCount,
   currentPage,
   pageSize,
-  searchInput,
+  searchTerm = '',
   searchResults,
   sortBy = 'companyTotalRevenue',
   sortOrder = 'desc',
@@ -58,6 +59,7 @@ export function DataTable({
   const table = useReactTable({
     data,
     columns,
+    getRowId: (row, index) => `${row.contactDimKey || row.primaryEmail || row.fullName || row.companyName}-${index}`,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -105,7 +107,7 @@ export function DataTable({
       <div className="space-y-4 py-4">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            {searchInput}
+            <SearchInput initialValue={searchTerm} />
             {searchResults && (
               <div className="text-sm text-muted-foreground">
                 {searchResults}
@@ -114,7 +116,7 @@ export function DataTable({
           </div>
         </div>
       </div>
-      <div className="rounded-md border">
+      <div className="max-w-full overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
