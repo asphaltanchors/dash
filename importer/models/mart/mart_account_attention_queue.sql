@@ -98,6 +98,12 @@ company_metrics AS (
 flagged AS (
     SELECT
         *,
+        CASE
+            WHEN days_since_last_order IS NULL THEN 0.40
+            WHEN days_since_last_order <= 365 THEN 1.00
+            WHEN days_since_last_order >= 1500 THEN 0.15
+            ELSE 1.00 - (((days_since_last_order - 365)::NUMERIC / 1135) * 0.85)
+        END AS recency_attention_factor,
         CASE WHEN total_revenue >= 50000 OR revenue_percentile >= 0.9 THEN TRUE ELSE FALSE END AS is_high_value_account,
         CASE WHEN at_risk_flag = TRUE AND (total_revenue >= 25000 OR revenue_percentile >= 0.75) THEN TRUE ELSE FALSE END AS is_high_value_at_risk,
         CASE WHEN combined_growth_trend IN ('Growing', 'New Customer') AND trailing_1y_revenue >= 5000 THEN TRUE ELSE FALSE END AS is_growth_opportunity,
@@ -109,13 +115,14 @@ flagged AS (
 scored AS (
     SELECT
         *,
-        CASE
-            WHEN is_high_value_at_risk THEN 100
-            WHEN is_dormant_high_value THEN 90
-            WHEN is_declining_active THEN 80
-            WHEN is_growth_opportunity THEN 70
-            ELSE 50
-        END AS attention_score,
+        ROUND(GREATEST(
+            CASE WHEN is_high_value_at_risk THEN 100 * recency_attention_factor ELSE 0 END,
+            CASE WHEN is_dormant_high_value THEN 90 * recency_attention_factor ELSE 0 END,
+            CASE WHEN is_declining_active THEN 80 ELSE 0 END,
+            CASE WHEN is_growth_opportunity THEN 70 ELSE 0 END,
+            CASE WHEN at_risk_flag THEN 50 * recency_attention_factor ELSE 0 END,
+            CASE WHEN growth_opportunity_flag THEN 50 * recency_attention_factor ELSE 0 END
+        ))::INTEGER AS attention_score,
         CONCAT_WS(
             '; ',
             CASE WHEN is_high_value_at_risk THEN 'high_value_at_risk' END,
@@ -123,7 +130,8 @@ scored AS (
             CASE WHEN is_declining_active THEN 'declining_active' END,
             CASE WHEN is_growth_opportunity THEN 'growth_opportunity' END,
             CASE WHEN at_risk_flag THEN 'health_at_risk' END,
-            CASE WHEN growth_opportunity_flag THEN 'health_growth_opportunity' END
+            CASE WHEN growth_opportunity_flag THEN 'health_growth_opportunity' END,
+            CASE WHEN days_since_last_order >= 1500 THEN 'long_dormant' END
         ) AS reason_codes
     FROM flagged
 )
