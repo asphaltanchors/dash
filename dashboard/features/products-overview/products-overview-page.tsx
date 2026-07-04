@@ -190,8 +190,8 @@ function RevenueTrendPanel({
             </div>
             <p className="text-xs text-slate-400">{formatNumber(orders, 0)} order lines in visible months</p>
           </div>
-          <Link href="/sales-performance" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
-            Sales performance <ArrowUpRight className="size-3" />
+          <Link href="/orders" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
+            Order ledger <ArrowUpRight className="size-3" />
           </Link>
         </div>
         <ProductRevenueBars data={points} />
@@ -529,11 +529,10 @@ export function ProductsOverviewPage({ data }: { data: ProductsOverviewPageData 
           <LowStockRisksPanel items={planning.items} />
         </section>
 
-        <section className="grid gap-2 md:grid-cols-4">
+        <section className="grid gap-2 md:grid-cols-3">
           <QuickLink href="/products" icon={Package} label="Product Detail" detail="SKU economics, families, margin, and customers" tone="blue" />
           <QuickLink href="/inventory" icon={AlertTriangle} label="Inventory Risks" detail="Low stock, out-of-stock, and review queue" tone="amber" />
-          <QuickLink href="/sales-performance" icon={TrendingUp} label="Sales Performance" detail="Channel, segment, and revenue drilldowns" tone="green" />
-          <QuickLink href="/orders" icon={Layers3} label="Order Lines" detail="Invoice and sales order source detail" tone="purple" />
+          <QuickLink href="/orders" icon={Layers3} label="Order Ledger" detail="Channel, segment, and order drilldowns" tone="green" />
         </section>
       </main>
     </>

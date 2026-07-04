@@ -1,9 +1,7 @@
-// ABOUTME: Dense order ledger report with channel, payment, and value concentration readouts
+// ABOUTME: Dense order ledger report with channel, segment, and searchable order detail
 // ABOUTME: Preserves the searchable sortable order table as the detail layer
 
-import Link from 'next/link';
 import {
-  BadgeDollarSign,
   CalendarDays,
   CircleDollarSign,
   ClipboardList,
@@ -19,16 +17,21 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { DataTable } from '@/components/orders/data-table';
+import ChannelBreakdown from '@/components/orders/channel-breakdown';
+import SegmentBreakdown from '@/components/orders/segment-breakdown';
 import {
   CompactBadge,
   formatWholeCurrency as compactCurrency,
-  InlineBar,
   MetricTile,
   ReportHeader as PanelHeader,
   ReportPanel as Panel,
   toNumber,
 } from '@/components/dashboard/report-ui';
-import { getAllOrders, type OrderTableItem } from '@/lib/queries';
+import {
+  getAllOrders,
+  getChannelMetrics,
+  getSegmentMetrics,
+} from '@/lib/queries';
 import { formatNumber } from '@/lib/utils';
 
 interface OrdersPageProps {
@@ -54,89 +57,6 @@ function formatDate(value: string | null | undefined) {
   });
 }
 
-function countBy(orders: OrderTableItem[], key: keyof OrderTableItem) {
-  return orders.reduce((map, order) => {
-    const label = String(order[key] || 'Unknown');
-    map.set(label, (map.get(label) ?? 0) + 1);
-    return map;
-  }, new Map<string, number>());
-}
-
-function mapRows(map: Map<string, number>, toneFor: (label: string) => 'blue' | 'green' | 'amber' | 'red', limit = 5) {
-  return Array.from(map.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([label, count]) => ({ label, count, tone: toneFor(label) }));
-}
-
-function MixPanel({
-  title,
-  description,
-  rows,
-  total,
-}: {
-  title: string;
-  description: string;
-  rows: Array<{ label: string; count: number; tone: 'blue' | 'green' | 'amber' | 'red' }>;
-  total: number;
-}) {
-  const maxCount = Math.max(...rows.map((row) => row.count), 1);
-
-  return (
-    <Panel>
-      <PanelHeader title={title} eyebrow={description} action={<CompactBadge tone="blue">{total} visible</CompactBadge>} />
-      <div className="space-y-3 p-3">
-        {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[8rem_minmax(0,1fr)_2.5rem] items-center gap-2">
-            <p className="truncate text-xs text-slate-400" title={row.label}>{row.label}</p>
-            <InlineBar value={(row.count / maxCount) * 100} tone={row.tone} />
-            <p className="text-right font-mono text-xs">{row.count}</p>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
-function ValueQueue({ orders }: { orders: OrderTableItem[] }) {
-  const leaders = [...orders].sort((a, b) => toNumber(b.totalAmount) - toNumber(a.totalAmount)).slice(0, 8);
-  const maxAmount = Math.max(...leaders.map((order) => toNumber(order.totalAmount)), 1);
-
-  return (
-    <Panel>
-      <PanelHeader
-        title="Visible Value Queue"
-        eyebrow="Largest orders in the current result page"
-        action={<CompactBadge tone="blue">{leaders.length} shown</CompactBadge>}
-      />
-      <div className="p-0">
-        {leaders.map((order) => {
-          const amount = toNumber(order.totalAmount);
-          return (
-            <div key={order.orderNumber} className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-b border-slate-800 px-3 py-2 last:border-b-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <Link href={`/orders/${encodeURIComponent(order.orderNumber)}`} className="truncate font-mono text-sm font-medium hover:underline">
-                    {order.orderNumber}
-                  </Link>
-                  <CompactBadge tone={order.isPaid ? 'good' : 'warn'}>{order.isPaid ? 'paid' : 'open'}</CompactBadge>
-                </div>
-                <p className="mt-0.5 truncate text-[11px] text-slate-400">
-                  {order.customer} · {formatDate(order.orderDate)} · {order.salesChannel || 'Unknown channel'}
-                </p>
-              </div>
-              <div className="space-y-1 text-right">
-                <p className="font-mono text-xs font-semibold">{compactCurrency(amount)}</p>
-                <InlineBar value={(amount / maxAmount) * 100} tone={order.isPaid ? 'green' : 'amber'} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Panel>
-  );
-}
-
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const { search, sortBy, sortOrder, page } = await searchParams;
   const searchTerm = search || '';
@@ -145,7 +65,11 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const currentPage = parseInt(page || '1', 10);
   const pageSize = 50;
 
-  const { orders, totalCount } = await getAllOrders(currentPage, pageSize, searchTerm, currentSortBy, currentSortOrder);
+  const [{ orders, totalCount }, channelMetrics, segmentMetrics] = await Promise.all([
+    getAllOrders(currentPage, pageSize, searchTerm, currentSortBy, currentSortOrder),
+    getChannelMetrics(),
+    getSegmentMetrics(),
+  ]);
   const visibleCount = orders.length;
   const visibleRevenue = orders.reduce((sum, order) => sum + toNumber(order.totalAmount), 0);
   const paidCount = orders.filter((order) => order.isPaid).length;
@@ -155,9 +79,6 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     if (!latest || new Date(order.orderDate) > new Date(latest)) return order.orderDate;
     return latest;
   }, null);
-  const channelRows = mapRows(countBy(orders, 'salesChannel'), () => 'blue');
-  const segmentRows = mapRows(countBy(orders, 'customerSegment'), () => 'green');
-  const statusRows = mapRows(countBy(orders, 'status'), (label) => (label === 'PAID' ? 'green' : label === 'OPEN' ? 'amber' : 'blue'));
 
   return (
     <>
@@ -184,12 +105,12 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               {searchTerm && <CompactBadge tone="warn">search: {searchTerm}</CompactBadge>}
             </div>
             <p className="mt-1 text-sm text-slate-400">
-              Recent order value, payment status, channel mix, and searchable order detail.
+              Recent order value, channel and segment performance, and searchable order detail.
             </p>
           </div>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
             label="Filtered Orders"
             value={formatNumber(totalCount, 0)}
@@ -218,23 +139,27 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
             icon={CalendarDays}
             tone="blue"
           />
-          <MetricTile
-            label="High Value Visible"
-            value={formatNumber(orders.filter((order) => toNumber(order.totalAmount) >= averageOrder && averageOrder > 0).length, 0)}
-            detail="Orders above the visible average"
-            icon={BadgeDollarSign}
-            tone="good"
-          />
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
-          <ValueQueue orders={orders} />
-          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-            <MixPanel title="Channel Mix" description="Sales channel represented in visible results" rows={channelRows} total={visibleCount} />
-            <MixPanel title="Segment Mix" description="Customer segment distribution" rows={segmentRows} total={visibleCount} />
-            <MixPanel title="Payment Status" description="Current order status in the queue" rows={statusRows} total={visibleCount} />
-          </div>
-        </div>
+        <section className="grid gap-3 2xl:grid-cols-[1fr_1fr]">
+          <Panel>
+            <PanelHeader
+              title="Sales by Channel"
+              eyebrow="Revenue share, order share, average order, and four-period trend"
+              action={<CompactBadge tone="blue">trailing periods</CompactBadge>}
+            />
+            <ChannelBreakdown metrics={channelMetrics} />
+          </Panel>
+
+          <Panel>
+            <PanelHeader
+              title="Sales by Customer Segment"
+              eyebrow="Revenue concentration by customer type and business model"
+              action={<CompactBadge tone="good">trailing periods</CompactBadge>}
+            />
+            <SegmentBreakdown metrics={segmentMetrics} />
+          </Panel>
+        </section>
 
         <Panel>
           <PanelHeader

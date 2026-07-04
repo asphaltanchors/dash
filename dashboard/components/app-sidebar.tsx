@@ -11,7 +11,6 @@ import {
   ClipboardList,
   Building2,
   Users,
-  TrendingUp,
   DollarSign,
   Target,
   Calendar,
@@ -43,11 +42,6 @@ const data = {
       title: "Orders",
       url: "/orders",
       icon: ShoppingCart,
-    },
-    {
-      title: "Sales Performance",
-      url: "/sales-performance",
-      icon: TrendingUp,
     },
     {
       title: "Marketing Attribution",

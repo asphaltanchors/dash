@@ -207,8 +207,8 @@ function RevenueTrendPanel({
             </div>
             <p className="text-xs text-slate-400">{formatNumber(orders, 0)} orders in displayed periods</p>
           </div>
-          <Link href="/sales-performance" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
-            Sales performance <ArrowUpRight className="size-3" />
+          <Link href="/orders" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
+            Order ledger <ArrowUpRight className="size-3" />
           </Link>
         </div>
         <CockpitRevenueChart data={points} />
@@ -547,7 +547,7 @@ function SalesPerformancePanel({
         title="Sales Performance"
         eyebrow="YTD quality indicators and top selling channels"
         action={
-          <Link href="/sales-performance" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
+          <Link href="/orders" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
             Drill in <ArrowUpRight className="size-3" />
           </Link>
         }
