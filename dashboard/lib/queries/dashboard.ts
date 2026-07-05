@@ -54,6 +54,46 @@ export interface SalesChannelMetric {
   periods: SalesPeriodMetric[];
 }
 
+interface SalesPeriodMetricRow {
+  sales_channel?: string;
+  customer_segment?: string;
+  period_start: string | Date;
+  period_end: string | Date;
+  total_revenue: string | number;
+  order_count: string | number;
+}
+
+function formatDateKey(value: string | Date) {
+  return value instanceof Date ? format(value, 'yyyy-MM-dd') : String(value).slice(0, 10);
+}
+
+function buildSalesPeriodMetrics(
+  rows: SalesPeriodMetricRow[],
+  dimensionKey: 'sales_channel' | 'customer_segment'
+): SalesChannelMetric[] {
+  const metricMap = new Map<string, SalesPeriodMetric[]>();
+
+  for (const row of rows) {
+    const dimensionValue = row[dimensionKey] || 'Unknown';
+
+    if (!metricMap.has(dimensionValue)) {
+      metricMap.set(dimensionValue, []);
+    }
+
+    metricMap.get(dimensionValue)!.push({
+      period_start: formatDateKey(row.period_start),
+      period_end: formatDateKey(row.period_end),
+      total_revenue: Number(row.total_revenue).toFixed(2),
+      order_count: Number(row.order_count).toString(),
+    });
+  }
+
+  return Array.from(metricMap.entries()).map(([sales_channel, periods]) => ({
+    sales_channel,
+    periods: periods.sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime()),
+  }));
+}
+
 export interface SalesPerformanceHighlight {
   salesChannel: string;
   totalRevenue: string;
@@ -337,147 +377,34 @@ export async function getLargeRecentOrders(limit: number = 6): Promise<LargeRece
 
 // Get channel metrics with 4-year trailing trends
 export async function getChannelMetrics(): Promise<SalesChannelMetric[]> {
-  const today = new Date();
-  const fourYearsAgo = new Date();
-  fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
-  
-  // Generate 4 trailing year periods from today
-  const periods = [];
-  for (let i = 0; i < 4; i++) {
-    const periodEnd = new Date(today);
-    periodEnd.setFullYear(periodEnd.getFullYear() - i);
-    
-    const periodStart = new Date(periodEnd);
-    periodStart.setFullYear(periodStart.getFullYear() - 1);
-    periodStart.setDate(periodStart.getDate() + 1); // Start day after to avoid overlap
-    
-    periods.push({
-      period_start: format(periodStart, 'yyyy-MM-dd'),
-      period_end: format(periodEnd, 'yyyy-MM-dd'),
-      period_label: `${periodStart.getFullYear()}-${periodEnd.getFullYear()}`
-    });
-  }
-  
-  const channelMap = new Map<string, SalesPeriodMetric[]>();
-  
-  // Query each period separately to get trailing year data
-  for (const period of periods) {
-    const channelData = await db.execute(sql`
-      SELECT 
-        sales_channel,
-        SUM(total_amount) as total_revenue,
-        COUNT(*) as order_count
-      FROM analytics_mart.base_fct_orders_current
-      WHERE total_amount IS NOT NULL 
-        AND order_date >= ${period.period_start}
-        AND order_date <= ${period.period_end}
-        AND sales_channel IS NOT NULL 
-        AND sales_channel != ''
-        AND sales_channel NOT IN ('Contractor', 'EXPORT from WWD')
-      GROUP BY sales_channel
-      ORDER BY sales_channel
-    `);
+  const rows = await db.execute(sql`
+    SELECT
+      sales_channel,
+      period_start,
+      period_end,
+      total_revenue,
+      order_count
+    FROM analytics_mart.mart_order_channel_period_metrics
+    ORDER BY sales_channel, period_index
+  `);
 
-    // Handle different return formats from Drizzle
-    const results = channelData as unknown as Array<{ 
-      sales_channel: string; 
-      total_revenue: string; 
-      order_count: number;
-    }>;
-    
-    results.forEach(row => {
-      const channel = row.sales_channel;
-      
-      if (!channelMap.has(channel)) {
-        channelMap.set(channel, []);
-      }
-      
-      channelMap.get(channel)!.push({
-        period_start: period.period_start,
-        period_end: period.period_end,
-        total_revenue: Number(row.total_revenue).toFixed(2),
-        order_count: row.order_count.toString(),
-      });
-    });
-  }
-
-  // Convert to final format and ensure periods are in reverse chronological order (most recent first)
-  return Array.from(channelMap.entries()).map(([sales_channel, periods]) => ({
-    sales_channel,
-    periods: periods.sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime()),
-  }));
+  return buildSalesPeriodMetrics(rows as unknown as SalesPeriodMetricRow[], 'sales_channel');
 }
 
 // Get customer segment metrics with 4-year trailing trends
 export async function getSegmentMetrics(): Promise<SalesChannelMetric[]> {
-  const today = new Date();
-  const fourYearsAgo = new Date();
-  fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
-  
-  // Generate 4 trailing year periods from today
-  const periods = [];
-  for (let i = 0; i < 4; i++) {
-    const periodEnd = new Date(today);
-    periodEnd.setFullYear(periodEnd.getFullYear() - i);
-    
-    const periodStart = new Date(periodEnd);
-    periodStart.setFullYear(periodStart.getFullYear() - 1);
-    periodStart.setDate(periodStart.getDate() + 1); // Start day after to avoid overlap
-    
-    periods.push({
-      period_start: format(periodStart, 'yyyy-MM-dd'),
-      period_end: format(periodEnd, 'yyyy-MM-dd'),
-      period_label: `${periodStart.getFullYear()}-${periodEnd.getFullYear()}`
-    });
-  }
-  
-  const segmentMap = new Map<string, SalesPeriodMetric[]>();
-  
-  // Query each period separately to get trailing year data
-  for (const period of periods) {
-    const segmentData = await db.execute(sql`
-      SELECT 
-        customer_segment as sales_channel,
-        SUM(total_amount) as total_revenue,
-        COUNT(*) as order_count
-      FROM analytics_mart.base_fct_orders_current
-      WHERE total_amount IS NOT NULL 
-        AND order_date >= ${period.period_start}
-        AND order_date <= ${period.period_end}
-        AND customer_segment IS NOT NULL 
-        AND customer_segment != ''
-      GROUP BY customer_segment
-      ORDER BY customer_segment
-    `);
+  const rows = await db.execute(sql`
+    SELECT
+      customer_segment,
+      period_start,
+      period_end,
+      total_revenue,
+      order_count
+    FROM analytics_mart.mart_order_segment_period_metrics
+    ORDER BY customer_segment, period_index
+  `);
 
-    // Handle different return formats from Drizzle
-    const results = segmentData as unknown as Array<{ 
-      sales_channel: string; 
-      total_revenue: string; 
-      order_count: number;
-    }>;
-    
-    results.forEach(row => {
-      const segment = row.sales_channel;
-      
-      if (!segmentMap.has(segment)) {
-        segmentMap.set(segment, []);
-      }
-      
-      segmentMap.get(segment)!.push({
-        period_start: period.period_start,
-        period_end: period.period_end,
-        total_revenue: Number(row.total_revenue).toFixed(2),
-        order_count: row.order_count.toString(),
-      });
-    });
-  }
-
-  // Convert to final format and ensure periods are in reverse chronological order (most recent first)
-  return Array.from(segmentMap.entries()).map(([sales_channel, periods]) => ({
-    sales_channel,
-    periods: periods.sort((a, b) => new Date(b.period_end).getTime() - new Date(a.period_end).getTime()),
-  }));
+  return buildSalesPeriodMetrics(rows as unknown as SalesPeriodMetricRow[], 'customer_segment');
 }
 
 export async function getSalesPerformanceHighlights(limit: number = 3): Promise<SalesPerformanceHighlight[]> {

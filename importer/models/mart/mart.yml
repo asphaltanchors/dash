@@ -1685,6 +1685,89 @@ models:
                 values: [true, false]
                 quote: false
 
+  - name: mart_order_channel_period_metrics
+    description: >
+      Orders-dashboard sales channel metrics by four rolling trailing-year periods.
+      Each row is one sales channel in one period. Channels that are not useful for
+      this report, such as Contractor and EXPORT from WWD, are excluded here so the
+      dashboard can display trend and share without owning the business filter.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - sales_channel
+              - period_index
+    columns:
+      - name: sales_channel
+        description: Sales channel label from current-safe orders.
+        tests:
+          - not_null
+      - name: period_index
+        description: Zero-based rolling annual period index; 0 is the most recent trailing year.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3]
+                quote: false
+      - name: period_start
+        description: Inclusive start date for the rolling annual period.
+        tests:
+          - not_null
+      - name: period_end
+        description: Inclusive end date for the rolling annual period.
+        tests:
+          - not_null
+      - name: total_revenue
+        description: Total order revenue for this channel and rolling period.
+        tests:
+          - not_null
+      - name: order_count
+        description: Count of current-safe orders for this channel and rolling period.
+        tests:
+          - not_null
+
+  - name: mart_order_segment_period_metrics
+    description: >
+      Orders-dashboard customer segment metrics by four rolling trailing-year periods.
+      Each row is one customer segment in one period. The low-volume Export segment
+      is excluded here because it is not useful on this dashboard.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - customer_segment
+              - period_index
+    columns:
+      - name: customer_segment
+        description: Customer segment label from current-safe orders.
+        tests:
+          - not_null
+      - name: period_index
+        description: Zero-based rolling annual period index; 0 is the most recent trailing year.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1, 2, 3]
+                quote: false
+      - name: period_start
+        description: Inclusive start date for the rolling annual period.
+        tests:
+          - not_null
+      - name: period_end
+        description: Inclusive end date for the rolling annual period.
+        tests:
+          - not_null
+      - name: total_revenue
+        description: Total order revenue for this customer segment and rolling period.
+        tests:
+          - not_null
+      - name: order_count
+        description: Count of current-safe orders for this customer segment and rolling period.
+        tests:
+          - not_null
+
   - name: mart_data_quality_flags
     description: >
       Dashboard-facing data quality strip. One row per monitored condition so the UI can

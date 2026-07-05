@@ -17,6 +17,7 @@ interface SparklineProps {
     period_end: string
     total_revenue: string
   }>
+  valueFormatter?: (value: number) => string
 }
 
 function formatDate(dateStr: string) {
@@ -28,7 +29,7 @@ function formatDate(dateStr: string) {
   })
 }
 
-function MiniSparkline({ values, periods }: SparklineProps) {
+function MiniSparkline({ values, periods, valueFormatter }: SparklineProps) {
   const height = 24
   const width = 64
   const padding = 4
@@ -58,10 +59,12 @@ function MiniSparkline({ values, periods }: SparklineProps) {
 
   const tooltipContent = periods
     .filter(period => period.period_start && period.period_end)
-    .map((period) => {
-      const formattedRevenue = formatCurrency(period.total_revenue, { showCents: false })
+    .map((period, index) => {
+      const formattedValue = valueFormatter
+        ? valueFormatter(values[index] ?? 0)
+        : formatCurrency(period.total_revenue, { showCents: false })
 
-      return `${formatDate(period.period_start)} - ${formatDate(period.period_end)}: ${formattedRevenue}`
+      return `${formatDate(period.period_start)} - ${formatDate(period.period_end)}: ${formattedValue}`
     })
     .join('\n')
 
@@ -82,20 +85,6 @@ function MiniSparkline({ values, periods }: SparklineProps) {
   )
 }
 
-function MiniBarChart({ percentage }: { percentage: number }) {
-  return (
-    <div className="w-16 h-3 bg-slate-800 rounded-sm overflow-hidden">
-      <div
-        className="h-full transition-all"
-        style={{
-          width: `${Math.min(100, Math.max(0, percentage))}%`,
-          backgroundColor: percentage > 30 ? '#3b82f6' : '#93c5fd'
-        }}
-      />
-    </div>
-  )
-}
-
 function TrendIndicator({ change }: { change: number }) {
   const trend = change >= 0 ? "up" : "down"
   const Icon = trend === "up" ? ArrowUp : ArrowDown
@@ -111,8 +100,6 @@ function TrendIndicator({ change }: { change: number }) {
 
 export default function ChannelBreakdown({ metrics }: Props) {
   const filteredMetrics = metrics.filter(m =>
-    m.sales_channel !== 'Contractor' &&
-    m.sales_channel !== 'EXPORT from WWD' &&
     m.periods.length > 0 &&
     Number(m.periods[0].total_revenue) >= 5000
   )
@@ -132,6 +119,19 @@ export default function ChannelBreakdown({ metrics }: Props) {
     a.sales_channel.localeCompare(b.sales_channel)
   )
 
+  const periodTotals = filteredMetrics.reduce<number[]>((acc, metric) => {
+    metric.periods.forEach((period, index) => {
+      acc[index] = (acc[index] || 0) + Number(period.total_revenue || 0)
+    })
+    return acc
+  }, [])
+
+  const orderPeriodTotals = filteredMetrics.reduce<number[]>((acc, metric) => {
+    metric.periods.forEach((period, index) => {
+      acc[index] = (acc[index] || 0) + Number(period.order_count || 0)
+    })
+    return acc
+  }, [])
 
   const getPercentageChange = (current: string | undefined, previous: string | undefined) => {
     if (current === undefined || previous === undefined) return 0;
@@ -168,6 +168,15 @@ export default function ChannelBreakdown({ metrics }: Props) {
             const avgOrderValue = currentOrders === 0 ? 0 : currentRevenue / currentOrders
 
             const revenuePercentage = totals.revenue === 0 ? 0 : (currentRevenue / totals.revenue) * 100
+            const orderPercentage = totals.orders === 0 ? 0 : (currentOrders / totals.orders) * 100
+            const revenueShareValues = metric.periods.map((period, index) => {
+              const periodTotal = periodTotals[index] || 0
+              return periodTotal === 0 ? 0 : (Number(period.total_revenue) / periodTotal) * 100
+            })
+            const orderShareValues = metric.periods.map((period, index) => {
+              const periodTotal = orderPeriodTotals[index] || 0
+              return periodTotal === 0 ? 0 : (Number(period.order_count) / periodTotal) * 100
+            })
             const revenueChange = getPercentageChange(
               currentPeriod.total_revenue,
               previousPeriod?.total_revenue
@@ -191,7 +200,11 @@ export default function ChannelBreakdown({ metrics }: Props) {
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
                     <span className="text-sm">{revenuePercentage.toFixed(1)}%</span>
-                    <MiniBarChart percentage={revenuePercentage} />
+                    <MiniSparkline
+                      values={revenueShareValues.slice().reverse()}
+                      periods={[...metric.periods].reverse()}
+                      valueFormatter={(value) => `${value.toFixed(1)}% share`}
+                    />
                   </div>
                 </TableCell>
                 <TableCell className="text-right border-r">
@@ -209,8 +222,12 @@ export default function ChannelBreakdown({ metrics }: Props) {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
-                    <span className="text-sm">{(totals.orders === 0 ? 0 : (currentOrders / totals.orders * 100)).toFixed(1)}%</span>
-                    <MiniBarChart percentage={(totals.orders === 0 ? 0 : (currentOrders / totals.orders * 100))} />
+                    <span className="text-sm">{orderPercentage.toFixed(1)}%</span>
+                    <MiniSparkline
+                      values={orderShareValues.slice().reverse()}
+                      periods={[...metric.periods].reverse()}
+                      valueFormatter={(value) => `${value.toFixed(1)}% share`}
+                    />
                   </div>
                 </TableCell>
                 <TableCell className="text-right">

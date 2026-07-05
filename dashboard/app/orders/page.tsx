@@ -2,11 +2,7 @@
 // ABOUTME: Preserves the searchable sortable order table as the detail layer
 
 import {
-  CalendarDays,
-  CircleDollarSign,
   ClipboardList,
-  CreditCard,
-  ReceiptText,
 } from 'lucide-react';
 import {
   Breadcrumb,
@@ -21,18 +17,14 @@ import ChannelBreakdown from '@/components/orders/channel-breakdown';
 import SegmentBreakdown from '@/components/orders/segment-breakdown';
 import {
   CompactBadge,
-  formatWholeCurrency as compactCurrency,
-  MetricTile,
   ReportHeader as PanelHeader,
   ReportPanel as Panel,
-  toNumber,
 } from '@/components/dashboard/report-ui';
 import {
   getAllOrders,
   getChannelMetrics,
   getSegmentMetrics,
 } from '@/lib/queries';
-import { formatNumber } from '@/lib/utils';
 
 interface OrdersPageProps {
   searchParams: Promise<{
@@ -41,20 +33,6 @@ interface OrdersPageProps {
     sortOrder?: 'asc' | 'desc';
     page?: string;
   }>;
-}
-
-function percent(part: number, total: number) {
-  if (total <= 0) return '0.0%';
-  return `${formatNumber((part / total) * 100, 1)}%`;
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
@@ -70,15 +48,6 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     getChannelMetrics(),
     getSegmentMetrics(),
   ]);
-  const visibleCount = orders.length;
-  const visibleRevenue = orders.reduce((sum, order) => sum + toNumber(order.totalAmount), 0);
-  const paidCount = orders.filter((order) => order.isPaid).length;
-  const openCount = visibleCount - paidCount;
-  const averageOrder = visibleCount > 0 ? visibleRevenue / visibleCount : 0;
-  const newestOrderDate = orders.reduce<string | null>((latest, order) => {
-    if (!latest || new Date(order.orderDate) > new Date(latest)) return order.orderDate;
-    return latest;
-  }, null);
 
   return (
     <>
@@ -108,37 +77,6 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               Recent order value, channel and segment performance, and searchable order detail.
             </p>
           </div>
-        </div>
-
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-          <MetricTile
-            label="Filtered Orders"
-            value={formatNumber(totalCount, 0)}
-            detail={`${visibleCount} visible on this page`}
-            icon={ReceiptText}
-            tone="blue"
-          />
-          <MetricTile
-            label="Visible Revenue"
-            value={compactCurrency(visibleRevenue)}
-            detail={`${compactCurrency(averageOrder)} average order`}
-            icon={CircleDollarSign}
-            tone="good"
-          />
-          <MetricTile
-            label="Paid Share"
-            value={percent(paidCount, visibleCount)}
-            detail={`${paidCount} paid, ${openCount} open visible`}
-            icon={CreditCard}
-            tone={openCount > 0 ? 'warn' : 'good'}
-          />
-          <MetricTile
-            label="Newest Visible"
-            value={formatDate(newestOrderDate)}
-            detail={`Sorted by ${currentSortBy} ${currentSortOrder}`}
-            icon={CalendarDays}
-            tone="blue"
-          />
         </div>
 
         <section className="grid gap-3 2xl:grid-cols-[1fr_1fr]">
