@@ -4,21 +4,14 @@ import {
   getARAgingDetails,
   getBusinessCockpitData,
   getCurrentDSO,
+  getLargeRecentOrders,
   getSalesPerformanceHighlights,
   getWeeklyRevenue,
   type ARAgingDetail,
   type BusinessCockpitSummary,
+  type LargeRecentOrder,
   type SalesPerformanceHighlight,
 } from '@/lib/queries'
-import { getChannelRevenue, type ChannelRevenue } from '@/lib/queries/marketing'
-import { formatNumber } from '@/lib/utils'
-
-export interface ChannelMixRow {
-  label: string
-  value: number
-  percent: number
-  detail: string
-}
 
 export interface AgingBucket {
   label: string
@@ -31,10 +24,9 @@ export type CurrentDso = Awaited<ReturnType<typeof getCurrentDSO>>
 export interface BusinessCockpitPageData {
   summary: BusinessCockpitSummary | null
   dataQualityFlags: Awaited<ReturnType<typeof getBusinessCockpitData>>['dataQualityFlags']
-  accountQueue: Awaited<ReturnType<typeof getBusinessCockpitData>>['accountQueue']
   productQuality: Awaited<ReturnType<typeof getBusinessCockpitData>>['productQuality']
+  largeRecentOrders: LargeRecentOrder[]
   revenuePoints: CockpitRevenuePoint[]
-  channelRows: ChannelMixRow[]
   agingBuckets: AgingBucket[]
   salesHighlights: SalesPerformanceHighlight[]
   currentDso: CurrentDso
@@ -46,9 +38,7 @@ export interface BusinessCockpitPageData {
   metricTrends: {
     revenueValues: number[]
     accountRevenueValues: number[]
-    inventoryValues: number[]
     reorderValues: number[]
-    attributionValues: number[]
     openArValues: number[]
   }
 }
@@ -68,25 +58,6 @@ function buildRevenuePoints(revenueTrend: Awaited<ReturnType<typeof getWeeklyRev
     label: formatDate(point.date, { month: 'short' }),
     revenue: toNumber(point.revenue),
     orders: toNumber(point.orderCount),
-  }))
-}
-
-function buildChannelRows(channels: ChannelRevenue[], highlights: SalesPerformanceHighlight[]): ChannelMixRow[] {
-  if (channels.length > 0) {
-    return channels.slice(0, 5).map((channel) => ({
-      label: channel.acquisitionChannel,
-      value: toNumber(channel.totalRevenue),
-      percent: channel.revenuePercentage,
-      detail: `${formatNumber(channel.orderCount, 0)} orders`,
-    }))
-  }
-
-  const total = highlights.reduce((sum, row) => sum + toNumber(row.totalRevenue), 0)
-  return highlights.slice(0, 5).map((row) => ({
-    label: row.salesChannel,
-    value: toNumber(row.totalRevenue),
-    percent: total > 0 ? (toNumber(row.totalRevenue) / total) * 100 : 0,
-    detail: `${formatNumber(row.orderCount, 0)} orders`,
   }))
 }
 
@@ -120,34 +91,33 @@ export async function getBusinessCockpitPageData(): Promise<BusinessCockpitPageD
   const [
     cockpit,
     revenueTrend,
-    channelRevenue,
+    largeRecentOrders,
     salesHighlights,
     currentDso,
     arAgingDetails,
   ] = await Promise.all([
     getBusinessCockpitData(),
     getWeeklyRevenue({ period: '1y' }),
-    getChannelRevenue({ period: '1y' }),
+    getLargeRecentOrders(6),
     getSalesPerformanceHighlights(5),
     getCurrentDSO(),
     getARAgingDetails(),
   ])
 
-  const { summary, dataQualityFlags, accountQueue, productQuality } = cockpit
-  const criticalFlags = dataQualityFlags.filter((flag) => flag.severity === 'critical').length
-  const warningFlags = dataQualityFlags.filter((flag) => flag.severity === 'warn').length
+  const { summary, dataQualityFlags, productQuality } = cockpit
+  const visibleDataQualityFlags = dataQualityFlags.filter((flag) => !['future_orders', 'future_line_items', 'attribution_coverage'].includes(flag.flagKey))
+  const criticalFlags = visibleDataQualityFlags.filter((flag) => flag.severity === 'critical').length
+  const warningFlags = visibleDataQualityFlags.filter((flag) => flag.severity === 'warn').length
   const healthTone: Tone = criticalFlags > 0 ? 'red' : warningFlags > 0 ? 'amber' : 'green'
   const revenuePoints = buildRevenuePoints(revenueTrend)
-  const channelRows = buildChannelRows(channelRevenue, salesHighlights)
   const agingBuckets = summary ? buildAgingBuckets(arAgingDetails, toNumber(summary.openArAmount)) : []
 
   return {
     summary,
     dataQualityFlags,
-    accountQueue,
     productQuality,
+    largeRecentOrders,
     revenuePoints,
-    channelRows,
     agingBuckets,
     salesHighlights,
     currentDso,
@@ -158,10 +128,8 @@ export async function getBusinessCockpitPageData(): Promise<BusinessCockpitPageD
     },
     metricTrends: {
       revenueValues: revenuePoints.map((point) => point.revenue),
-      accountRevenueValues: accountQueue.map((account) => toNumber(account.totalRevenue)).reverse(),
-      inventoryValues: productQuality.map((product) => toNumber(product.estimatedAvailableQuantity)).reverse(),
+      accountRevenueValues: summary ? [toNumber(summary.top10CorporateRevenueSharePct), toNumber(summary.top50CorporateRevenueSharePct)] : [],
       reorderValues: productQuality.map((product) => toNumber(product.reorderValueAtCost)).reverse(),
-      attributionValues: channelRows.map((row) => row.percent),
       openArValues: summary
         ? [toNumber(summary.overdueArAmount), Math.max(toNumber(summary.openArAmount) - toNumber(summary.overdueArAmount), 0)]
         : [],

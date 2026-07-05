@@ -30,6 +30,12 @@ export interface RecentOrder {
   isIndividualCustomer: boolean;
 }
 
+export interface LargeRecentOrder extends RecentOrder {
+  benchmarkAmount: string;
+  multipleOfAverage: number;
+  isUnusuallyLarge: boolean;
+}
+
 export interface WeeklyRevenue {
   date: string;
   revenue: string;
@@ -278,6 +284,54 @@ export async function getRecentOrders(limit: number = 20): Promise<RecentOrder[]
     isPaid: order.isPaid!,
     companyDomain: order.companyDomain,
     isIndividualCustomer: order.isIndividualCustomer || false,
+  }));
+}
+
+export async function getLargeRecentOrders(limit: number = 6): Promise<LargeRecentOrder[]> {
+  const rows = await db.execute(sql`
+    SELECT
+      order_number,
+      customer,
+      order_date,
+      total_amount,
+      status,
+      is_paid,
+      company_domain_key,
+      is_individual_customer,
+      benchmark_amount,
+      multiple_of_average,
+      is_unusually_large
+    FROM analytics_mart.mart_large_recent_orders
+    ORDER BY is_unusually_large DESC, total_amount DESC, order_date DESC
+    LIMIT ${limit}
+  `);
+
+  const result = rows as unknown as Array<{
+    order_number: string | null;
+    customer: string | null;
+    order_date: string;
+    total_amount: string | number;
+    status: string | null;
+    is_paid: boolean | null;
+    company_domain_key: string | null;
+    is_individual_customer: boolean | null;
+    benchmark_amount: string | number | null;
+    multiple_of_average: string | number | null;
+    is_unusually_large: boolean | null;
+  }>;
+
+  return result.map((order) => ({
+    orderNumber: order.order_number || 'N/A',
+    customer: order.customer || 'Unknown',
+    orderDate: String(order.order_date),
+    totalAmount: Number(order.total_amount).toFixed(2),
+    status: order.status || 'UNKNOWN',
+    isPaid: order.is_paid || false,
+    companyDomain: order.company_domain_key,
+    isIndividualCustomer: order.is_individual_customer || false,
+    benchmarkAmount: Number(order.benchmark_amount || 0).toFixed(2),
+    multipleOfAverage: Number(order.multiple_of_average || 0),
+    isUnusuallyLarge: order.is_unusually_large || false,
   }));
 }
 

@@ -2,7 +2,6 @@
 // ABOUTME: Keeps dashboard first-viewport metrics current-safe and read-only
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
-import { getAccountAttentionQueue, type AccountAttentionItem } from './account-attention';
 import { getProductGrowthQuality, type ProductGrowthQualityItem } from './growth-quality';
 
 export interface BusinessCockpitSummary {
@@ -46,12 +45,11 @@ export interface DataQualityFlag {
 export interface BusinessCockpitData {
   summary: BusinessCockpitSummary | null;
   dataQualityFlags: DataQualityFlag[];
-  accountQueue: AccountAttentionItem[];
   productQuality: ProductGrowthQualityItem[];
 }
 
 export async function getBusinessCockpitData(): Promise<BusinessCockpitData> {
-  const [summaryRows, flagRows, accountQueue, productQuality] = await Promise.all([
+  const [summaryRows, flagRows, productQuality] = await Promise.all([
     db.execute(sql`
       SELECT *
       FROM analytics_mart.mart_business_cockpit_summary
@@ -65,7 +63,6 @@ export async function getBusinessCockpitData(): Promise<BusinessCockpitData> {
         CASE severity WHEN 'critical' THEN 1 WHEN 'warn' THEN 2 ELSE 3 END,
         flag_key
     `),
-    getAccountAttentionQueue(8),
     getProductGrowthQuality(8),
   ]);
 
@@ -116,7 +113,6 @@ export async function getBusinessCockpitData(): Promise<BusinessCockpitData> {
       flagLabel: row.flag_label,
       details: row.details,
     })),
-    accountQueue,
     productQuality,
   };
 }

@@ -4,6 +4,7 @@
 // Dashboard queries and interfaces
 export {
   getDashboardMetrics,
+  getLargeRecentOrders,
   getRecentOrders,
   getChannelMetrics,
   getSegmentMetrics,
@@ -15,6 +16,7 @@ export {
   getARAgingDetails,
   getProblemAccounts,
   type DashboardMetrics,
+  type LargeRecentOrder,
   type RecentOrder,
   type WeeklyRevenue,
   type SalesPeriodMetric,

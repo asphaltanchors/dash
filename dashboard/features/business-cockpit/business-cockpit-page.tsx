@@ -1,22 +1,16 @@
 import Link from 'next/link'
 import type { ComponentType } from 'react'
 import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
   ArrowUpRight,
   Boxes,
   CalendarDays,
   ChevronRight,
   CircleDollarSign,
-  Clock3,
   CreditCard,
   Layers3,
   LineChart,
   Package,
   Percent,
-  ShoppingCart,
-  Target,
   Users,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
@@ -36,14 +30,14 @@ import {
   toNumber,
 } from '@/components/dashboard/report-ui'
 import type {
-  AccountAttentionItem,
   BusinessCockpitSummary,
   DataQualityFlag,
+  LargeRecentOrder,
   ProductGrowthQualityItem,
   SalesPerformanceHighlight,
 } from '@/lib/queries'
-import { cn, formatCurrency, formatNumber } from '@/lib/utils'
-import type { AgingBucket, BusinessCockpitPageData, ChannelMixRow, CurrentDso } from './page-data'
+import { cn, formatCurrency, formatNumber, shouldShowCompanyLink } from '@/lib/utils'
+import type { AgingBucket, BusinessCockpitPageData, CurrentDso } from './page-data'
 
 function Delta({ value, suffix = '%' }: { value: number | string | null | undefined; suffix?: string }) {
   if (value == null) return <span className="text-xs text-slate-500">n/a</span>
@@ -98,6 +92,41 @@ function RatioRow({
   )
 }
 
+function currentDateKey() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function daysSinceIsoDate(value: string | null | undefined) {
+  if (!value) return null
+
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number)
+  if (!year || !month || !day) return null
+
+  const [currentYear, currentMonth, currentDay] = currentDateKey().split('-').map(Number)
+  const valueTime = Date.UTC(year, month - 1, day)
+  const currentTime = Date.UTC(currentYear, currentMonth - 1, currentDay)
+  return Math.floor((currentTime - valueTime) / 86_400_000)
+}
+
+function dataFreshnessTone(asOfDate: string | null | undefined): Tone {
+  const age = daysSinceIsoDate(asOfDate)
+  if (age == null || age >= 2) return 'red'
+  if (age >= 1) return 'amber'
+  return 'green'
+}
+
+function dataFreshnessDetail(asOfDate: string | null | undefined) {
+  const age = daysSinceIsoDate(asOfDate)
+  if (age == null) return 'No cockpit run date'
+  if (age <= 0) return 'Updated today'
+  if (age === 1) return '1 day behind today'
+  return `${age} days behind today`
+}
+
 function ReportHealthPanel({
   summary,
   flags,
@@ -105,27 +134,27 @@ function ReportHealthPanel({
   summary: BusinessCockpitSummary
   flags: DataQualityFlag[]
 }) {
+  const visibleFlags = flags.filter((flag) => !['future_orders', 'future_line_items', 'attribution_coverage'].includes(flag.flagKey))
   const openAr = toNumber(summary.openArAmount)
   const overdueAr = toNumber(summary.overdueArAmount)
   const overdueShare = openAr > 0 ? (overdueAr / openAr) * 100 : 0
-  const attributionRevenue = toNumber(summary.attributionRevenueCoveragePct)
   const top50Share = toNumber(summary.top50CorporateRevenueSharePct)
-  const critical = flags.filter((flag) => flag.severity === 'critical').length
-  const warnings = flags.filter((flag) => flag.severity === 'warn').length
+  const critical = visibleFlags.filter((flag) => flag.severity === 'critical').length
+  const warnings = visibleFlags.filter((flag) => flag.severity === 'warn').length
   const tone: Tone = critical > 0 ? 'red' : warnings > 0 ? 'amber' : 'green'
 
   return (
     <Panel>
       <PanelHeader
-        title="Report Health"
+        title="Data Checks"
         eyebrow={`${critical} critical, ${warnings} warning`}
-        action={<CompactBadge tone={tone}>{flags.length} checks</CompactBadge>}
+        action={<CompactBadge tone={tone}>{visibleFlags.length} checks</CompactBadge>}
       />
       <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_12rem] 2xl:grid-cols-1">
         <div className="space-y-1">
-          {flags.length === 0 ? (
+          {visibleFlags.length === 0 ? (
             <div className="rounded-md border border-slate-800 border-slate-800 bg-slate-950/30 px-3 py-2 text-xs text-slate-500">No health checks returned.</div>
-          ) : flags.slice(0, 5).map((flag) => (
+          ) : visibleFlags.slice(0, 5).map((flag) => (
             <div key={flag.flagKey} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-sm px-1 py-1.5 text-xs">
               <SeverityDot severity={flag.severity} />
               <div className="min-w-0">
@@ -145,25 +174,11 @@ function ReportHealthPanel({
             tone={overdueShare >= 30 ? 'red' : overdueShare >= 12 ? 'amber' : 'green'}
           />
           <RatioRow
-            label="Attribution"
-            value={`${summary.attributionRevenueCoveragePct}%`}
-            detail="revenue"
-            percent={attributionRevenue}
-            tone={attributionRevenue >= 80 ? 'green' : attributionRevenue >= 50 ? 'amber' : 'red'}
-          />
-          <RatioRow
             label="Top 50 Share"
             value={`${summary.top50CorporateRevenueSharePct}%`}
             detail={`top 10 ${summary.top10CorporateRevenueSharePct}%`}
             percent={top50Share}
             tone={top50Share >= 70 ? 'amber' : 'blue'}
-          />
-          <RatioRow
-            label="Future Demand"
-            value={formatCurrency(summary.futureOrderAmount, { showCents: false })}
-            detail={`${formatNumber(summary.futureOrderCount, 0)} orders`}
-            percent={Math.min(summary.futureOrderCount * 12, 100)}
-            tone={summary.futureOrderCount > 0 ? 'amber' : 'green'}
           />
         </div>
       </div>
@@ -213,11 +228,71 @@ function RevenueTrendPanel({
   )
 }
 
-function AccountTone(account: AccountAttentionItem): Tone {
-  const score = toNumber(account.healthScore)
-  if (score < 45 || account.daysSinceLastOrder >= 120) return 'red'
-  if (score < 70 || account.daysSinceLastOrder >= 60) return 'amber'
-  return 'green'
+function LargeRecentOrdersPanel({ orders }: { orders: LargeRecentOrder[] }) {
+  const unusualCount = orders.filter((order) => order.isUnusuallyLarge).length
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Large Recent Orders"
+        eyebrow="Last 45 days, ranked against trailing-year order size"
+        action={
+          <Link href="/orders" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
+            Orders <ArrowUpRight className="size-3" />
+          </Link>
+        }
+      />
+      <Table>
+        <TableHeader>
+          <TableRow className="border-slate-800 bg-slate-950/30 hover:bg-slate-950/30">
+            <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-500">Order</TableHead>
+            <TableHead className="h-8 text-[11px] uppercase text-slate-500">Customer</TableHead>
+            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Date</TableHead>
+            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Amount</TableHead>
+            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Signal</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {orders.length === 0 ? (
+            <TableRow className="border-slate-800 hover:bg-slate-900/40">
+              <TableCell colSpan={5} className="px-3 py-5 text-center text-xs text-slate-500">No recent order records returned.</TableCell>
+            </TableRow>
+          ) : orders.map((order) => (
+            <TableRow key={order.orderNumber} className="h-9 border-slate-800 hover:bg-slate-900/50">
+              <TableCell className="px-3 py-1.5">
+                <Link href={`/orders/${encodeURIComponent(order.orderNumber)}`} className="text-xs font-semibold text-blue-300 hover:text-blue-200">
+                  {order.orderNumber}
+                </Link>
+              </TableCell>
+              <TableCell className="max-w-[18rem] py-1.5">
+                {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
+                  <Link href={`/companies/${encodeURIComponent(order.companyDomain!)}`} className="block truncate text-xs text-blue-300 hover:text-blue-200">
+                    {order.customer}
+                  </Link>
+                ) : (
+                  <span className="block truncate text-xs text-slate-300">{order.customer}</span>
+                )}
+              </TableCell>
+              <TableCell className="py-1.5 text-right font-mono text-xs text-slate-400">{formatIsoDate(order.orderDate)}</TableCell>
+              <TableCell className="py-1.5 text-right font-mono text-xs font-semibold text-slate-100">
+                {formatCurrency(order.totalAmount, { showCents: false })}
+              </TableCell>
+              <TableCell className="py-1.5 text-right">
+                <CompactBadge tone={order.isUnusuallyLarge ? 'amber' : 'neutral'}>
+                  {order.isUnusuallyLarge ? `${formatNumber(order.multipleOfAverage, 1)}x avg` : 'Large'}
+                </CompactBadge>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {orders.length > 0 && unusualCount === 0 ? (
+        <p className="border-t border-slate-800 px-3 py-2 text-[11px] text-slate-500">
+          No order crossed the unusual-size benchmark, so this shows the largest recent orders.
+        </p>
+      ) : null}
+    </Panel>
+  )
 }
 
 function ProductTone(product: ProductGrowthQualityItem): Tone {
@@ -225,93 +300,6 @@ function ProductTone(product: ProductGrowthQualityItem): Tone {
   if (product.requiresManualReview || margin < 15) return 'red'
   if (product.shouldReorder || margin < 30) return 'amber'
   return 'green'
-}
-
-function AccountAttentionTable({ accounts }: { accounts: AccountAttentionItem[] }) {
-  const maxRevenue = Math.max(...accounts.map((account) => toNumber(account.totalRevenue)), 1)
-
-  return (
-    <Panel>
-      <PanelHeader
-        title="Accounts Needing Attention"
-        eyebrow={`${accounts.length} highest-priority accounts by attention score`}
-        action={
-          <Link href="/account-attention" className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 hover:text-blue-200">
-            Open all <ArrowUpRight className="size-3" />
-          </Link>
-        }
-      />
-      <div className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-slate-800 bg-slate-950/30 hover:bg-slate-950/30">
-              <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-500">Account</TableHead>
-              <TableHead className="h-8 text-[11px] uppercase text-slate-500">Segment</TableHead>
-              <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Revenue</TableHead>
-              <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">90D</TableHead>
-              <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Idle</TableHead>
-              <TableHead className="h-8 text-[11px] uppercase text-slate-500">Signal</TableHead>
-              <TableHead className="h-8 text-[11px] uppercase text-slate-500">Contact</TableHead>
-              <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Score</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {accounts.length === 0 ? (
-              <TableRow className="border-slate-800 hover:bg-slate-900/40">
-                <TableCell colSpan={8} className="px-3 py-5 text-center text-xs text-slate-500">No account attention records returned.</TableCell>
-              </TableRow>
-            ) : accounts.map((account) => {
-              const tone = AccountTone(account)
-              const revenue = toNumber(account.totalRevenue)
-
-              return (
-                <TableRow key={account.companyDomainKey} className="h-9 border-slate-800 hover:bg-slate-900/50">
-                  <TableCell className="max-w-[18rem] px-3 py-1.5">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className={cn('size-2 shrink-0 rounded-full', toneStyles[tone].bg)} style={{ backgroundColor: toneStyles[tone].fill }} />
-                      <div className="min-w-0">
-                        <Link
-                          href={`/companies/${encodeURIComponent(account.companyDomainKey)}`}
-                          className="block truncate text-xs font-semibold text-blue-300 hover:text-blue-200"
-                        >
-                          {account.companyName}
-                        </Link>
-                        <p className="truncate text-[11px] text-slate-500">{account.activityStatus} · {account.combinedGrowthTrend}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-1.5 text-xs text-slate-300">{account.revenueCategory}</TableCell>
-                  <TableCell className="py-1.5 text-right">
-                    <div className="ml-auto w-24 space-y-1">
-                      <p className="font-mono text-xs text-slate-100">{formatCurrency(revenue, { showCents: false })}</p>
-                      <InlineBar value={(revenue / maxRevenue) * 100} tone="blue" />
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">
-                    {formatCompactCurrency(account.trailing90dRevenue, 0)}
-                  </TableCell>
-                  <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{account.daysSinceLastOrder}d</TableCell>
-                  <TableCell className="max-w-[15rem] py-1.5">
-                    <div className="flex min-w-0 flex-wrap gap-1">
-                      {(account.reasonCodes.length ? account.reasonCodes : ['Review']).slice(0, 2).map((reason) => (
-                        <CompactBadge key={reason} tone={tone}>{reason}</CompactBadge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-[12rem] py-1.5">
-                    <p className="truncate text-xs text-slate-400">{account.bestContactName || account.bestContactEmail || 'No contact'}</p>
-                  </TableCell>
-                  <TableCell className={cn('py-1.5 text-right font-mono text-xs font-semibold', toneStyles[tone].text)}>
-                    {formatNumber(account.attentionScore, 0)}
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
-    </Panel>
-  )
 }
 
 function InventoryRiskTable({ products }: { products: ProductGrowthQualityItem[] }) {
@@ -417,43 +405,6 @@ function ProductEconomicsPanel({ products }: { products: ProductGrowthQualityIte
   )
 }
 
-function ChannelMixPanel({ rows, title = 'Revenue by Channel' }: { rows: ChannelMixRow[]; title?: string }) {
-  const tones: Tone[] = ['blue', 'green', 'amber', 'purple', 'cyan']
-
-  return (
-    <Panel>
-      <PanelHeader
-        title={title}
-        eyebrow={rows.length > 0 ? 'Top visible revenue sources' : 'No channel revenue returned'}
-        action={<CompactBadge tone="blue">12M</CompactBadge>}
-      />
-      <div className="space-y-3 p-3">
-        {rows.length === 0 ? (
-          <div className="rounded-md border border-slate-800 border-slate-800 bg-slate-950/30 px-3 py-5 text-center text-xs text-slate-500">No channel mix available.</div>
-        ) : rows.map((row, index) => {
-          const tone = tones[index % tones.length]
-
-          return (
-            <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_4rem_4.5rem] items-center gap-3 text-xs">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: toneStyles[tone].fill }} />
-                  <span className="truncate font-medium text-slate-200">{row.label}</span>
-                </div>
-                <div className="mt-1">
-                  <InlineBar value={row.percent} tone={tone} />
-                </div>
-              </div>
-              <div className="text-right font-mono text-slate-100">{formatNumber(row.percent, 0)}%</div>
-              <div className="text-right font-mono text-slate-400">{formatCompactCurrency(row.value, 0)}</div>
-            </div>
-          )
-        })}
-      </div>
-    </Panel>
-  )
-}
-
 function DonutGauge({ buckets, total }: { buckets: AgingBucket[]; total: number }) {
   const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
   let cumulative = 0
@@ -478,7 +429,7 @@ function DonutGauge({ buckets, total }: { buckets: AgingBucket[]; total: number 
   )
 }
 
-function DemandAndAgingPanel({
+function ReceivablesAgingPanel({
   summary,
   buckets,
 }: {
@@ -489,23 +440,13 @@ function DemandAndAgingPanel({
 
   return (
     <Panel>
-      <PanelHeader title="Demand & Commitments" eyebrow="Future-dated demand and receivables aging" />
+      <PanelHeader title="A/R Aging" eyebrow="Open receivables by aging bucket" />
       <div className="grid gap-4 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0">
-          <p className="text-xs text-slate-400">Committed Demand</p>
+          <p className="text-xs text-slate-400">Open A/R</p>
           <div className="mt-1 flex items-baseline gap-2">
-            <p className="text-xl font-semibold tabular-nums text-slate-50">{formatCurrency(summary.futureOrderAmount, { showCents: false })}</p>
-            <span className="text-xs text-slate-500">{formatNumber(summary.futureOrderCount, 0)} orders</span>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
-              <span>$0</span>
-              <span>{formatCompactCurrency(Math.max(toNumber(summary.futureOrderAmount), 1) * 1.25, 0)}</span>
-            </div>
-            <div className="relative mt-1 h-4 overflow-hidden rounded-sm bg-slate-800">
-              <div className="absolute inset-y-0 left-0 bg-blue-500/70" style={{ width: '78%' }} />
-              <div className="absolute inset-y-0 w-2 rounded-sm bg-amber-400" style={{ left: '68%' }} />
-            </div>
+            <p className="text-xl font-semibold tabular-nums text-slate-50">{formatCurrency(summary.openArAmount, { showCents: false })}</p>
+            <span className="text-xs text-slate-500">{formatNumber(summary.openInvoiceCount, 0)} invoices</span>
           </div>
           <div className="mt-4 space-y-1">
             {buckets.slice(0, 4).map((bucket, index) => (
@@ -592,34 +533,13 @@ function MiniStat({
   )
 }
 
-function FutureDemandAlert({ summary }: { summary: BusinessCockpitSummary }) {
-  if (summary.futureOrderCount <= 0) return null
-
-  return (
-    <Panel className="border-amber-500/35 bg-amber-500/10">
-      <div className="flex items-center justify-between gap-3 px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <AlertTriangle className="size-4 shrink-0 text-amber-300" />
-          <p className="truncate text-sm font-medium text-amber-100">
-            {formatNumber(summary.futureOrderCount, 0)} future-dated invoices remain in committed demand through {formatIsoDate(summary.latestFutureOrderDate)}.
-          </p>
-        </div>
-        <Link href="/orders" className="hidden shrink-0 items-center gap-1 rounded-md border border-slate-800 border-amber-400/40 px-2 py-1 text-xs font-medium text-amber-200 hover:bg-amber-400/10 sm:inline-flex">
-          Review <ArrowRight className="size-3" />
-        </Link>
-      </div>
-    </Panel>
-  )
-}
-
 export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData }) {
   const {
     summary,
     dataQualityFlags,
-    accountQueue,
     productQuality,
+    largeRecentOrders,
     revenuePoints,
-    channelRows,
     agingBuckets,
     salesHighlights,
     currentDso,
@@ -630,11 +550,11 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
   const {
     revenueValues,
     accountRevenueValues,
-    inventoryValues,
     reorderValues,
-    attributionValues,
     openArValues,
   } = metricTrends
+  const freshnessTone: Tone = summary ? dataFreshnessTone(summary.asOfDate) : 'neutral'
+  const freshnessAge = summary ? daysSinceIsoDate(summary.asOfDate) : null
 
   if (!summary) {
     return (
@@ -664,7 +584,7 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             <Separator orientation="vertical" className="hidden bg-slate-800 data-[orientation=vertical]:h-5 sm:block" />
             <div className="min-w-0">
               <h1 className="truncate text-base font-semibold leading-5 text-slate-50">Business Cockpit</h1>
-              <p className="hidden truncate text-xs text-slate-400 sm:block">Revenue, accounts, inventory, attribution, and committed demand</p>
+              <p className="hidden truncate text-xs text-slate-400 sm:block">Revenue, receivables, inventory, and data freshness</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -672,20 +592,13 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
               <CalendarDays className="size-3.5 text-slate-400" />
               <span className="font-mono">{formatIsoDate(summary.asOfDate)}</span>
             </div>
-            <div className="hidden rounded-md border border-slate-800 border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-300 lg:block">
-              Snapshot <span className="font-semibold text-slate-100">Auto</span>
-            </div>
-            <div className="hidden items-center gap-1 rounded-full border border-slate-800 border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300 sm:flex">
-              <span className="size-2 rounded-full bg-emerald-400" />
-              Live
-            </div>
             <CompactBadge tone={healthTone}>{criticalFlags}C {warningFlags}W</CompactBadge>
           </div>
         </div>
       </header>
 
       <main className="min-h-[calc(100svh-3.5rem)] space-y-2 bg-[#08111f] p-2 text-slate-100 sm:p-3">
-        <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-8">
+        <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
           <MetricTile
             label="YTD Revenue"
             value={formatCurrency(summary.ytdRevenue, { showCents: false })}
@@ -719,14 +632,6 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             trend={reorderValues}
           />
           <MetricTile
-            label="Attribution"
-            value={`${summary.attributionOrderCoveragePct}%`}
-            detail={`${summary.attributionRevenueCoveragePct}% of revenue is attributed`}
-            icon={Target}
-            tone={toNumber(summary.attributionOrderCoveragePct) >= 80 ? 'green' : 'amber'}
-            trend={attributionValues}
-          />
-          <MetricTile
             label="Concentration"
             value={`${summary.top10CorporateRevenueSharePct}%`}
             detail={`Top 50 accounts hold ${summary.top50CorporateRevenueSharePct}%`}
@@ -735,36 +640,25 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             trend={accountRevenueValues}
           />
           <MetricTile
-            label="Inventory Freshness"
-            value={formatIsoDate(summary.inventoryAsOfDate)}
-            detail="Latest reorder recommendation snapshot"
-            icon={Clock3}
-            tone={summary.inventoryAsOfDate ? 'green' : 'amber'}
-            trend={inventoryValues}
-          />
-          <MetricTile
-            label="Demand Check"
-            value={formatCurrency(summary.futureOrderAmount, { showCents: false })}
-            detail={`${summary.futureOrderCount} future-dated orders through ${formatIsoDate(summary.latestFutureOrderDate)}`}
-            icon={ShoppingCart}
-            tone={summary.futureOrderCount > 0 ? 'amber' : 'green'}
-            trend={[0, toNumber(summary.futureOrderAmount), toNumber(summary.futureOrderAmount) * 0.85, toNumber(summary.futureOrderAmount) * 1.05]}
+            label="Data Freshness"
+            value={formatIsoDate(summary.asOfDate)}
+            detail={dataFreshnessDetail(summary.asOfDate)}
+            icon={CalendarDays}
+            tone={freshnessTone}
+            trend={freshnessAge == null ? [] : [0, Math.max(freshnessAge, 0)]}
           />
         </section>
-
-        <FutureDemandAlert summary={summary} />
 
         <section className="grid gap-2 2xl:grid-cols-[minmax(0,1.35fr)_minmax(24rem,0.65fr)]">
           <div className="grid gap-2 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
             <RevenueTrendPanel points={revenuePoints} summary={summary} />
             <ReportHealthPanel summary={summary} flags={dataQualityFlags} />
             <div className="xl:col-span-2">
-              <AccountAttentionTable accounts={accountQueue} />
+              <LargeRecentOrdersPanel orders={largeRecentOrders} />
             </div>
           </div>
 
           <div className="grid content-start gap-2">
-            <ChannelMixPanel rows={channelRows} />
             <InventoryRiskTable products={productQuality} />
           </div>
         </section>
@@ -772,12 +666,12 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
         <section className="grid gap-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,1fr)]">
           <ProductEconomicsPanel products={productQuality} />
           <SalesPerformancePanel highlights={salesHighlights} summary={summary} currentDso={currentDso} />
-          <DemandAndAgingPanel summary={summary} buckets={agingBuckets} />
+          <ReceivablesAgingPanel summary={summary} buckets={agingBuckets} />
         </section>
 
         <section className="grid gap-2 md:grid-cols-4">
           <QuickLink href="/cash-flow" icon={Percent} label="Cash Flow" detail="DSO, A/R aging, collections, overdue exposure" tone="green" />
-          <QuickLink href="/marketing-attribution" icon={Activity} label="Marketing Attribution" detail="Attribution coverage, UTM quality, source mix" tone="blue" />
+          <QuickLink href="/account-attention" icon={Users} label="Account Attention" detail="Full account review queue and contact signals" tone="blue" />
           <QuickLink href="/products" icon={Package} label="Products" detail="Margin quality, discounts, reorder posture" tone="amber" />
           <QuickLink href="/companies" icon={Layers3} label="Companies" detail="Account health, contacts, concentration" tone="purple" />
         </section>
