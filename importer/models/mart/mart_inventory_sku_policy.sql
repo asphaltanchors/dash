@@ -238,7 +238,7 @@ policy AS (
              ) THEN 'COMPONENT_PACKAGING_MODEL'
             WHEN months_with_sales_since_2023 >= 18 THEN 'SKU_SEASONAL_TREND_MODEL'
             WHEN months_with_sales_since_2023 >= 6 THEN 'SKU_BASELINE_VARIANT_SEASONAL_MODEL'
-            WHEN sales_qty_since_2024 > 0 THEN 'SPARSE_OR_NEW_SKU_REVIEW'
+            WHEN sales_qty_since_2024 > 0 THEN 'SPARSE_OR_NEW_SKU_BASELINE_MODEL'
             WHEN current_on_hand_qty > 0 THEN 'STOCKED_NO_RECENT_DEMAND_REVIEW'
             ELSE 'NO_ACTION_OR_ARCHIVE'
         END AS policy_bucket,
@@ -255,7 +255,7 @@ policy AS (
              ) THEN 'component_consumption_dominates_recent_sales'
             WHEN months_with_sales_since_2023 >= 18 THEN 'mature_sku_with_enough_monthly_sales_history'
             WHEN months_with_sales_since_2023 >= 6 THEN 'moderate_sku_sales_history'
-            WHEN sales_qty_since_2024 > 0 THEN 'recent_sparse_sales_history'
+            WHEN sales_qty_since_2024 > 0 THEN 'recent_sparse_or_new_sku_sales_history'
             WHEN current_on_hand_qty > 0 THEN 'stocked_without_recent_demand'
             ELSE 'no_stock_or_usable_demand_signal'
         END AS policy_assignment_reason
@@ -297,6 +297,7 @@ validated AS (
             END,
             CASE
                 WHEN largest_sales_line_share_2025 >= 0.35
+                 AND total_sales_qty_2025 >= 250
                  AND policy_bucket NOT IN ('NO_ACTION_OR_ARCHIVE', 'STOCKED_NO_RECENT_DEMAND_REVIEW')
                 THEN 'large_order_outlier_2025'
             END,
@@ -324,18 +325,18 @@ final AS (
             WHEN 'ASSEMBLY_FINISHED_GOOD_MODEL' THEN 'finished_good_sales_and_build_history'
             WHEN 'SKU_SEASONAL_TREND_MODEL' THEN 'sku_monthly_history_with_sku_seasonality'
             WHEN 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 'sku_baseline_with_family_material_seasonality'
-            WHEN 'SPARSE_OR_NEW_SKU_REVIEW' THEN 'manual_or_analog_sku_review'
+            WHEN 'SPARSE_OR_NEW_SKU_BASELINE_MODEL' THEN 'recent_observed_sales_velocity'
             WHEN 'STOCKED_NO_RECENT_DEMAND_REVIEW' THEN 'hold_or_manual_review'
             ELSE 'exclude_until_active'
         END AS forecast_method,
         CASE
             WHEN policy_bucket = 'SKU_SEASONAL_TREND_MODEL' THEN 'high'
             WHEN policy_bucket IN ('SKU_BASELINE_VARIANT_SEASONAL_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL', 'FBA_REPLENISHMENT_MODEL') THEN 'medium'
-            WHEN policy_bucket IN ('COMPONENT_PACKAGING_MODEL', 'SPARSE_OR_NEW_SKU_REVIEW', 'STOCKED_NO_RECENT_DEMAND_REVIEW') THEN 'manual_review'
+            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_BASELINE_MODEL' THEN 'low'
+            WHEN policy_bucket IN ('COMPONENT_PACKAGING_MODEL', 'STOCKED_NO_RECENT_DEMAND_REVIEW') THEN 'manual_review'
             ELSE 'exclude'
         END AS confidence_level,
         policy_bucket IN (
-            'SPARSE_OR_NEW_SKU_REVIEW',
             'STOCKED_NO_RECENT_DEMAND_REVIEW',
             'NO_ACTION_OR_ARCHIVE',
             'COMPONENT_PACKAGING_MODEL'

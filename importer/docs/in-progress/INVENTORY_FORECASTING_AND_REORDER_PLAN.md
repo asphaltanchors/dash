@@ -36,7 +36,7 @@ The first useful version should be auditable rather than mathematically fancy. I
 | `ASSEMBLY_FINISHED_GOOD_MODEL` | Kits and QuickBooks inventory assemblies | Finished-good sales plus build production |
 | `FBA_REPLENISHMENT_MODEL` | Amazon FBA stock planning | Amazon-channel sales and FBA transfer history |
 | `COMPONENT_PACKAGING_MODEL` | Components, labels, bags, cartons, packaging | Build assembly component consumption |
-| `SPARSE_OR_NEW_SKU_REVIEW` | New, custom, or sparse-demand SKUs | Manual review or analog SKU logic |
+| `SPARSE_OR_NEW_SKU_BASELINE_MODEL` | New or sparse-demand SKUs with recent observed sales | Low-confidence recent velocity forecast |
 | `STOCKED_NO_RECENT_DEMAND_REVIEW` | Inventory with little recent demand | Hold/review, do not auto-reorder |
 | `NO_ACTION_OR_ARCHIVE` | No stock and no useful demand signal | Exclude from reorder planning |
 

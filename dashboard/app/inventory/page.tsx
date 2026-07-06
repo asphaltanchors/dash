@@ -74,6 +74,11 @@ function inboundLabel(item: InventoryPlanningItem) {
   return parts.length > 0 ? parts.join(' + ') : 'none'
 }
 
+function inboundOrderLabel(item: InventoryPlanningItem) {
+  const totalOnOrder = toNumber(item.inboundOpenPoQty) + toNumber(item.futureReceiptQty)
+  return totalOnOrder > 0 ? formatNumber(totalOnOrder, 0) : 'none'
+}
+
 function buyPlanPrimary(item: InventoryPlanningItem, useLayerPlan: boolean) {
   if (!useLayerPlan || !item.sixPackUnitsPerLayer || toNumber(item.suggestedBuyQty) <= 0) {
     return formatNumber(item.suggestedBuyQty, 0)
@@ -221,7 +226,6 @@ function BuyCostPanel({ buckets }: { buckets: ReturnType<typeof inventoryBuckets
 
 function WwdLayerPanel({ items }: { items: InventoryPlanningItem[] }) {
   const rows = sortPlanningItems(items).slice(0, 12)
-  const maxCost = Math.max(...rows.map((item) => operationalBuyCost(item, true)), 1)
 
   return (
     <Panel id="wwd-layers" className="border-blue-500/30">
@@ -230,30 +234,27 @@ function WwdLayerPanel({ items }: { items: InventoryPlanningItem[] }) {
         eyebrow="Layer-aware buy plan for WWD vendor SKUs"
         action={<CompactBadge tone="blue">{sectionSummary(items, true)}</CompactBadge>}
       />
-      <Table>
+      <Table className="table-fixed [&_td]:overflow-hidden [&_th]:overflow-hidden">
         <TableHeader>
           <TableRow className="border-slate-800 bg-slate-950/30 hover:bg-slate-950/30">
-            <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-500">SKU</TableHead>
-            <TableHead className="h-8 text-[11px] uppercase text-slate-500">Item</TableHead>
-            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">On Hand</TableHead>
-            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Inbound</TableHead>
-            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Model Qty</TableHead>
-            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Layer Plan</TableHead>
-            <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Cost</TableHead>
-            <TableHead className="h-8 text-[11px] uppercase text-slate-500">Reason</TableHead>
+            <TableHead className="h-8 w-[11%] px-3 text-[11px] uppercase text-slate-500">SKU</TableHead>
+            <TableHead className="h-8 w-[42%] text-[11px] uppercase text-slate-500">Item</TableHead>
+            <TableHead className="h-8 w-[9%] text-right text-[11px] uppercase text-slate-500">On Hand</TableHead>
+            <TableHead className="h-8 w-[12%] text-right text-[11px] uppercase text-slate-500">Inbound</TableHead>
+            <TableHead className="h-8 w-[8%] text-right text-[11px] uppercase text-slate-500">Model Qty</TableHead>
+            <TableHead className="h-8 w-[18%] text-right text-[11px] uppercase text-slate-500">Layer Plan</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((item) => {
-            const cost = operationalBuyCost(item, true)
             const tone = actionTone(item.action)
             return (
               <TableRow key={item.sku} className="h-10 border-slate-800 hover:bg-slate-900/50">
-                <TableCell className="max-w-[8rem] px-3 py-1.5">
+                <TableCell className="min-w-0 px-3 py-1.5">
                   <Link href={`/products/${encodeURIComponent(item.sku)}`} className="block truncate font-mono text-xs font-semibold text-blue-300 hover:text-blue-200">{item.sku}</Link>
                   <CompactBadge tone={tone}>{actionLabels[item.action]}</CompactBadge>
                 </TableCell>
-                <TableCell className="max-w-[20rem] py-1.5">
+                <TableCell className="min-w-0 py-1.5">
                   <p className="truncate text-xs font-medium text-slate-200">{item.salesDescription || item.productFamily}</p>
                   <p className="truncate text-[11px] text-slate-500">{item.productFamily} | {item.confidenceLevel} confidence | {item.sixPackUnitsPerLayer ? `${item.sixPackUnitsPerLayer}/layer` : 'layer TBD'}</p>
                 </TableCell>
@@ -262,22 +263,13 @@ function WwdLayerPanel({ items }: { items: InventoryPlanningItem[] }) {
                   <p className="text-[11px] text-slate-500">{item.positionDays || '-'}d</p>
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">
-                  <p>{inboundLabel(item)}</p>
+                  <p className="truncate">{inboundOrderLabel(item)}</p>
                   <p className="text-[11px] text-slate-500">{item.nextOpenPoDate || 'no date'}</p>
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{formatNumber(item.suggestedBuyQty, 0)}</TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-100">
                   <p className={operationalBuyQty(item, true) > 0 ? 'text-blue-300' : 'text-slate-500'}>{buyPlanPrimary(item, true)}</p>
-                  <p className="text-[11px] text-slate-500">{buyPlanDetail(item, true)}</p>
-                </TableCell>
-                <TableCell className="py-1.5 text-right">
-                  <div className="ml-auto w-20 space-y-1">
-                    <p className="font-mono text-xs text-slate-100">{compactCurrency(cost, 0)}</p>
-                    <InlineBar value={(cost / maxCost) * 100} tone={tone} />
-                  </div>
-                </TableCell>
-                <TableCell className="max-w-[16rem] py-1.5">
-                  <p className="truncate text-xs text-slate-400" title={item.recommendationReason}>{item.recommendationReason || item.policyAssignmentReason || '-'}</p>
+                  <p className="truncate text-[11px] text-slate-500">{buyPlanDetail(item, true)}</p>
                 </TableCell>
               </TableRow>
             )

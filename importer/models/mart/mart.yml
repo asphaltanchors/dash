@@ -87,7 +87,7 @@ models:
                 - ASSEMBLY_FINISHED_GOOD_MODEL
                 - FBA_REPLENISHMENT_MODEL
                 - COMPONENT_PACKAGING_MODEL
-                - SPARSE_OR_NEW_SKU_REVIEW
+                - SPARSE_OR_NEW_SKU_BASELINE_MODEL
                 - STOCKED_NO_RECENT_DEMAND_REVIEW
                 - NO_ACTION_OR_ARCHIVE
 
@@ -116,7 +116,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['high', 'medium', 'manual_review', 'exclude']
+              values: ['high', 'medium', 'low', 'manual_review', 'exclude']
 
       - name: requires_manual_review
         description: Boolean flag for SKUs that should not receive a blind automatic reorder recommendation.
@@ -180,7 +180,7 @@ models:
                 - ASSEMBLY_FINISHED_GOOD_MODEL
                 - FBA_REPLENISHMENT_MODEL
                 - COMPONENT_PACKAGING_MODEL
-                - SPARSE_OR_NEW_SKU_REVIEW
+                - SPARSE_OR_NEW_SKU_BASELINE_MODEL
                 - STOCKED_NO_RECENT_DEMAND_REVIEW
                 - NO_ACTION_OR_ARCHIVE
 
@@ -204,7 +204,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['high', 'medium', 'manual_review', 'exclude']
+              values: ['high', 'medium', 'low', 'manual_review', 'exclude']
 
       - name: requires_manual_review
         description: Boolean flag for SKUs that should be reviewed before an automatic order is placed.
@@ -321,7 +321,7 @@ models:
                 - sku_seasonality_with_growth
                 - family_material_seasonality_with_growth
                 - capped_trailing_sku_baseline
-                - sparse_capped_recent_demand
+                - sparse_or_new_observed_velocity
                 - component_consumption_since_2024
                 - no_automatic_forecast
 

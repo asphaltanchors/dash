@@ -162,6 +162,13 @@ demand_stats AS (
         AVG(CASE WHEN demand_date >= (SELECT inventory_as_of_date FROM latest_snapshot) - INTERVAL '30 days' THEN sales_qty END) AS avg_daily_sales_30d,
         AVG(CASE WHEN demand_date >= (SELECT inventory_as_of_date FROM latest_snapshot) - INTERVAL '90 days' THEN sales_qty END) AS avg_daily_sales_90d,
         AVG(sales_qty) AS avg_daily_sales_365d,
+        SUM(sales_qty)
+            / NULLIF(
+                (SELECT inventory_as_of_date FROM latest_snapshot)
+                  - MIN(demand_date) FILTER (WHERE sales_qty > 0)
+                  + 1,
+                0
+            ) AS avg_daily_sales_since_first_sale_365d,
         STDDEV_SAMP(CASE WHEN demand_date >= (SELECT inventory_as_of_date FROM latest_snapshot) - INTERVAL '90 days' THEN sales_qty END) AS stddev_daily_sales_90d,
         PERCENTILE_CONT(0.8) WITHIN GROUP (
             ORDER BY CASE WHEN demand_date >= (SELECT inventory_as_of_date FROM latest_snapshot) - INTERVAL '90 days' THEN sales_qty END
@@ -469,6 +476,7 @@ forecast_inputs AS (
         COALESCE(ds.avg_daily_sales_30d, 0) AS calc_avg_daily_sales_30d,
         COALESCE(ds.avg_daily_sales_90d, 0) AS calc_avg_daily_sales_90d,
         COALESCE(ds.avg_daily_sales_365d, 0) AS calc_avg_daily_sales_365d,
+        COALESCE(ds.avg_daily_sales_since_first_sale_365d, 0) AS avg_daily_sales_since_first_sale_365d,
         COALESCE(ds.stddev_daily_sales_90d, 0) AS stddev_daily_sales_90d,
         COALESCE(ds.p80_daily_sales_90d, 0) AS p80_daily_sales_90d,
         COALESCE(ds.total_sales_qty_90d, 0) AS total_sales_qty_90d,
@@ -536,7 +544,7 @@ parameters AS (
             WHEN fi.policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
             WHEN fi.policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
             WHEN fi.policy_bucket = 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 90
-            WHEN fi.policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN 60
+            WHEN fi.policy_bucket = 'SPARSE_OR_NEW_SKU_BASELINE_MODEL' THEN 60
             WHEN fi.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
             ELSE 0
         END AS default_target_coverage_days,
@@ -544,14 +552,14 @@ parameters AS (
             WHEN fi.policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
             WHEN fi.policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
             WHEN fi.policy_bucket = 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 90
-            WHEN fi.policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN 60
+            WHEN fi.policy_bucket = 'SPARSE_OR_NEW_SKU_BASELINE_MODEL' THEN 60
             WHEN fi.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
             ELSE 0
         END)::INT AS target_coverage_days,
         CASE
             WHEN fi.policy_bucket = 'SKU_SEASONAL_TREND_MODEL' THEN 0.25
             WHEN fi.policy_bucket IN ('SKU_BASELINE_VARIANT_SEASONAL_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL', 'FBA_REPLENISHMENT_MODEL') THEN 0.35
-            WHEN fi.policy_bucket IN ('SPARSE_OR_NEW_SKU_REVIEW', 'COMPONENT_PACKAGING_MODEL') THEN 0.50
+            WHEN fi.policy_bucket IN ('SPARSE_OR_NEW_SKU_BASELINE_MODEL', 'COMPONENT_PACKAGING_MODEL') THEN 0.50
             ELSE 0.00
         END AS safety_stock_multiplier
     FROM forecast_inputs fi
@@ -572,8 +580,8 @@ forecast_base AS (
                 THEN 'family_material_seasonality_with_growth'
             WHEN policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'SKU_BASELINE_VARIANT_SEASONAL_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL', 'FBA_REPLENISHMENT_MODEL')
                 THEN 'capped_trailing_sku_baseline'
-            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW'
-                THEN 'sparse_capped_recent_demand'
+            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_BASELINE_MODEL'
+                THEN 'sparse_or_new_observed_velocity'
             WHEN policy_bucket = 'COMPONENT_PACKAGING_MODEL'
                 THEN 'component_consumption_since_2024'
             ELSE 'no_automatic_forecast'
@@ -625,7 +633,11 @@ forecast AS (
                 (sku_baseline_monthly_qty * applied_seasonality_index * applied_growth_factor) / 30.4375
             WHEN forecast_model_detail = 'capped_trailing_sku_baseline' THEN
                 sku_baseline_monthly_qty / 30.4375
-            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN GREATEST(calc_avg_daily_sales_30d, calc_avg_daily_sales_90d, calc_avg_daily_sales_365d)
+            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_BASELINE_MODEL' THEN GREATEST(
+                calc_avg_daily_sales_30d,
+                calc_avg_daily_sales_90d,
+                COALESCE(avg_daily_sales_since_first_sale_365d, 0)
+            )
             WHEN policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN GREATEST(
                 component_consumed_qty_since_2024 / NULLIF((inventory_as_of_date - DATE '2024-01-01')::NUMERIC, 0),
                 0
