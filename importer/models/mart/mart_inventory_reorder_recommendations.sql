@@ -42,6 +42,19 @@ future_committed_demand AS (
     GROUP BY sku
 ),
 
+future_receipt_lines AS (
+    SELECT
+        m.sku,
+        m.movement_date AS expected_receipt_date,
+        SUM(m.quantity_in) AS future_receipt_qty
+    FROM {{ ref('int_quickbooks__inventory_movements') }} m
+    INNER JOIN latest_snapshot ls
+        ON m.movement_date > ls.inventory_as_of_date
+    WHERE m.movement_type = 'receipt'
+      AND m.quantity_in > 0
+    GROUP BY m.sku, m.movement_date
+),
+
 sales_lines AS (
     SELECT
         p.sku,
@@ -504,32 +517,46 @@ forecast_inputs AS (
        AND pi.material_type = fmst.material_type
 ),
 
+future_receipts_before_expected_receipt AS (
+    SELECT
+        fi.sku,
+        SUM(frl.future_receipt_qty) AS future_receipt_qty_by_expected_receipt_date
+    FROM forecast_inputs fi
+    INNER JOIN future_receipt_lines frl
+        ON fi.sku = frl.sku
+       AND frl.expected_receipt_date <= fi.expected_receipt_date
+    GROUP BY fi.sku
+),
+
 parameters AS (
     SELECT
-        *,
+        fi.*,
+        COALESCE(frber.future_receipt_qty_by_expected_receipt_date, 0) AS future_receipt_qty_by_expected_receipt_date,
         CASE
-            WHEN policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
-            WHEN policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
-            WHEN policy_bucket = 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 90
-            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN 60
-            WHEN policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
+            WHEN fi.policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
+            WHEN fi.policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
+            WHEN fi.policy_bucket = 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 90
+            WHEN fi.policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN 60
+            WHEN fi.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
             ELSE 0
         END AS default_target_coverage_days,
-        COALESCE(configured_target_coverage_days, CASE
-            WHEN policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
-            WHEN policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
-            WHEN policy_bucket = 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 90
-            WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN 60
-            WHEN policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
+        COALESCE(fi.configured_target_coverage_days, CASE
+            WHEN fi.policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
+            WHEN fi.policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
+            WHEN fi.policy_bucket = 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 90
+            WHEN fi.policy_bucket = 'SPARSE_OR_NEW_SKU_REVIEW' THEN 60
+            WHEN fi.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
             ELSE 0
         END)::INT AS target_coverage_days,
         CASE
-            WHEN policy_bucket = 'SKU_SEASONAL_TREND_MODEL' THEN 0.25
-            WHEN policy_bucket IN ('SKU_BASELINE_VARIANT_SEASONAL_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL', 'FBA_REPLENISHMENT_MODEL') THEN 0.35
-            WHEN policy_bucket IN ('SPARSE_OR_NEW_SKU_REVIEW', 'COMPONENT_PACKAGING_MODEL') THEN 0.50
+            WHEN fi.policy_bucket = 'SKU_SEASONAL_TREND_MODEL' THEN 0.25
+            WHEN fi.policy_bucket IN ('SKU_BASELINE_VARIANT_SEASONAL_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL', 'FBA_REPLENISHMENT_MODEL') THEN 0.35
+            WHEN fi.policy_bucket IN ('SPARSE_OR_NEW_SKU_REVIEW', 'COMPONENT_PACKAGING_MODEL') THEN 0.50
             ELSE 0.00
         END AS safety_stock_multiplier
-    FROM forecast_inputs
+    FROM forecast_inputs fi
+    LEFT JOIN future_receipts_before_expected_receipt frber
+        ON fi.sku = frber.sku
 ),
 
 forecast_base AS (
@@ -608,6 +635,28 @@ forecast AS (
     FROM forecast_base
 ),
 
+calculation_inputs AS (
+    SELECT
+        *,
+        GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0)) AS open_po_position_qty,
+        CASE
+            WHEN next_open_po_date IS NOT NULL
+             AND next_open_po_date <= expected_receipt_date
+            THEN GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0))
+            ELSE 0
+        END AS open_po_qty_by_expected_receipt_date,
+        COALESCE(future_receipt_qty_after_anchor, 0) AS future_receipt_position_qty
+    FROM forecast
+),
+
+calculation_position_inputs AS (
+    SELECT
+        *,
+        open_po_qty_by_expected_receipt_date
+          + COALESCE(future_receipt_qty_by_expected_receipt_date, 0) AS inbound_qty_by_expected_receipt_date_calc
+    FROM calculation_inputs
+),
+
 calculated AS (
     SELECT
         *,
@@ -616,20 +665,10 @@ calculated AS (
             forecast_daily_qty * assumed_lead_time_days * safety_stock_multiplier,
             stddev_daily_sales_90d * SQRT(assumed_lead_time_days) * safety_stock_multiplier
         ) AS safety_stock_qty,
-        current_on_hand_qty + GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0)) - committed_demand_qty AS available_position_qty,
-        CASE
-            WHEN next_open_po_date IS NOT NULL
-             AND next_open_po_date <= expected_receipt_date
-            THEN GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0))
-            ELSE 0
-        END AS inbound_qty_by_expected_receipt_date,
+        current_on_hand_qty + open_po_position_qty + future_receipt_position_qty - committed_demand_qty AS available_position_qty,
+        inbound_qty_by_expected_receipt_date_calc AS inbound_qty_by_expected_receipt_date,
         current_on_hand_qty
-          + CASE
-                WHEN next_open_po_date IS NOT NULL
-                 AND next_open_po_date <= expected_receipt_date
-                THEN GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0))
-                ELSE 0
-            END
+          + inbound_qty_by_expected_receipt_date_calc
           - (forecast_daily_qty * assumed_lead_time_days)
           - committed_demand_before_expected_receipt_qty AS projected_position_at_expected_receipt_qty,
         GREATEST(
@@ -638,12 +677,7 @@ calculated AS (
               + committed_demand_before_expected_receipt_qty
               - (
                     current_on_hand_qty
-                    + CASE
-                        WHEN next_open_po_date IS NOT NULL
-                         AND next_open_po_date <= expected_receipt_date
-                        THEN GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0))
-                        ELSE 0
-                    END
+                    + inbound_qty_by_expected_receipt_date_calc
                 )
         ) AS uncovered_lead_time_demand_qty,
         GREATEST(
@@ -652,12 +686,7 @@ calculated AS (
               + committed_demand_before_expected_receipt_qty
               - (
                     current_on_hand_qty
-                    + CASE
-                        WHEN next_open_po_date IS NOT NULL
-                         AND next_open_po_date <= expected_receipt_date
-                        THEN GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0))
-                        ELSE 0
-                    END
+                    + inbound_qty_by_expected_receipt_date_calc
                 )
         ) AS stockout_gap_qty,
         GREATEST(
@@ -669,12 +698,7 @@ calculated AS (
                 )
               - GREATEST(0, (
                     current_on_hand_qty
-                    + CASE
-                        WHEN next_open_po_date IS NOT NULL
-                         AND next_open_po_date <= expected_receipt_date
-                        THEN GREATEST(COALESCE(open_po_quantity, 0), COALESCE(quantity_on_order, 0))
-                        ELSE 0
-                    END
+                    + inbound_qty_by_expected_receipt_date_calc
                     - (forecast_daily_qty * assumed_lead_time_days)
                     - committed_demand_before_expected_receipt_qty
                 ))
@@ -684,7 +708,7 @@ calculated AS (
                 forecast_daily_qty * assumed_lead_time_days * safety_stock_multiplier,
                 stddev_daily_sales_90d * SQRT(assumed_lead_time_days) * safety_stock_multiplier
             ) AS reorder_point_qty
-    FROM forecast
+    FROM calculation_position_inputs
 ),
 
 recommendations AS (

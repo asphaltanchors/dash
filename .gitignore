@@ -50,6 +50,7 @@ temp/
 *.tmp
 
 # Generated/private business data artifacts
+analysis_export/
 growth_target_list.xlsx
 .~lock.*#
 importer/exports/

@@ -292,13 +292,13 @@ models:
         description: Fallback target coverage days from the SKU policy bucket before any configured planning override.
 
       - name: available_position_qty
-        description: Current on hand plus inbound quantity, using the greater of parsed open PO quantity and QuickBooks quantity on order to avoid double-counting, minus committed future demand.
+        description: Current on hand plus total real inbound quantity, using the greater of parsed open PO quantity and QuickBooks quantity on order to avoid double-counting open POs, plus future-dated receipt quantity removed from on hand, minus committed future demand.
 
       - name: committed_demand_before_expected_receipt_qty
         description: Future committed demand dated on or before the expected replenishment receipt date.
 
       - name: inbound_qty_by_expected_receipt_date
-        description: Existing inbound quantity counted as available by the expected receipt date when the next open PO date is on or before that date.
+        description: Existing inbound quantity counted as available by the expected receipt date, including open PO quantity due by that date and future-dated receipt quantity with receipt dates on or before that date.
 
       - name: is_suppressed_from_inventory_planning
         description: Flag inherited from `mart_inventory_sku_policy` for SKUs deliberately excluded from the inventory worklist.
