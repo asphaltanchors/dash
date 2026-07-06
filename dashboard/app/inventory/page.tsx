@@ -275,9 +275,6 @@ export default async function InventoryPage() {
   const otherItems = items.filter((item) => !isWwd(item) && !isFba(item) && !isAdhesive(item) && !isAccessory(item))
   const reviewItems = items.filter((item) => item.requiresManualReview || item.action === 'REVIEW')
   const outItems = items.filter((item) => item.action === 'OUT_OF_STOCK')
-  const buyItems = items.filter((item) => item.shouldReorder)
-  const stockoutCosts = outItems.map((item) => item.suggestedBuyCost)
-  const buyCosts = buyItems.map((item) => item.suggestedBuyCost)
   const onHandValues = items.slice(0, 30).map((item) => toNumber(item.onHandQty) * toNumber(item.purchaseCost))
 
   return (
@@ -309,12 +306,12 @@ export default async function InventoryPage() {
 
       <main className="min-h-[calc(100svh-3.5rem)] space-y-2 bg-[#08111f] p-2 text-slate-100 sm:p-3">
         <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
-          <MetricTile label="WWD Planning" value={formatNumber(summary.wwdBuyCount, 0)} detail={`${formatNumber(summary.wwdSuggestedBuyQty, 0)} units | ${compactCurrency(summary.wwdSuggestedBuyCost, 0)}`} icon={ShipWheel} tone="blue" trend={wwdItems.map((item) => item.suggestedBuyCost)} />
-          <MetricTile label="Suggested Buys" value={formatNumber(summary.buyCount, 0)} detail={`${formatNumber(summary.suggestedBuyQty, 0)} model units recommended`} icon={ClipboardList} tone="green" trend={buyCosts} />
-          <MetricTile label="Buy Cost" value={compactCurrency(summary.suggestedBuyCost, 0)} detail={`${formatNumber(summary.reviewCount, 0)} SKUs need review`} icon={PackageCheck} tone="amber" trend={buyCosts} />
-          <MetricTile label="Out Of Stock" value={formatNumber(summary.outOfStockCount, 0)} detail={`${formatNumber(summary.totalSkus, 0)} active planning SKUs`} icon={AlertTriangle} tone={summary.outOfStockCount > 0 ? 'red' : 'green'} trend={stockoutCosts} />
-          <MetricTile label="Inbound PO Qty" value={formatNumber(summary.inboundQty, 0)} detail={`${formatNumber(summary.futureReceiptQty, 0)} future receipt units`} icon={Warehouse} tone="cyan" trend={items.map((item) => item.inboundOpenPoQty).slice(0, 30)} />
-          <MetricTile label="Manual Review" value={formatNumber(reviewItems.length, 0)} detail={`${formatNumber((reviewItems.length / Math.max(items.length, 1)) * 100, 1)}% of planning SKUs`} icon={Boxes} tone={reviewItems.length > 0 ? 'purple' : 'green'} trend={reviewItems.map((item) => item.suggestedBuyCost)} />
+          <MetricTile className="min-h-0" label="WWD Planning" value={formatNumber(summary.wwdBuyCount, 0)} detail={`${formatNumber(summary.wwdSuggestedBuyQty, 0)} units | ${compactCurrency(summary.wwdSuggestedBuyCost, 0)}`} icon={ShipWheel} tone="blue" />
+          <MetricTile className="min-h-0" label="Suggested Buys" value={formatNumber(summary.buyCount, 0)} detail={`${formatNumber(summary.suggestedBuyQty, 0)} model units recommended`} icon={ClipboardList} tone="green" />
+          <MetricTile className="min-h-0" label="Buy Cost" value={compactCurrency(summary.suggestedBuyCost, 0)} detail={`${formatNumber(summary.reviewCount, 0)} SKUs need review`} icon={PackageCheck} tone="amber" />
+          <MetricTile className="min-h-0" label="Out Of Stock" value={formatNumber(summary.outOfStockCount, 0)} detail={`${formatNumber(summary.totalSkus, 0)} active planning SKUs`} icon={AlertTriangle} tone={summary.outOfStockCount > 0 ? 'red' : 'green'} />
+          <MetricTile className="min-h-0" label="Inbound PO Qty" value={formatNumber(summary.inboundQty, 0)} detail={`${formatNumber(summary.futureReceiptQty, 0)} future receipt units`} icon={Warehouse} tone="cyan" />
+          <MetricTile className="min-h-0" label="Manual Review" value={formatNumber(reviewItems.length, 0)} detail={`${formatNumber((reviewItems.length / Math.max(items.length, 1)) * 100, 1)}% of planning SKUs`} icon={Boxes} tone={reviewItems.length > 0 ? 'purple' : 'green'} />
         </section>
 
         <section>
