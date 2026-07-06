@@ -49,24 +49,6 @@ function actionTone(action: InventoryPlanningItem['action']): Tone {
   return 'green'
 }
 
-function conicStops<T>(
-  items: T[],
-  total: number,
-  getValue: (item: T) => number,
-  getColor: (item: T, index: number) => string,
-) {
-  return items.reduce<{ cursor: number; stops: string[] }>((acc, item, index) => {
-    const start = acc.cursor
-    const size = total > 0 ? (getValue(item) / total) * 100 : 0
-    const end = start + size
-
-    return {
-      cursor: end,
-      stops: [...acc.stops, `${getColor(item, index)} ${start}% ${end}%`],
-    }
-  }, { cursor: 0, stops: [] }).stops.join(', ')
-}
-
 function inboundLabel(item: InventoryPlanningItem) {
   const parts = []
   if (toNumber(item.inboundOpenPoQty) > 0) parts.push(`${formatNumber(item.inboundOpenPoQty, 0)} PO`)
@@ -79,6 +61,12 @@ function inboundOrderLabel(item: InventoryPlanningItem) {
   return totalOnOrder > 0 ? formatNumber(totalOnOrder, 0) : 'none'
 }
 
+function positionMonthsLabel(item: InventoryPlanningItem) {
+  const positionDays = toNumber(item.positionDays)
+  if (positionDays <= 0) return '0.0'
+  return formatNumber(positionDays / 30.4375, 1)
+}
+
 function buyPlanPrimary(item: InventoryPlanningItem, useLayerPlan: boolean) {
   if (!useLayerPlan || !item.sixPackUnitsPerLayer || toNumber(item.suggestedBuyQty) <= 0) {
     return formatNumber(item.suggestedBuyQty, 0)
@@ -88,7 +76,7 @@ function buyPlanPrimary(item: InventoryPlanningItem, useLayerPlan: boolean) {
 }
 
 function buyPlanDetail(item: InventoryPlanningItem, useLayerPlan: boolean) {
-  if (toNumber(item.suggestedBuyQty) <= 0) return 'no buy recommended'
+  if (toNumber(item.suggestedBuyQty) <= 0) return ''
   if (!useLayerPlan || !item.sixPackUnitsPerLayer) return `${formatNumber(item.suggestedBuyQty, 0)} model units`
   return `${formatNumber(item.layerRoundedBuyQty, 0)} units; model ${formatNumber(item.suggestedBuyQty, 0)}, +${formatNumber(item.layerRoundingExtraQty, 0)}`
 }
@@ -145,104 +133,27 @@ function sectionSummary(items: InventoryPlanningItem[], useLayerPlan = false) {
   return `${formatNumber(items.length, 0)} SKUs | ${formatNumber(buyItems.length, 0)} buys | ${formatNumber(buyQty, 0)} units | ${compactCurrency(buyCost, 0)}`
 }
 
-function inventoryBuckets(items: InventoryPlanningItem[]) {
-  const buckets = [
-    { label: 'Buy', count: 0, cost: 0, tone: 'blue' as Tone },
-    { label: 'Review', count: 0, cost: 0, tone: 'amber' as Tone },
-    { label: 'Out', count: 0, cost: 0, tone: 'red' as Tone },
-    { label: 'Watch', count: 0, cost: 0, tone: 'purple' as Tone },
-    { label: 'OK', count: 0, cost: 0, tone: 'green' as Tone },
-  ]
-
-  for (const item of items) {
-    const bucket = item.action === 'BUY'
-      ? buckets[0]
-      : item.action === 'REVIEW'
-        ? buckets[1]
-        : item.action === 'OUT_OF_STOCK'
-          ? buckets[2]
-          : item.action === 'WATCH'
-            ? buckets[3]
-            : buckets[4]
-    bucket.count += 1
-    bucket.cost += toNumber(item.suggestedBuyCost)
-  }
-
-  return buckets
-}
-
-function PlanningMixPanel({ buckets, totalSkus }: { buckets: ReturnType<typeof inventoryBuckets>; totalSkus: number }) {
-  const total = Math.max(totalSkus, 1)
-  const gradient = `conic-gradient(${conicStops(buckets, total, (bucket) => bucket.count, (bucket) => toneStyles[bucket.tone].fill)})`
-
-  return (
-    <Panel>
-      <PanelHeader title="Planning Mix" eyebrow="Current action distribution across planning SKUs" />
-      <div className="grid gap-4 p-3 md:grid-cols-[9rem_minmax(0,1fr)]">
-        <div className="relative size-32 place-self-center rounded-full" style={{ background: gradient }}>
-          <div className="absolute inset-5 grid place-items-center rounded-full bg-[#0b1322] text-center">
-            <div>
-              <p className="text-lg font-semibold tabular-nums text-slate-50">{formatNumber(totalSkus, 0)}</p>
-              <p className="text-[10px] uppercase text-slate-500">SKUs</p>
-            </div>
-          </div>
-        </div>
-        <div className="space-y-2">
-          {buckets.map((bucket) => (
-            <div key={bucket.label} className="grid grid-cols-[minmax(0,1fr)_3rem_4.5rem] items-center gap-2 text-xs">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: toneStyles[bucket.tone].fill }} />
-                <span className="truncate text-slate-300">{bucket.label}</span>
-              </div>
-              <span className="text-right font-mono text-slate-100">{formatNumber(bucket.count, 0)}</span>
-              <span className="text-right font-mono text-slate-500">{formatNumber((bucket.count / total) * 100, 1)}%</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Panel>
-  )
-}
-
-function BuyCostPanel({ buckets }: { buckets: ReturnType<typeof inventoryBuckets> }) {
-  const actionable = buckets.filter((bucket) => bucket.label !== 'OK')
-  const maxCost = Math.max(...actionable.map((bucket) => bucket.cost), 1)
-
-  return (
-    <Panel>
-      <PanelHeader title="Buy Cost by Action" eyebrow="Model recommended spend by planning action" />
-      <div className="grid h-40 grid-cols-4 items-end gap-3 px-3 pb-3 pt-8">
-        {actionable.map((bucket) => (
-          <div key={bucket.label} className="flex h-full min-w-0 flex-col justify-end gap-2 text-center">
-            <div className="text-xs font-semibold tabular-nums text-slate-100">{compactCurrency(bucket.cost, 0)}</div>
-            <div className="mx-auto w-10 rounded-t-sm" style={{ height: `${Math.max((bucket.cost / maxCost) * 100, bucket.cost > 0 ? 8 : 2)}%`, backgroundColor: toneStyles[bucket.tone].fill, opacity: 0.85 }} />
-            <div className="truncate text-[11px] text-slate-500">{bucket.label}</div>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  )
-}
-
 function WwdLayerPanel({ items }: { items: InventoryPlanningItem[] }) {
   const rows = sortPlanningItems(items).slice(0, 12)
 
   return (
     <Panel id="wwd-layers" className="border-blue-500/30">
       <PanelHeader
-        title="WWD Layer Planning"
+        title="WWD Order Planning"
         eyebrow="Layer-aware buy plan for WWD vendor SKUs"
         action={<CompactBadge tone="blue">{sectionSummary(items, true)}</CompactBadge>}
       />
       <Table className="table-fixed [&_td]:overflow-hidden [&_th]:overflow-hidden">
         <TableHeader>
           <TableRow className="border-slate-800 bg-slate-950/30 hover:bg-slate-950/30">
-            <TableHead className="h-8 w-[11%] px-3 text-[11px] uppercase text-slate-500">SKU</TableHead>
-            <TableHead className="h-8 w-[42%] text-[11px] uppercase text-slate-500">Item</TableHead>
-            <TableHead className="h-8 w-[9%] text-right text-[11px] uppercase text-slate-500">On Hand</TableHead>
-            <TableHead className="h-8 w-[12%] text-right text-[11px] uppercase text-slate-500">Inbound</TableHead>
-            <TableHead className="h-8 w-[8%] text-right text-[11px] uppercase text-slate-500">Model Qty</TableHead>
-            <TableHead className="h-8 w-[18%] text-right text-[11px] uppercase text-slate-500">Layer Plan</TableHead>
+            <TableHead className="h-8 w-[7%] px-3 text-[11px] uppercase text-slate-500">Action</TableHead>
+            <TableHead className="h-8 w-[9%] px-3 text-[11px] uppercase text-slate-500">SKU</TableHead>
+            <TableHead className="h-8 w-[37%] text-[11px] uppercase text-slate-500">Item</TableHead>
+            <TableHead className="h-8 w-[8%] text-right text-[11px] uppercase text-slate-500">On Hand</TableHead>
+            <TableHead className="h-8 w-[10%] text-right text-[11px] uppercase text-slate-500">Inbound</TableHead>
+            <TableHead className="h-8 w-[10%] text-right text-[11px] uppercase text-slate-500">Position Months</TableHead>
+            <TableHead className="h-8 w-[8%] text-right text-[11px] uppercase text-slate-500">Reorder Qty</TableHead>
+            <TableHead className="h-8 w-[11%] text-right text-[11px] uppercase text-slate-500">Layer Plan</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -250,22 +161,23 @@ function WwdLayerPanel({ items }: { items: InventoryPlanningItem[] }) {
             const tone = actionTone(item.action)
             return (
               <TableRow key={item.sku} className="h-10 border-slate-800 hover:bg-slate-900/50">
+                <TableCell className="px-3 py-1.5">
+                  <CompactBadge tone={tone}>{actionLabels[item.action]}</CompactBadge>
+                </TableCell>
                 <TableCell className="min-w-0 px-3 py-1.5">
                   <Link href={`/products/${encodeURIComponent(item.sku)}`} className="block truncate font-mono text-xs font-semibold text-blue-300 hover:text-blue-200">{item.sku}</Link>
-                  <CompactBadge tone={tone}>{actionLabels[item.action]}</CompactBadge>
                 </TableCell>
                 <TableCell className="min-w-0 py-1.5">
                   <p className="truncate text-xs font-medium text-slate-200">{item.salesDescription || item.productFamily}</p>
-                  <p className="truncate text-[11px] text-slate-500">{item.productFamily} | {item.confidenceLevel} confidence | {item.sixPackUnitsPerLayer ? `${item.sixPackUnitsPerLayer}/layer` : 'layer TBD'}</p>
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">
                   <p className={toNumber(item.onHandQty) <= 0 ? 'text-red-300' : 'text-slate-100'}>{formatNumber(item.onHandQty, 0)}</p>
-                  <p className="text-[11px] text-slate-500">{item.positionDays || '-'}d</p>
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">
                   <p className="truncate">{inboundOrderLabel(item)}</p>
-                  <p className="text-[11px] text-slate-500">{item.nextOpenPoDate || 'no date'}</p>
+                  {item.nextOpenPoDate ? <p className="text-[11px] text-slate-500">{item.nextOpenPoDate}</p> : null}
                 </TableCell>
+                <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{positionMonthsLabel(item)}</TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{formatNumber(item.suggestedBuyQty, 0)}</TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-100">
                   <p className={operationalBuyQty(item, true) > 0 ? 'text-blue-300' : 'text-slate-500'}>{buyPlanPrimary(item, true)}</p>
@@ -361,7 +273,6 @@ export default async function InventoryPage() {
   const adhesiveItems = items.filter((item) => !isWwd(item) && !isFba(item) && isAdhesive(item))
   const accessoryItems = items.filter((item) => !isWwd(item) && !isFba(item) && !isAdhesive(item) && isAccessory(item))
   const otherItems = items.filter((item) => !isWwd(item) && !isFba(item) && !isAdhesive(item) && !isAccessory(item))
-  const buckets = inventoryBuckets(items)
   const reviewItems = items.filter((item) => item.requiresManualReview || item.action === 'REVIEW')
   const outItems = items.filter((item) => item.action === 'OUT_OF_STOCK')
   const buyItems = items.filter((item) => item.shouldReorder)
@@ -406,12 +317,8 @@ export default async function InventoryPage() {
           <MetricTile label="Manual Review" value={formatNumber(reviewItems.length, 0)} detail={`${formatNumber((reviewItems.length / Math.max(items.length, 1)) * 100, 1)}% of planning SKUs`} icon={Boxes} tone={reviewItems.length > 0 ? 'purple' : 'green'} trend={reviewItems.map((item) => item.suggestedBuyCost)} />
         </section>
 
-        <section className="grid gap-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(22rem,0.7fr)]">
+        <section>
           <WwdLayerPanel items={wwdItems} />
-          <div className="grid content-start gap-2">
-            <PlanningMixPanel buckets={buckets} totalSkus={summary.totalSkus} />
-            <BuyCostPanel buckets={buckets} />
-          </div>
         </section>
 
         <section className="grid gap-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
