@@ -2,7 +2,6 @@ import Link from 'next/link'
 import type { ComponentType } from 'react'
 import {
   ArrowUpRight,
-  Boxes,
   CalendarDays,
   ChevronRight,
   CircleDollarSign,
@@ -31,7 +30,6 @@ import {
 } from '@/components/dashboard/report-ui'
 import type {
   BusinessCockpitSummary,
-  DataQualityFlag,
   LargeRecentOrder,
   ProductGrowthQualityItem,
   SalesPerformanceHighlight,
@@ -49,46 +47,6 @@ function Delta({ value, suffix = '%' }: { value: number | string | null | undefi
     <span className={cn('font-mono text-xs font-semibold tabular-nums', positive ? 'text-emerald-300' : 'text-red-300')}>
       {positive ? '+' : ''}{formatNumber(numeric, 1)}{suffix}
     </span>
-  )
-}
-
-function SeverityDot({ severity }: { severity: DataQualityFlag['severity'] }) {
-  return (
-    <span
-      className={cn(
-        'size-2 rounded-full',
-        severity === 'critical' && 'bg-red-400 shadow-[0_0_12px_rgba(248,113,113,0.35)]',
-        severity === 'warn' && 'bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.35)]',
-        severity === 'ok' && 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.35)]',
-      )}
-    />
-  )
-}
-
-function RatioRow({
-  label,
-  value,
-  detail,
-  percent,
-  tone,
-}: {
-  label: string
-  value: string
-  detail: string
-  percent: number
-  tone: Tone
-}) {
-  return (
-    <div className="border-b border-slate-800 border-slate-800 py-2 last:border-b-0">
-      <div className="flex items-center justify-between gap-3">
-        <p className="truncate text-xs font-medium text-slate-200">{label}</p>
-        <p className="shrink-0 font-mono text-xs text-slate-100">{value}</p>
-      </div>
-      <div className="mt-1 flex items-center gap-2">
-        <InlineBar value={percent} tone={tone} />
-        <span className="shrink-0 text-[11px] text-slate-500">{detail}</span>
-      </div>
-    </div>
   )
 }
 
@@ -127,65 +85,6 @@ function dataFreshnessDetail(asOfDate: string | null | undefined) {
   return `${age} days behind today`
 }
 
-function ReportHealthPanel({
-  summary,
-  flags,
-}: {
-  summary: BusinessCockpitSummary
-  flags: DataQualityFlag[]
-}) {
-  const visibleFlags = flags.filter((flag) => !['future_orders', 'future_line_items', 'attribution_coverage'].includes(flag.flagKey))
-  const openAr = toNumber(summary.openArAmount)
-  const overdueAr = toNumber(summary.overdueArAmount)
-  const overdueShare = openAr > 0 ? (overdueAr / openAr) * 100 : 0
-  const top50Share = toNumber(summary.top50CorporateRevenueSharePct)
-  const critical = visibleFlags.filter((flag) => flag.severity === 'critical').length
-  const warnings = visibleFlags.filter((flag) => flag.severity === 'warn').length
-  const tone: Tone = critical > 0 ? 'red' : warnings > 0 ? 'amber' : 'green'
-
-  return (
-    <Panel>
-      <PanelHeader
-        title="Data Checks"
-        eyebrow={`${critical} critical, ${warnings} warning`}
-        action={<CompactBadge tone={tone}>{visibleFlags.length} checks</CompactBadge>}
-      />
-      <div className="grid gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_12rem] 2xl:grid-cols-1">
-        <div className="space-y-1">
-          {visibleFlags.length === 0 ? (
-            <div className="rounded-md border border-slate-800 border-slate-800 bg-slate-950/30 px-3 py-2 text-xs text-slate-500">No health checks returned.</div>
-          ) : visibleFlags.slice(0, 5).map((flag) => (
-            <div key={flag.flagKey} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-sm px-1 py-1.5 text-xs">
-              <SeverityDot severity={flag.severity} />
-              <div className="min-w-0">
-                <p className="truncate font-medium text-slate-200">{flag.flagLabel}</p>
-                <p className="truncate text-[11px] text-slate-500">{flag.details}</p>
-              </div>
-              <span className="font-mono text-[11px] text-slate-400">{flag.flagValue ?? 'n/a'}</span>
-            </div>
-          ))}
-        </div>
-        <div>
-          <RatioRow
-            label="Overdue A/R"
-            value={formatCurrency(overdueAr, { showCents: false })}
-            detail={`${formatNumber(overdueShare, 0)}%`}
-            percent={overdueShare}
-            tone={overdueShare >= 30 ? 'red' : overdueShare >= 12 ? 'amber' : 'green'}
-          />
-          <RatioRow
-            label="Top 50 Share"
-            value={`${summary.top50CorporateRevenueSharePct}%`}
-            detail={`top 10 ${summary.top10CorporateRevenueSharePct}%`}
-            percent={top50Share}
-            tone={top50Share >= 70 ? 'amber' : 'blue'}
-          />
-        </div>
-      </div>
-    </Panel>
-  )
-}
-
 function RevenueTrendPanel({
   points,
   summary,
@@ -213,8 +112,8 @@ function RevenueTrendPanel({
           <div>
             <div className="flex items-baseline gap-2">
               <p className="text-lg font-semibold tabular-nums text-slate-50">{formatCompactCurrency(summary.trailing365dRevenue, 2)}</p>
-              <Delta value={summary.ytdRevenueGrowthPct} />
-              <span className="text-xs text-slate-500">vs prior YTD</span>
+              <Delta value={summary.trailing365dRevenueGrowthPct} />
+              <span className="text-xs text-slate-500">vs prior 365D</span>
             </div>
             <p className="text-xs text-slate-400">{formatNumber(orders, 0)} orders in displayed periods</p>
           </div>
@@ -536,7 +435,6 @@ function MiniStat({
 export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData }) {
   const {
     summary,
-    dataQualityFlags,
     productQuality,
     largeRecentOrders,
     revenuePoints,
@@ -549,12 +447,8 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
   const { criticalFlags, warningFlags, healthTone } = health
   const {
     revenueValues,
-    accountRevenueValues,
-    reorderValues,
-    openArValues,
   } = metricTrends
   const freshnessTone: Tone = summary ? dataFreshnessTone(summary.asOfDate) : 'neutral'
-  const freshnessAge = summary ? daysSinceIsoDate(summary.asOfDate) : null
 
   if (!summary) {
     return (
@@ -621,15 +515,6 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             detail={`${summary.openInvoiceCount} invoices, ${formatCurrency(summary.overdueArAmount, { showCents: false })} overdue`}
             icon={CreditCard}
             tone={toNumber(summary.overdueArAmount) > 0 ? 'amber' : 'green'}
-            trend={openArValues}
-          />
-          <MetricTile
-            label="Inventory Buy"
-            value={formatCurrency(summary.suggestedBuyCost, { showCents: false })}
-            detail={`${summary.reorderSkuCount} reorder SKUs, ${summary.manualReviewSkuCount} manual reviews`}
-            icon={Boxes}
-            tone={summary.manualReviewSkuCount > 0 ? 'amber' : 'cyan'}
-            trend={reorderValues}
           />
           <MetricTile
             label="Concentration"
@@ -637,7 +522,6 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             detail={`Top 50 accounts hold ${summary.top50CorporateRevenueSharePct}%`}
             icon={Users}
             tone="purple"
-            trend={accountRevenueValues}
           />
           <MetricTile
             label="Data Freshness"
@@ -645,17 +529,13 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             detail={dataFreshnessDetail(summary.asOfDate)}
             icon={CalendarDays}
             tone={freshnessTone}
-            trend={freshnessAge == null ? [] : [0, Math.max(freshnessAge, 0)]}
           />
         </section>
 
         <section className="grid gap-2 2xl:grid-cols-[minmax(0,1.35fr)_minmax(24rem,0.65fr)]">
           <div className="grid gap-2 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]">
             <RevenueTrendPanel points={revenuePoints} summary={summary} />
-            <ReportHealthPanel summary={summary} flags={dataQualityFlags} />
-            <div className="xl:col-span-2">
-              <LargeRecentOrdersPanel orders={largeRecentOrders} />
-            </div>
+            <LargeRecentOrdersPanel orders={largeRecentOrders} />
           </div>
 
           <div className="grid content-start gap-2">

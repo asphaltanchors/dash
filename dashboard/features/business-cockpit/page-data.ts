@@ -37,9 +37,6 @@ export interface BusinessCockpitPageData {
   }
   metricTrends: {
     revenueValues: number[]
-    accountRevenueValues: number[]
-    reorderValues: number[]
-    openArValues: number[]
   }
 }
 
@@ -128,11 +125,6 @@ export async function getBusinessCockpitPageData(): Promise<BusinessCockpitPageD
     },
     metricTrends: {
       revenueValues: revenuePoints.map((point) => point.revenue),
-      accountRevenueValues: summary ? [toNumber(summary.top10CorporateRevenueSharePct), toNumber(summary.top50CorporateRevenueSharePct)] : [],
-      reorderValues: productQuality.map((product) => toNumber(product.reorderValueAtCost)).reverse(),
-      openArValues: summary
-        ? [toNumber(summary.overdueArAmount), Math.max(toNumber(summary.openArAmount) - toNumber(summary.overdueArAmount), 0)]
-        : [],
     },
   }
 }
