@@ -536,6 +536,78 @@ models:
       - name: inbound_note
         description: Human-readable note explaining how the line should be interpreted in inventory planning.
 
+  - name: mart_wwd_pallet_order_plan
+    description: >
+      Proposed regular WWD pallet order at SKU-line grain. The plan triggers on the earliest
+      non-review WWD layer SKU that should be reordered, then fills the two-pallet target with
+      ride-along SKUs allocated by forecasted layer demand. Manual-review and special-order
+      candidates are deliberately excluded from this regular order path.
+    columns:
+      - name: wwd_pallet_order_plan_id
+        description: Stable key for the proposed order line, built from the proposal trigger date and SKU.
+        tests:
+          - not_null
+          - unique
+
+      - name: inventory_as_of_date
+        description: Inventory snapshot date used by the source reorder mart.
+        tests:
+          - not_null
+
+      - name: next_order_date
+        description: Proposed regular WWD order trigger date from the earliest non-review WWD layer SKU with `should_reorder = true`.
+        tests:
+          - not_null
+
+      - name: target_layer_count
+        description: Target order size in pallet layers. Current WWD rule is two pallets at seven layers each.
+        tests:
+          - not_null
+
+      - name: order_sequence
+        description: Display ordering for the proposed WWD pallet order lines.
+        tests:
+          - not_null
+
+      - name: order_role
+        description: Whether the SKU triggered the order or rides along to fill the pallet target.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['TRIGGER', 'RIDE_ALONG']
+
+      - name: is_ride_along
+        description: Boolean convenience flag for `order_role = RIDE_ALONG`.
+        tests:
+          - not_null
+
+      - name: sku
+        description: WWD SKU included in the proposed regular pallet order.
+        tests:
+          - not_null
+
+      - name: planned_layer_count
+        description: Number of whole pallet layers planned for this SKU in the proposed regular order.
+        tests:
+          - not_null
+
+      - name: planned_buy_qty
+        description: Planned buy quantity in the SKU's native inventory units, equal to planned layers times configured units per layer.
+        tests:
+          - not_null
+
+      - name: planned_buy_cost
+        description: Planned buy quantity multiplied by current QuickBooks purchase cost.
+        tests:
+          - not_null
+
+      - name: total_planned_layer_count
+        description: Total planned layers across all rows in the proposed WWD pallet order.
+
+      - name: ride_along_demand_score
+        description: Forecasted layer demand per day, used to allocate remaining pallet layers across ride-along SKUs.
+
   - name: fct_orders
     description: >
       Order-level fact table aggregated from line items.

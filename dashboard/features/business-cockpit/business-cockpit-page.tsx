@@ -10,6 +10,7 @@ import {
   LineChart,
   Package,
   Percent,
+  ShipWheel,
   Users,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
@@ -441,6 +442,7 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
     agingBuckets,
     salesHighlights,
     currentDso,
+    wwdPalletPlan,
     health,
     metricTrends,
   } = data
@@ -529,6 +531,13 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             detail={dataFreshnessDetail(summary.asOfDate)}
             icon={CalendarDays}
             tone={freshnessTone}
+          />
+          <MetricTile
+            label="WWD Next Order"
+            value={wwdPalletPlan.nextOrderDate ? formatIsoDate(wwdPalletPlan.nextOrderDate) : 'TBD'}
+            detail={`${formatNumber(wwdPalletPlan.cumulativeLayerCount, 0)} of ${wwdPalletPlan.targetLayerCount} layers for ${wwdPalletPlan.targetPallets} pallets`}
+            icon={ShipWheel}
+            tone={wwdPalletPlan.nextOrderDate ? 'blue' : 'amber'}
           />
         </section>
 

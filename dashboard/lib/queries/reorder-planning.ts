@@ -30,6 +30,35 @@ export interface InventoryPlanningSummary {
   futureReceiptQty: string;
 }
 
+export interface WwdPalletPlanItem {
+  sku: string;
+  salesDescription: string;
+  productFamily: string;
+  reorderByDate: string | null;
+  shouldReorder: boolean;
+  currentLayerCount: string;
+  plannedLayerCount: string;
+  plannedBuyQty: string;
+  purchaseCost: string;
+  plannedBuyCost: string;
+  isRideAlong: boolean;
+}
+
+export interface WwdPalletPlan {
+  layersPerPallet: number;
+  targetPallets: number;
+  targetLayerCount: number;
+  nextOrderDate: string | null;
+  cumulativeLayerCount: string;
+  plannedBuyQty: string;
+  plannedBuyCost: string;
+  urgentLayerCount: string;
+  urgentSkuCount: number;
+  rideAlongSkuCount: number;
+  rideAlongItems: WwdPalletPlanItem[];
+  orderItems: WwdPalletPlanItem[];
+}
+
 export interface InventoryPlanningItem {
   sku: string;
   preferredVendor: string;
@@ -276,6 +305,31 @@ interface ProductInboundLineRow {
   inbound_note: string | null;
 }
 
+interface WwdPalletPlanRow {
+  sku: string | null;
+  sales_description: string | null;
+  product_family: string | null;
+  reorder_by_date: string | Date | null;
+  should_reorder: boolean | null;
+  reorder_layer_count: string | number | null;
+  planned_layer_count: string | number | null;
+  planned_buy_qty: string | number | null;
+  purchase_cost: string | number | null;
+  planned_buy_cost: string | number | null;
+  is_ride_along: boolean | null;
+  next_order_date: string | Date | null;
+  layers_per_pallet: number | null;
+  target_pallets: number | null;
+  target_layer_count: number | null;
+  total_planned_layer_count: string | number | null;
+  total_planned_buy_qty: string | number | null;
+  total_planned_buy_cost: string | number | null;
+  trigger_layer_count: string | number | null;
+  trigger_sku_count: number | null;
+  ride_along_sku_count: number | null;
+  order_sequence: number | null;
+}
+
 function getInventoryAction(row: InventoryPlanningRow): InventoryAction {
   const onHandQty = Number(row.current_on_hand_qty || 0);
 
@@ -294,6 +348,43 @@ function calculateDays(numerator: string | number | null, forecastDailyQty: stri
   if (qty <= 0) return '0';
   if (forecast <= 0) return '';
   return Math.floor(qty / forecast).toFixed(0);
+}
+
+function mapWwdPalletPlanRow(row: WwdPalletPlanRow): WwdPalletPlanItem {
+  return {
+    sku: row.sku || '',
+    salesDescription: row.sales_description || '',
+    productFamily: row.product_family || 'Uncategorized',
+    reorderByDate: formatDate(row.reorder_by_date),
+    shouldReorder: Boolean(row.should_reorder),
+    currentLayerCount: formatNumber(row.reorder_layer_count),
+    plannedLayerCount: formatNumber(row.planned_layer_count),
+    plannedBuyQty: formatNumber(row.planned_buy_qty),
+    purchaseCost: formatNumber(row.purchase_cost, 2),
+    plannedBuyCost: formatNumber(row.planned_buy_cost, 2),
+    isRideAlong: Boolean(row.is_ride_along),
+  };
+}
+
+function mapWwdPalletPlan(rows: WwdPalletPlanRow[]): WwdPalletPlan {
+  const orderItems = rows.map(mapWwdPalletPlanRow);
+  const rideAlongItems = orderItems.filter((item) => item.isRideAlong);
+  const firstRow = rows[0];
+
+  return {
+    layersPerPallet: Number(firstRow?.layers_per_pallet || 7),
+    targetPallets: Number(firstRow?.target_pallets || 2),
+    targetLayerCount: Number(firstRow?.target_layer_count || 14),
+    nextOrderDate: formatDate(firstRow?.next_order_date || null),
+    cumulativeLayerCount: formatNumber(firstRow?.total_planned_layer_count),
+    plannedBuyQty: formatNumber(firstRow?.total_planned_buy_qty),
+    plannedBuyCost: formatNumber(firstRow?.total_planned_buy_cost, 2),
+    urgentLayerCount: formatNumber(firstRow?.trigger_layer_count),
+    urgentSkuCount: Number(firstRow?.trigger_sku_count || 0),
+    rideAlongSkuCount: Number(firstRow?.ride_along_sku_count || rideAlongItems.length),
+    rideAlongItems,
+    orderItems,
+  };
 }
 
 function mapPlanningRow(row: InventoryPlanningRow): InventoryPlanningItem {
@@ -355,20 +446,28 @@ export async function getInventoryPlanningPageData(): Promise<{
   summary: InventoryPlanningSummary;
   items: InventoryPlanningItem[];
   families: string[];
+  wwdPalletPlan: WwdPalletPlan;
 }> {
-  const rows = await db.execute(sql`
-    select *
-    from analytics_mart.mart_inventory_reorder_recommendations
-    where policy_bucket != 'NO_ACTION_OR_ARCHIVE'
-    order by
-      case
-        when current_on_hand_qty <= 0 then 0
-        else 1
-      end,
-      reorder_value_at_cost desc nulls last,
-      reorder_qty desc nulls last,
-      sku
-  `) as unknown as InventoryPlanningRow[];
+  const [rows, wwdPlanRows] = await Promise.all([
+    db.execute(sql`
+      select *
+      from analytics_mart.mart_inventory_reorder_recommendations
+      where policy_bucket != 'NO_ACTION_OR_ARCHIVE'
+      order by
+        case
+          when current_on_hand_qty <= 0 then 0
+          else 1
+        end,
+        reorder_value_at_cost desc nulls last,
+        reorder_qty desc nulls last,
+        sku
+    `) as unknown as Promise<InventoryPlanningRow[]>,
+    db.execute(sql`
+      select *
+      from analytics_mart.mart_wwd_pallet_order_plan
+      order by order_sequence
+    `) as unknown as Promise<WwdPalletPlanRow[]>,
+  ]);
 
   const items = rows.map(mapPlanningRow);
 
@@ -379,6 +478,7 @@ export async function getInventoryPlanningPageData(): Promise<{
   const wwdItems = items.filter((item) => item.preferredVendor === 'WWD');
   const wwdBuyItems = wwdItems.filter((item) => item.shouldReorder);
   const families = Array.from(new Set(items.map((item) => item.productFamily).filter((family) => family !== 'Uncategorized'))).sort();
+  const wwdPalletPlan = mapWwdPalletPlan(wwdPlanRows);
 
   return {
     summary: {
@@ -398,6 +498,7 @@ export async function getInventoryPlanningPageData(): Promise<{
     },
     items,
     families,
+    wwdPalletPlan,
   };
 }
 

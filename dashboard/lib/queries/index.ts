@@ -126,6 +126,8 @@ export {
   getProductInboundLines,
   type InventoryPlanningSummary,
   type InventoryPlanningItem,
+  type WwdPalletPlan,
+  type WwdPalletPlanItem,
   type ProductReorderPlanningDetail,
   type ProductInboundLine,
   type PriorityBreakdown,

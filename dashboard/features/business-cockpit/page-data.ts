@@ -5,6 +5,7 @@ import {
   getBusinessCockpitData,
   getCurrentDSO,
   getLargeRecentOrders,
+  getInventoryPlanningPageData,
   getSalesPerformanceHighlights,
   getWeeklyRevenue,
   type ARAgingDetail,
@@ -30,6 +31,7 @@ export interface BusinessCockpitPageData {
   agingBuckets: AgingBucket[]
   salesHighlights: SalesPerformanceHighlight[]
   currentDso: CurrentDso
+  wwdPalletPlan: Awaited<ReturnType<typeof getInventoryPlanningPageData>>['wwdPalletPlan']
   health: {
     criticalFlags: number
     warningFlags: number
@@ -92,6 +94,7 @@ export async function getBusinessCockpitPageData(): Promise<BusinessCockpitPageD
     salesHighlights,
     currentDso,
     arAgingDetails,
+    inventoryPlanning,
   ] = await Promise.all([
     getBusinessCockpitData(),
     getWeeklyRevenue({ period: '1y' }),
@@ -99,6 +102,7 @@ export async function getBusinessCockpitPageData(): Promise<BusinessCockpitPageD
     getSalesPerformanceHighlights(5),
     getCurrentDSO(),
     getARAgingDetails(),
+    getInventoryPlanningPageData(),
   ])
 
   const { summary, dataQualityFlags, productQuality } = cockpit
@@ -118,6 +122,7 @@ export async function getBusinessCockpitPageData(): Promise<BusinessCockpitPageD
     agingBuckets,
     salesHighlights,
     currentDso,
+    wwdPalletPlan: inventoryPlanning.wwdPalletPlan,
     health: {
       criticalFlags,
       warningFlags,

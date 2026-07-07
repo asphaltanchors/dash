@@ -29,7 +29,11 @@ import {
   toneStyles,
   toNumber,
 } from '@/components/dashboard/report-ui'
-import { getInventoryPlanningPageData, type InventoryPlanningItem } from '@/lib/queries'
+import {
+  getInventoryPlanningPageData,
+  type InventoryPlanningItem,
+  type WwdPalletPlanItem,
+} from '@/lib/queries'
 import { cn, formatNumber } from '@/lib/utils'
 
 const actionLabels: Record<InventoryPlanningItem['action'], string> = {
@@ -133,13 +137,13 @@ function sectionSummary(items: InventoryPlanningItem[], useLayerPlan = false) {
 }
 
 function WwdLayerPanel({ items }: { items: InventoryPlanningItem[] }) {
-  const rows = sortPlanningItems(items).slice(0, 12)
+  const rows = sortPlanningItems(items)
 
   return (
     <Panel id="wwd-layers" className="border-blue-500/30">
       <PanelHeader
-        title="WWD Order Planning"
-        eyebrow="Layer-aware buy plan for WWD vendor SKUs"
+        title="All WWD SKU Status"
+        eyebrow="Current status, coverage, inbound, and model buy signal for WWD SKUs"
         action={<CompactBadge tone="blue">{sectionSummary(items, true)}</CompactBadge>}
       />
       <Table className="table-fixed [&_td]:overflow-hidden [&_th]:overflow-hidden">
@@ -182,6 +186,71 @@ function WwdLayerPanel({ items }: { items: InventoryPlanningItem[] }) {
                   <p className={operationalBuyQty(item, true) > 0 ? 'text-blue-300' : 'text-slate-500'}>{buyPlanPrimary(item, true)}</p>
                   <p className="truncate text-[11px] text-slate-500">{buyPlanDetail(item, true)}</p>
                 </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </Panel>
+  )
+}
+
+function ProposedWwdOrderPanel({
+  items,
+  nextOrderDate,
+  targetLayerCount,
+  cumulativeLayerCount,
+  plannedBuyCost,
+}: {
+  items: WwdPalletPlanItem[]
+  nextOrderDate: string | null
+  targetLayerCount: number
+  cumulativeLayerCount: string
+  plannedBuyCost: string
+}) {
+  return (
+    <Panel id="wwd-next-order" className="border-blue-500/30">
+      <PanelHeader
+        title="Next Proposed WWD Order"
+        eyebrow={nextOrderDate ? `Trigger date ${formatIsoDate(nextOrderDate)}; fill to two full pallets` : 'No regular WWD layer order is currently proposed'}
+        action={<CompactBadge tone="blue">{formatNumber(cumulativeLayerCount, 0)} / {targetLayerCount} layers | {compactCurrency(plannedBuyCost, 0)}</CompactBadge>}
+      />
+      <Table className="table-fixed [&_td]:overflow-hidden [&_th]:overflow-hidden">
+        <TableHeader>
+          <TableRow className="border-slate-800 bg-slate-950/30 hover:bg-slate-950/30">
+            <TableHead className="h-8 w-[10%] px-3 text-[11px] uppercase text-slate-500">Role</TableHead>
+            <TableHead className="h-8 w-[14%] px-3 text-[11px] uppercase text-slate-500">SKU</TableHead>
+            <TableHead className="h-8 w-[38%] text-[11px] uppercase text-slate-500">Item</TableHead>
+            <TableHead className="h-8 w-[12%] text-right text-[11px] uppercase text-slate-500">Due</TableHead>
+            <TableHead className="h-8 w-[9%] text-right text-[11px] uppercase text-slate-500">Layers</TableHead>
+            <TableHead className="h-8 w-[9%] text-right text-[11px] uppercase text-slate-500">Buy Qty</TableHead>
+            <TableHead className="h-8 w-[8%] text-right text-[11px] uppercase text-slate-500">Cost</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.length === 0 ? (
+            <TableRow className="border-slate-800 hover:bg-slate-900/40">
+              <TableCell colSpan={7} className="px-3 py-5 text-center text-xs text-slate-500">No regular WWD layer order is currently proposed.</TableCell>
+            </TableRow>
+          ) : items.map((item) => {
+            const roleTone: Tone = item.isRideAlong ? 'cyan' : 'blue'
+            return (
+              <TableRow key={item.sku} className="h-10 border-slate-800 hover:bg-slate-900/50">
+                <TableCell className="px-3 py-1.5">
+                  <CompactBadge tone={roleTone}>{item.isRideAlong ? 'Ride-along' : 'Trigger'}</CompactBadge>
+                </TableCell>
+                <TableCell className="px-3 py-1.5">
+                  <Link href={`/products/${encodeURIComponent(item.sku)}`} className="block truncate font-mono text-xs font-semibold text-blue-300 hover:text-blue-200">{item.sku}</Link>
+                  <p className="truncate text-[11px] text-slate-500">{item.productFamily}</p>
+                </TableCell>
+                <TableCell className="py-1.5">
+                  <p className="truncate text-xs font-medium text-slate-200">{item.salesDescription || item.productFamily}</p>
+                  <p className="truncate text-[11px] text-slate-500">{item.isRideAlong ? 'Pallet filler based on demand signal' : 'Earliest regular WWD reorder trigger'}</p>
+                </TableCell>
+                <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{formatIsoDate(item.reorderByDate)}</TableCell>
+                <TableCell className="py-1.5 text-right font-mono text-xs text-blue-300">{formatNumber(item.plannedLayerCount, 0)}</TableCell>
+                <TableCell className="py-1.5 text-right font-mono text-xs text-slate-100">{formatNumber(item.plannedBuyQty, 0)}</TableCell>
+                <TableCell className="py-1.5 text-right font-mono text-xs text-slate-100">{compactCurrency(item.plannedBuyCost, 0)}</TableCell>
               </TableRow>
             )
           })}
@@ -263,7 +332,7 @@ function SectionTable({
 }
 
 export default async function InventoryPage() {
-  const { summary, items } = await getInventoryPlanningPageData()
+  const { summary, items, wwdPalletPlan } = await getInventoryPlanningPageData()
   const wwdItems = items.filter(isWwd)
   const fbaItems = items.filter((item) => !isWwd(item) && isFba(item))
   const adhesiveItems = items.filter((item) => !isWwd(item) && !isFba(item) && isAdhesive(item))
@@ -301,8 +370,9 @@ export default async function InventoryPage() {
       </header>
 
       <main className="min-h-[calc(100svh-3.5rem)] space-y-2 bg-[#08111f] p-2 text-slate-100 sm:p-3">
-        <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
+        <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
           <MetricTile className="min-h-0" label="WWD Planning" value={formatNumber(summary.wwdBuyCount, 0)} detail={`${formatNumber(summary.wwdSuggestedBuyQty, 0)} units | ${compactCurrency(summary.wwdSuggestedBuyCost, 0)}`} icon={ShipWheel} tone="blue" />
+          <MetricTile className="min-h-0" label="WWD Next Order" value={wwdPalletPlan.nextOrderDate ? formatIsoDate(wwdPalletPlan.nextOrderDate) : 'TBD'} detail={`${formatNumber(wwdPalletPlan.cumulativeLayerCount, 0)} of ${wwdPalletPlan.targetLayerCount} layers | ${formatNumber(wwdPalletPlan.rideAlongSkuCount, 0)} ride-alongs`} icon={CalendarDays} tone={wwdPalletPlan.nextOrderDate ? 'blue' : 'amber'} />
           <MetricTile className="min-h-0" label="Suggested Buys" value={formatNumber(summary.buyCount, 0)} detail={`${formatNumber(summary.suggestedBuyQty, 0)} model units recommended`} icon={ClipboardList} tone="green" />
           <MetricTile className="min-h-0" label="Buy Cost" value={compactCurrency(summary.suggestedBuyCost, 0)} detail={`${formatNumber(summary.reviewCount, 0)} SKUs need review`} icon={PackageCheck} tone="amber" />
           <MetricTile className="min-h-0" label="Out Of Stock" value={formatNumber(summary.outOfStockCount, 0)} detail={`${formatNumber(summary.totalSkus, 0)} active planning SKUs`} icon={AlertTriangle} tone={summary.outOfStockCount > 0 ? 'red' : 'green'} />
@@ -311,7 +381,13 @@ export default async function InventoryPage() {
         </section>
 
         <section>
-          <WwdLayerPanel items={wwdItems} />
+          <ProposedWwdOrderPanel
+            items={wwdPalletPlan.orderItems}
+            nextOrderDate={wwdPalletPlan.nextOrderDate}
+            targetLayerCount={wwdPalletPlan.targetLayerCount}
+            cumulativeLayerCount={wwdPalletPlan.cumulativeLayerCount}
+            plannedBuyCost={wwdPalletPlan.plannedBuyCost}
+          />
         </section>
 
         <section className="grid gap-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -341,6 +417,10 @@ export default async function InventoryPage() {
               })}
             </div>
           </Panel>
+        </section>
+
+        <section>
+          <WwdLayerPanel items={wwdItems} />
         </section>
 
         <section id="all-skus" className="space-y-2">
