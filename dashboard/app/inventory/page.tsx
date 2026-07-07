@@ -21,7 +21,6 @@ import {
   CompactBadge,
   formatCompactCurrency as compactCurrency,
   formatIsoDate,
-  InlineBar,
   MetricTile,
   ReportHeader as PanelHeader,
   ReportIconButton as IconButton,
@@ -204,7 +203,6 @@ function SectionTable({
   tone?: Tone
 }) {
   const rows = sortPlanningItems(items)
-  const maxCost = Math.max(...rows.map((item) => toNumber(item.suggestedBuyCost)), 1)
 
   if (rows.length === 0) return null
 
@@ -249,12 +247,10 @@ function SectionTable({
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{formatNumber(item.forecastDailyQty, 1)}/d</TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-100">
                   <p className={toNumber(item.suggestedBuyQty) > 0 ? 'text-blue-300' : 'text-slate-500'}>{formatNumber(item.suggestedBuyQty, 0)}</p>
-                  <p className="text-[11px] text-slate-500">{formatNumber(item.layerRoundedBuyQty, 0)} layer</p>
                 </TableCell>
                 <TableCell className="py-1.5 text-right">
-                  <div className="ml-auto w-20 space-y-1">
+                  <div className="ml-auto w-20">
                     <p className="font-mono text-xs text-slate-100">{compactCurrency(cost, 0)}</p>
-                    <InlineBar value={(cost / maxCost) * 100} tone={rowTone} />
                   </div>
                 </TableCell>
               </TableRow>

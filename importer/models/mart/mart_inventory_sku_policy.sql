@@ -79,6 +79,7 @@ suppression_rules AS (
             ) THEN 'outdated_sku_not_inventory_planning'
             WHEN li.sku = '82-5002.010' THEN 'obsolete_replaced_by_AHD_EPX2'
             WHEN li.sku = '82-5002.020' THEN 'obsolete_or_nonplanning_sku'
+            WHEN li.sku = '82-6005' THEN 'supplier_fallback_only_when_epx3_unavailable'
             ELSE NULL
         END AS inventory_suppression_reason
     FROM latest_inventory li

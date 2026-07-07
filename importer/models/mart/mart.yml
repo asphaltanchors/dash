@@ -130,7 +130,7 @@ models:
         description: Flag for SKUs deliberately hidden from inventory planning because they are obsolete, pricing artifacts, or otherwise not actionable inventory.
 
       - name: inventory_suppression_reason
-        description: Compact reason code explaining why a SKU is suppressed from inventory planning.
+        description: Compact reason code explaining why a SKU is suppressed from inventory planning, including obsolete SKUs, artifacts, customer-specific items, and supplier fallback exceptions.
 
       - name: months_with_sales_since_2023
         description: Count of months since 2023 with non-future sales demand, used to decide whether SKU-level seasonality is supportable.
@@ -149,6 +149,20 @@ models:
 
       - name: component_to_sales_qty_ratio_since_2024
         description: Ratio of build component consumption to sales demand since 2024, used to identify dual-use SKUs whose replenishment should be driven by assembly consumption.
+
+    tests:
+      - dbt_utils.expression_is_true:
+          name: test_inventory_82_6005_suppressed_from_forecast
+          arguments:
+            expression: >
+              sku != '82-6005'
+              OR (
+                is_suppressed_from_inventory_planning = TRUE
+                AND inventory_suppression_reason = 'supplier_fallback_only_when_epx3_unavailable'
+                AND policy_bucket = 'NO_ACTION_OR_ARCHIVE'
+                AND forecast_method = 'exclude_until_active'
+                AND confidence_level = 'exclude'
+              )
 
   - name: mart_inventory_reorder_recommendations
     description: >
