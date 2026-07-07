@@ -43,7 +43,16 @@ ABOUTME: Provides reusable country inference and standardization across all mode
             THEN CASE
                 WHEN UPPER(TRIM({{ country_field }})) IN ('USA', 'US', 'UNITED STATES') THEN 'United States'
                 WHEN UPPER(TRIM({{ country_field }})) IN ('CANADA', 'CA') THEN 'Canada'
-                WHEN UPPER(TRIM({{ country_field }})) = 'UK' THEN 'United Kingdom'
+                WHEN UPPER(TRIM({{ country_field }})) IN (
+                    'UK',
+                    'U.K.',
+                    'UNITED KINGDOM',
+                    'GREAT BRITAIN',
+                    'ENGLAND',
+                    'SCOTLAND',
+                    'WALES',
+                    'NORTHERN IRELAND'
+                ) THEN 'United Kingdom'
                 ELSE TRIM({{ country_field }})
             END
         

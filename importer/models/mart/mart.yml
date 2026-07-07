@@ -8,11 +8,12 @@ models:
       for collection efficiency tracking and risk assessment.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - analysis_level
-            - order_number
-            - customer
-            - customer_segment
+          arguments:
+            combination_of_columns:
+              - analysis_level
+              - order_number
+              - customer
+              - customer_segment
     columns:
       - name: analysis_level
         description: Type of analysis (Individual Invoices, Customer Summary, Aging Summary)
@@ -36,10 +37,11 @@ models:
       and segment-level receivables analysis for cash flow monitoring.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - metric_category
-            - period
-            - customer_segment
+          arguments:
+            combination_of_columns:
+              - metric_category
+              - period
+              - customer_segment
     columns:
       - name: metric_category
         description: Type of DSO metric (Overall DSO Metrics, Segment AR Breakdown)
@@ -53,7 +55,8 @@ models:
         description: Performance rating (Excellent, Good, Fair, Poor)
         tests:
           - accepted_values:
-              values: ['Excellent', 'Good', 'Fair', 'Poor', 'Good Payer', 'Slow Payer', 'Problem Segment']
+              arguments:
+                values: ['Excellent', 'Good', 'Fair', 'Poor', 'Good Payer', 'Slow Payer', 'Problem Segment']
       - name: total_accounts_receivable
         description: Total outstanding receivables amount
         tests:
@@ -81,15 +84,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values:
-                - SKU_SEASONAL_TREND_MODEL
-                - SKU_BASELINE_VARIANT_SEASONAL_MODEL
-                - ASSEMBLY_FINISHED_GOOD_MODEL
-                - FBA_REPLENISHMENT_MODEL
-                - COMPONENT_PACKAGING_MODEL
-                - SPARSE_OR_NEW_SKU_BASELINE_MODEL
-                - STOCKED_NO_RECENT_DEMAND_REVIEW
-                - NO_ACTION_OR_ARCHIVE
+              arguments:
+                values:
+                  - SKU_SEASONAL_TREND_MODEL
+                  - SKU_BASELINE_VARIANT_SEASONAL_MODEL
+                  - ASSEMBLY_FINISHED_GOOD_MODEL
+                  - FBA_REPLENISHMENT_MODEL
+                  - COMPONENT_PACKAGING_MODEL
+                  - SPARSE_OR_NEW_SKU_BASELINE_MODEL
+                  - STOCKED_NO_RECENT_DEMAND_REVIEW
+                  - NO_ACTION_OR_ARCHIVE
 
       - name: policy_assignment_reason
         description: Compact reason code for the rule that assigned the SKU to its policy bucket.
@@ -101,7 +105,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['ok', 'review']
+              arguments:
+                values: ['ok', 'review']
 
       - name: policy_review_flags
         description: Semicolon-delimited validation flags explaining why the SKU classification should be reviewed.
@@ -116,7 +121,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['high', 'medium', 'low', 'manual_review', 'exclude']
+              arguments:
+                values: ['high', 'medium', 'low', 'manual_review', 'exclude']
 
       - name: requires_manual_review
         description: Boolean flag for SKUs that should not receive a blind automatic reorder recommendation.
@@ -188,15 +194,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values:
-                - SKU_SEASONAL_TREND_MODEL
-                - SKU_BASELINE_VARIANT_SEASONAL_MODEL
-                - ASSEMBLY_FINISHED_GOOD_MODEL
-                - FBA_REPLENISHMENT_MODEL
-                - COMPONENT_PACKAGING_MODEL
-                - SPARSE_OR_NEW_SKU_BASELINE_MODEL
-                - STOCKED_NO_RECENT_DEMAND_REVIEW
-                - NO_ACTION_OR_ARCHIVE
+              arguments:
+                values:
+                  - SKU_SEASONAL_TREND_MODEL
+                  - SKU_BASELINE_VARIANT_SEASONAL_MODEL
+                  - ASSEMBLY_FINISHED_GOOD_MODEL
+                  - FBA_REPLENISHMENT_MODEL
+                  - COMPONENT_PACKAGING_MODEL
+                  - SPARSE_OR_NEW_SKU_BASELINE_MODEL
+                  - STOCKED_NO_RECENT_DEMAND_REVIEW
+                  - NO_ACTION_OR_ARCHIVE
 
       - name: policy_assignment_reason
         description: Reason code inherited from `mart_inventory_sku_policy` for the rule that assigned the policy bucket.
@@ -208,7 +215,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['ok', 'review']
+              arguments:
+                values: ['ok', 'review']
 
       - name: policy_review_flags
         description: Semicolon-delimited policy validation flags inherited from `mart_inventory_sku_policy`.
@@ -218,7 +226,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['high', 'medium', 'low', 'manual_review', 'exclude']
+              arguments:
+                values: ['high', 'medium', 'low', 'manual_review', 'exclude']
 
       - name: requires_manual_review
         description: Boolean flag for SKUs that should be reviewed before an automatic order is placed.
@@ -274,7 +283,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['configured_sku_vendor', 'observed_sku_vendor_median', 'observed_vendor_median', 'policy_bucket_default']
+              arguments:
+                values: ['configured_sku_vendor', 'observed_sku_vendor_median', 'observed_vendor_median', 'policy_bucket_default']
 
       - name: planning_override_reason
         description: Reason code for a configured SKU/vendor planning override when one was used.
@@ -351,13 +361,14 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values:
-                - sku_seasonality_with_growth
-                - family_material_seasonality_with_growth
-                - capped_trailing_sku_baseline
-                - sparse_or_new_observed_velocity
-                - component_consumption_since_2024
-                - no_automatic_forecast
+              arguments:
+                values:
+                  - sku_seasonality_with_growth
+                  - family_material_seasonality_with_growth
+                  - capped_trailing_sku_baseline
+                  - sparse_or_new_observed_velocity
+                  - component_consumption_since_2024
+                  - no_automatic_forecast
 
       - name: forecast_daily_qty
         description: Daily demand forecast chosen from capped SKU demand, SKU seasonality, family/material seasonality fallback, growth trend, sparse/new SKU recent velocity, or component consumption.
@@ -490,7 +501,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['OPEN_PO', 'FUTURE_RECEIPT']
+              arguments:
+                values: ['OPEN_PO', 'FUTURE_RECEIPT']
 
       - name: document_number
         description: Purchase order number or bill number from QuickBooks.
@@ -567,7 +579,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['invoice', 'sales_receipt']
+              arguments:
+                values: ['invoice', 'sales_receipt']
       
       - name: sales_channel
         description: >
@@ -576,7 +589,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Amazon', 'Website', 'Invoice', 'Other']
+              arguments:
+                values: ['Amazon', 'Website', 'Invoice', 'Other']
       
       - name: customer_segment
         description: >
@@ -585,7 +599,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['OEM', 'Distributor', 'Export', 'Direct Consumer', 'B2B Direct', 'Other']
+              arguments:
+                values: ['OEM', 'Distributor', 'Export', 'Direct Consumer', 'B2B Direct', 'Other']
       
       - name: billing_address_country
         description: Normalized billing country (inferred from state if not explicit)
@@ -607,14 +622,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['United States', 'Canada', 'International']
+              arguments:
+                values: ['United States', 'Canada', 'International']
       
       - name: region
         description: Regional grouping (North America, International)
         tests:
           - not_null
           - accepted_values:
-              values: ['North America', 'International']
+              arguments:
+                values: ['North America', 'International']
 
   - name: dim_company_health
     description: >
@@ -637,14 +654,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Highly Active', 'Active', 'Moderately Active', 'Dormant', 'Inactive']
+              arguments:
+                values: ['Highly Active', 'Active', 'Moderately Active', 'Dormant', 'Inactive']
       
       - name: growth_trend_direction
         description: Year-over-year growth trend (Growing, Declining, Stable, New Customer, Lost Customer)
         tests:
           - not_null
           - accepted_values:
-              values: ['Growing', 'Declining', 'Stable', 'New Customer', 'Lost Customer']
+              arguments:
+                values: ['Growing', 'Declining', 'Stable', 'New Customer', 'Lost Customer']
       
       - name: days_since_last_order
         description: Number of days since the company's most recent order
@@ -671,7 +690,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [1, 2, 3, 4]
+              arguments:
+                values: [1, 2, 3, 4]
       
       - name: period_key
         description: Unique period identifier (YYYY-QN format)
@@ -688,10 +708,11 @@ models:
           - not_null
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - company_domain_key
-            - order_year
-            - order_quarter
+          arguments:
+            combination_of_columns:
+              - company_domain_key
+              - order_year
+              - order_quarter
 
   - name: fct_products
     description: >
@@ -783,7 +804,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['invoice', 'sales_receipt']
+              arguments:
+                values: ['invoice', 'sales_receipt']
       
       - name: product_service
         description: Product/service code
@@ -811,7 +833,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['PAID', 'OPEN', 'PARTIALLY_PAID', 'CANCELLED', 'OVERDUE']
+              arguments:
+                values: ['PAID', 'OPEN', 'PARTIALLY_PAID', 'CANCELLED', 'OVERDUE']
       
       - name: billing_address
         description: Formatted billing address for invoice display
@@ -835,14 +858,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['United States', 'Canada', 'International']
+              arguments:
+                values: ['United States', 'Canada', 'International']
       
       - name: region
         description: Regional grouping (North America, International)
         tests:
           - not_null
           - accepted_values:
-              values: ['North America', 'International']
+              arguments:
+                values: ['North America', 'International']
 
   - name: fct_companies
     description: >
@@ -861,7 +886,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['corporate', 'individual', 'no_email', 'skip']
+              arguments:
+                values: ['corporate', 'individual', 'no_email', 'skip']
       
       - name: company_name
         description: Primary company name (best available from consolidated customers)
@@ -891,33 +917,39 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
+              arguments:
+                values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
       
       - name: revenue_category
         description: Classification based on total revenue
         tests:
           - not_null
           - accepted_values:
-              values: ['No Revenue', 'Low Value (<$5K)', 'Growing Value ($5K-$25K)', 'Medium Value ($25K-$100K)', 'High Value ($100K+)']
+              arguments:
+                values: ['No Revenue', 'Low Value (<$5K)', 'Growing Value ($5K-$25K)', 'Medium Value ($25K-$100K)', 'High Value ($100K+)']
       
       - name: primary_country
         description: Primary country for the company (aggregated from order data using MODE())
         tests:
           - accepted_values:
-              values: ['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France', 'Mexico', 'Netherlands', 'Sweden', 'Japan', 'Italy', 'Spain', 'Brazil', 'China', 'India', 'Singapore', 'South Korea', 'Norway', 'Denmark', 'Belgium', 'Switzerland', 'Austria', 'Finland', 'Greece', 'Portugal', 'Israel', 'Ireland', 'New Zealand', 'Poland', 'Czech Republic', 'Hungary', 'Romania', 'Bulgaria', 'Croatia', 'Slovenia', 'Estonia', 'Latvia', 'Lithuania', 'Cyprus', 'Malta', 'Luxembourg', 'Iceland', 'Turkey', 'South Africa', 'Egypt', 'Kenya', 'Nigeria', 'Ghana', 'Morocco', 'Tunisia', 'Argentina', 'Chile', 'Colombia', 'Peru', 'Venezuela', 'Uruguay', 'Paraguay', 'Bolivia', 'Ecuador', 'Guatemala', 'Costa Rica', 'Panama', 'Nicaragua', 'Honduras', 'El Salvador', 'Jamaica', 'Trinidad and Tobago', 'Trinidad', 'Barbados', 'Dominican Republic', 'Puerto Rico', 'Cuba', 'Haiti', 'Thailand', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam', 'Cambodia', 'Laos', 'Myanmar', 'Bangladesh', 'Pakistan', 'Sri Lanka', 'Nepal', 'Bhutan', 'Maldives', 'Afghanistan', 'Iran', 'Iraq', 'Jordan', 'Lebanon', 'Syria', 'Yemen', 'Oman', 'Kuwait', 'Qatar', 'Bahrain', 'United Arab Emirates', 'UAE', 'Saudi Arabia', 'Russia', 'Ukraine', 'Belarus', 'Moldova', 'Georgia', 'Armenia', 'Azerbaijan', 'Kazakhstan', 'Uzbekistan', 'Turkmenistan', 'Tajikistan', 'Kyrgyzstan', 'Mongolia', 'North Korea']
-              severity: warn  # Warn instead of error since new countries might be added
+              arguments:
+                values: ['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France', 'Mexico', 'Netherlands', 'Sweden', 'Japan', 'Italy', 'Spain', 'Brazil', 'China', 'India', 'Singapore', 'South Korea', 'Norway', 'Denmark', 'Belgium', 'Switzerland', 'Austria', 'Finland', 'Greece', 'Portugal', 'Israel', 'Ireland', 'New Zealand', 'Poland', 'Czech Republic', 'Hungary', 'Romania', 'Bulgaria', 'Croatia', 'Slovenia', 'Estonia', 'Latvia', 'Lithuania', 'Cyprus', 'Malta', 'Luxembourg', 'Iceland', 'Turkey', 'South Africa', 'Egypt', 'Kenya', 'Nigeria', 'Ghana', 'Morocco', 'Tunisia', 'Argentina', 'Chile', 'Colombia', 'Peru', 'Venezuela', 'Uruguay', 'Paraguay', 'Bolivia', 'Ecuador', 'Guatemala', 'Costa Rica', 'Panama', 'Nicaragua', 'Honduras', 'El Salvador', 'Jamaica', 'Trinidad and Tobago', 'Trinidad', 'Barbados', 'Dominican Republic', 'Puerto Rico', 'Cuba', 'Haiti', 'Thailand', 'Malaysia', 'Indonesia', 'Philippines', 'Vietnam', 'Cambodia', 'Laos', 'Myanmar', 'Bangladesh', 'Pakistan', 'Sri Lanka', 'Nepal', 'Bhutan', 'Maldives', 'Afghanistan', 'Iran', 'Iraq', 'Jordan', 'Lebanon', 'Syria', 'Yemen', 'Oman', 'Kuwait', 'Qatar', 'Bahrain', 'United Arab Emirates', 'UAE', 'Saudi Arabia', 'Russia', 'Ukraine', 'Belarus', 'Moldova', 'Georgia', 'Armenia', 'Azerbaijan', 'Kazakhstan', 'Uzbekistan', 'Turkmenistan', 'Tajikistan', 'Kyrgyzstan', 'Mongolia', 'North Korea']
+              config:
+                severity: warn  # Warn instead of error since new countries might be added
       
       - name: region
         description: Regional grouping (North America, International)
         tests:
           - accepted_values:
-              values: ['North America', 'International']
+              arguments:
+                values: ['North America', 'International']
       
       - name: country_category
         description: Country category for reporting (United States, Canada, International)
         tests:
           - accepted_values:
-              values: ['United States', 'Canada', 'International']
+              arguments:
+                values: ['United States', 'Canada', 'International']
 
   - name: bridge_customer_company
     description: >
@@ -948,7 +980,8 @@ models:
         description: Type of normalization applied to customer name
         tests:
           - accepted_values:
-              values: ['explicit', 'automatic', 'no_change']
+              arguments:
+                values: ['explicit', 'automatic', 'no_change']
       
       - name: customer_total_revenue
         description: Total revenue attributed to this specific customer
@@ -965,14 +998,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['No Revenue', 'Low Value Customer (<$1K)', 'Regular Customer ($1K-$10K)', 'Medium Value Customer ($10K-$50K)', 'High Value Customer ($50K+)']
+              arguments:
+                values: ['No Revenue', 'Low Value Customer (<$1K)', 'Regular Customer ($1K-$10K)', 'Medium Value Customer ($10K-$50K)', 'High Value Customer ($50K+)']
       
       - name: customer_activity_status
         description: Activity classification based on latest order date
         tests:
           - not_null
           - accepted_values:
-              values: ['No Orders', 'Inactive (2+ Years)', 'Dormant (1-2 Years)', 'Recent (Last Year)', 'Active (Last 90 Days)']
+              arguments:
+                values: ['No Orders', 'Inactive (2+ Years)', 'Dormant (1-2 Years)', 'Recent (Last Year)', 'Active (Last 90 Days)']
       
       - name: domain_type
         description: Type of email domain (corporate, individual, no_email)
@@ -996,11 +1031,12 @@ models:
       Each row represents one order from a company.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - company_domain_key
-            - order_number
-            - order_date
-            - customer_name
+          arguments:
+            combination_of_columns:
+              - company_domain_key
+              - order_number
+              - order_date
+              - customer_name
     columns:
       - name: company_domain_key
         description: Links to fct_companies.company_domain_key
@@ -1027,21 +1063,24 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Micro Order (<$500)', 'Small Order ($500-$2.5K)', 'Medium Order ($2.5K-$10K)', 'Large Order ($10K+)']
+              arguments:
+                values: ['Micro Order (<$500)', 'Small Order ($500-$2.5K)', 'Medium Order ($2.5K-$10K)', 'Large Order ($10K+)']
       
       - name: product_diversity
         description: Classification based on number of unique products in order
         tests:
           - not_null
           - accepted_values:
-              values: ['Single Product', 'Low Diversity (2-4 products)', 'Medium Diversity (5-9 products)', 'High Diversity (10+ products)']
+              arguments:
+                values: ['Single Product', 'Low Diversity (2-4 products)', 'Medium Diversity (5-9 products)', 'High Diversity (10+ products)']
       
       - name: recency_category
         description: Classification based on how recent the order is
         tests:
           - not_null
           - accepted_values:
-              values: ['Recent', 'Last Year', 'Historical', 'Old']
+              arguments:
+                values: ['Recent', 'Last Year', 'Historical', 'Old']
 
   - name: fct_company_products
     description: >
@@ -1074,21 +1113,24 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['Active Buyer', 'Recent Buyer', 'Dormant Buyer', 'Inactive Buyer']
+              arguments:
+                values: ['Active Buyer', 'Recent Buyer', 'Dormant Buyer', 'Inactive Buyer']
       
       - name: purchase_volume_category
         description: Classification based on total amount spent on this product
         tests:
           - not_null
           - accepted_values:
-              values: ['Occasional (<$500)', 'Low Volume ($500-$2.5K)', 'Medium Volume ($2.5K-$10K)', 'High Volume ($10K+)']
+              arguments:
+                values: ['Occasional (<$500)', 'Low Volume ($500-$2.5K)', 'Medium Volume ($2.5K-$10K)', 'High Volume ($10K+)']
       
       - name: purchase_frequency_category
         description: Classification based on number of transactions
         tests:
           - not_null
           - accepted_values:
-              values: ['Rare Buyer (<5 orders)', 'Occasional Buyer (5-9 orders)', 'Regular Buyer (10-19 orders)', 'Frequent Buyer (20+ orders)']
+              arguments:
+                values: ['Rare Buyer (<5 orders)', 'Occasional Buyer (5-9 orders)', 'Regular Buyer (10-19 orders)', 'Frequent Buyer (20+ orders)']
       
       - name: product_service_description
         description: Most recent product description for this company-product combination (critical field from correlated subquery)
@@ -1106,9 +1148,10 @@ models:
           - not_null
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - company_domain_key
-            - product_service
+          arguments:
+            combination_of_columns:
+              - company_domain_key
+              - product_service
 
   - name: mart_product_company_period_spending
     description: >
@@ -1137,7 +1180,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['trailing_30d', 'trailing_90d', 'trailing_1y', 'all_time']
+              arguments:
+                values: ['trailing_30d', 'trailing_90d', 'trailing_1y', 'all_time']
       
       - name: total_amount_spent
         description: Total amount spent by this company on this product in this period
@@ -1180,21 +1224,24 @@ models:
         description: Source type from most recent transaction (invoice or sales_receipt)
         tests:
           - accepted_values:
-              values: ['invoice', 'sales_receipt']
+              arguments:
+                values: ['invoice', 'sales_receipt']
       
       - name: domain_type
         description: Company domain/entity grouping type
         tests:
           - not_null
           - accepted_values:
-              values: ['corporate', 'individual', 'no_email', 'skip']
+              arguments:
+                values: ['corporate', 'individual', 'no_email', 'skip']
       
       - name: business_size_category
         description: Company size classification
         tests:
           - not_null
           - accepted_values:
-              values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
+              arguments:
+                values: ['Individual Customer', 'Unresolved Customer', 'Skipped Domain Customer', 'Single Location', 'Small Multi-Location', 'Medium Multi-Location', 'Large Multi-Location']
       
       - name: company_total_revenue
         description: Lifetime company revenue from the company-product base model
@@ -1212,27 +1259,31 @@ models:
         description: Buyer status from fct_company_products (lifetime perspective, may be NULL for new products)
         tests:
           - accepted_values:
-              values: ['Active Buyer', 'Recent Buyer', 'Dormant Buyer', 'Inactive Buyer']
+              arguments:
+                values: ['Active Buyer', 'Recent Buyer', 'Dormant Buyer', 'Inactive Buyer']
       
       - name: lifetime_volume_category
         description: Purchase volume category from fct_company_products (lifetime perspective, may be NULL for new products)
         tests:
           - accepted_values:
-              values: ['Occasional (<$500)', 'Low Volume ($500-$2.5K)', 'Medium Volume ($2.5K-$10K)', 'High Volume ($10K+)']
+              arguments:
+                values: ['Occasional (<$500)', 'Low Volume ($500-$2.5K)', 'Medium Volume ($2.5K-$10K)', 'High Volume ($10K+)']
       
       - name: period_buyer_status
         description: Buyer status classification based on period recency
         tests:
           - not_null
           - accepted_values:
-              values: ['Recent Buyer (30d)', 'Active Buyer (90d)', 'Past Year Buyer', 'Historical Buyer']
+              arguments:
+                values: ['Recent Buyer (30d)', 'Active Buyer (90d)', 'Past Year Buyer', 'Historical Buyer']
       
       - name: period_spending_category
         description: Spending classification for this specific period
         tests:
           - not_null
           - accepted_values:
-              values: ['No Period Spending', 'Minimal Spender (<$500)', 'Low Spender ($500-$2.5K)', 'Medium Spender ($2.5K-$10K)', 'High Spender ($10K+)']
+              arguments:
+                values: ['No Period Spending', 'Minimal Spender (<$500)', 'Low Spender ($500-$2.5K)', 'Medium Spender ($2.5K-$10K)', 'High Spender ($10K+)']
       
       - name: price_variance_percentage
         description: Percentage variance between period average price and standard sales price
@@ -1253,10 +1304,11 @@ models:
                 expression: ">= 0"
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - product_service
-            - company_domain_key
-            - period_type
+          arguments:
+            combination_of_columns:
+              - product_service
+              - company_domain_key
+              - period_type
 
   - name: dim_customer_contacts
     description: >
@@ -1296,7 +1348,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['primary_contact', 'primary_with_cc', 'cc_contact_only', 'name_only_contact', 'minimal_contact']
+              arguments:
+                values: ['primary_contact', 'primary_with_cc', 'cc_contact_only', 'name_only_contact', 'minimal_contact']
       
       - name: is_primary_company_contact
         description: Flag for primary company contact
@@ -1308,7 +1361,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['high_value_contact', 'complete_contact', 'email_contact', 'phone_contact', 'basic_contact']
+              arguments:
+                values: ['high_value_contact', 'complete_contact', 'email_contact', 'phone_contact', 'basic_contact']
       
       - name: email_marketable
         description: Flag indicating if contact can be emailed
@@ -1363,7 +1417,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['primary_contact', 'secondary_contact', 'email_contact', 'phone_contact', 'name_only_contact', 'minimal_contact']
+              arguments:
+                values: ['primary_contact', 'secondary_contact', 'email_contact', 'phone_contact', 'name_only_contact', 'minimal_contact']
       
       - name: is_primary_company_contact
         description: Flag for primary company contact
@@ -1375,7 +1430,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['high_value_contact', 'complete_contact', 'email_contact', 'phone_contact', 'basic_contact']
+              arguments:
+                values: ['high_value_contact', 'complete_contact', 'email_contact', 'phone_contact', 'basic_contact']
       
       - name: completeness_score
         description: Data completeness score from 0-100
@@ -1480,9 +1536,10 @@ models:
           - not_null
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - product_service
-            - order_date
+          arguments:
+            combination_of_columns:
+              - product_service
+              - order_date
 
   - name: mart_company_period_metrics
     description: >
@@ -1490,9 +1547,10 @@ models:
       Pre-calculates revenue and order metrics by company across multiple time periods.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - company_domain_key
-            - period_type
+          arguments:
+            combination_of_columns:
+              - company_domain_key
+              - period_type
     columns:
       - name: company_domain_key
         description: Unique identifier for the consolidated company
@@ -1504,7 +1562,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['trailing_7d', 'trailing_30d', 'trailing_90d', 'trailing_1y', 'all_time']
+              arguments:
+                values: ['trailing_7d', 'trailing_30d', 'trailing_90d', 'trailing_1y', 'all_time']
 
       - name: total_revenue
         description: Total revenue for this company in this period
@@ -1517,10 +1576,11 @@ models:
       Provides aggregated actual vs standard margins with temporal dimensions.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - sku
-            - time_period
-            - period_date
+          arguments:
+            combination_of_columns:
+              - sku
+              - time_period
+              - period_date
     columns:
       - name: sku
         description: Product/service code (SKU)
@@ -1532,7 +1592,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['daily', 'monthly']
+              arguments:
+                values: ['daily', 'monthly']
 
       - name: period_date
         description: Date for the period (sale_date for daily, order_month for monthly)
@@ -1545,9 +1606,10 @@ models:
       Enables queries like "5,234 UNITS of SP10 sold in last 30 days" by aggregating individual unit sales by product and time period.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - product_name
-            - sale_date
+          arguments:
+            combination_of_columns:
+              - product_name
+              - sale_date
     columns:
       - name: product_name
         description: Product name
@@ -1646,9 +1708,10 @@ models:
       and risk classification for compact dashboard summaries.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - aging_bucket
-            - collection_risk
+          arguments:
+            combination_of_columns:
+              - aging_bucket
+              - collection_risk
     columns:
       - name: aging_bucket
         description: Invoice aging bucket based on days_outstanding.
@@ -1866,4 +1929,5 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['ok', 'warn', 'critical']
+              arguments:
+                values: ['ok', 'warn', 'critical']

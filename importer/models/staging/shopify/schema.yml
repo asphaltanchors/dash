@@ -5,8 +5,9 @@ models:
     description: "Staging model for Shopify orders with standardized financial data"
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - order_id
+          arguments:
+            combination_of_columns:
+              - order_id
     columns:
       - name: order_id
         description: "Shopify order ID (primary key)"
@@ -24,7 +25,8 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0
       - name: financial_status
         description: "Payment status (PAID, PENDING, REFUNDED, etc.)"
       - name: fulfillment_status
@@ -90,4 +92,5 @@ models:
         description: "Variant price"
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0

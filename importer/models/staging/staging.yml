@@ -33,7 +33,8 @@ models:
         description: Source of the order data (invoice or sales_receipt)
         tests:
           - accepted_values:
-              values: ['invoice', 'sales_receipt']
+              arguments:
+                values: ['invoice', 'sales_receipt']
   
   - name: stg_quickbooks__order_items_tax_status
     description: >
@@ -102,9 +103,10 @@ models:
           - not_null
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - item_name
-            - snapshot_date
+          arguments:
+            combination_of_columns:
+              - item_name
+              - snapshot_date
 
   - name: stg_quickbooks__customers
     description: >
@@ -145,14 +147,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['United States', 'Canada', 'International']
+              arguments:
+                values: ['United States', 'Canada', 'International']
       
       - name: region
         description: Regional grouping (North America, International)
         tests:
           - not_null
           - accepted_values:
-              values: ['North America', 'International']
+              arguments:
+                values: ['North America', 'International']
   
   - name: stg_quickbooks__customer_contacts
     description: >
@@ -203,7 +207,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['main', 'cc']
+              arguments:
+                values: ['main', 'cc']
       
       - name: email_position
         description: "Position of email in the original field (1, 2, 3...)"
@@ -218,28 +223,32 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['primary', 'additional_main', 'cc']
+              arguments:
+                values: ['primary', 'additional_main', 'cc']
       
       - name: contact_data_quality
         description: Data quality assessment for the contact
         tests:
           - not_null
           - accepted_values:
-              values: ['complete', 'partial', 'minimal']
+              arguments:
+                values: ['complete', 'partial', 'minimal']
       
       - name: has_person_data
         description: Flag indicating if contact has meaningful person information
         tests:
           - not_null
           - accepted_values:
-              values: [true, false]
+              arguments:
+                values: [true, false]
       
       - name: primary_contact_method
         description: Primary method to contact this person
         tests:
           - not_null
           - accepted_values:
-              values: ['email', 'phone', 'cc_email', 'none']
+              arguments:
+                values: ['email', 'phone', 'cc_email', 'none']
 
   - name: stg_quickbooks__domain_mapping
     description: >
@@ -262,7 +271,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['corporate', 'individual', 'skip']
+              arguments:
+                values: ['corporate', 'individual', 'skip']
       
       - name: mapping_created_date
         description: When the domain mapping was created by the Python script
@@ -295,7 +305,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['explicit', 'automatic', 'no_change']
+              arguments:
+                values: ['explicit', 'automatic', 'no_change']
       
       - name: mapping_created_date
         description: When the name mapping was created by the Python script

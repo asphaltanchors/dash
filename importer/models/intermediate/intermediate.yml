@@ -168,7 +168,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['primary_contact', 'primary_with_cc', 'cc_contact_only', 'name_only_contact', 'minimal_contact']
+              arguments:
+                values: ['primary_contact', 'primary_with_cc', 'cc_contact_only', 'name_only_contact', 'minimal_contact']
       
       - name: company_contact_rank
         description: Ranking within the company (1 = primary contact)
@@ -192,7 +193,8 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['complete', 'partial', 'minimal']
+              arguments:
+                values: ['complete', 'partial', 'minimal']
       
       - name: source_customer_id
         description: Original customer ID for traceability
@@ -291,9 +293,10 @@ models:
           - not_null
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - item_name
-            - snapshot_date
+          arguments:
+            combination_of_columns:
+              - item_name
+              - snapshot_date
 
   - name: int_quickbooks__inventory_movements
     description: >
@@ -313,14 +316,16 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['sales_order_line', 'vendor_bill', 'inventory_adjustment', 'build_assembly_header', 'build_assembly_component']
+              arguments:
+                values: ['sales_order_line', 'vendor_bill', 'inventory_adjustment', 'build_assembly_header', 'build_assembly_component']
 
       - name: movement_type
         description: Inventory business event type used by downstream reconstruction and reorder logic.
         tests:
           - not_null
           - accepted_values:
-              values: ['sale', 'receipt', 'adjustment', 'fba_transfer_in', 'fba_transfer_out', 'build_production', 'build_component_consumption']
+              arguments:
+                values: ['sale', 'receipt', 'adjustment', 'fba_transfer_in', 'fba_transfer_out', 'build_production', 'build_component_consumption']
 
       - name: sku
         description: QuickBooks item name after SKU normalization for known aliases such as `82-6002 IN`.
@@ -425,8 +430,9 @@ models:
       Replaces direct staging access pattern and eliminates need for separate packaging model.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - item_name
+          arguments:
+            combination_of_columns:
+              - item_name
     columns:
       - name: quick_books_internal_id
         description: Unique identifier for the item in QuickBooks
@@ -444,28 +450,32 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ['SP10', 'SP12', 'SP18', 'SP58', 'AM625', 'Kits', 'Adhesives', 'Accessories', 'Uncategorized']
+              arguments:
+                values: ['SP10', 'SP12', 'SP18', 'SP58', 'AM625', 'Kits', 'Adhesives', 'Accessories', 'Uncategorized']
       
       - name: material_type
         description: Derived material type based on item attributes
         tests:
           - not_null
           - accepted_values:
-              values: ['Stainless Steel', 'Zinc Plated', 'Dacromet', 'Adhesives', 'Plastic', 'Tools', 'Uncategorized']
+              arguments:
+                values: ['Stainless Steel', 'Zinc Plated', 'Dacromet', 'Adhesives', 'Plastic', 'Tools', 'Uncategorized']
       
       - name: is_kit
         description: Boolean flag indicating if the item is a kit/bundle
         tests:
           - not_null
           - accepted_values:
-              values: [true, false]
+              arguments:
+                values: [true, false]
 
       - name: packaging_type
         description: Type of packaging (kit, master_carton, 6-pack, individual)
         tests:
           - not_null
           - accepted_values:
-              values: ['kit', 'master_carton', '6-pack', 'individual']
+              arguments:
+                values: ['kit', 'master_carton', '6-pack', 'individual']
 
       - name: units_per_sku
         description: Number of units per SKU based on packaging type

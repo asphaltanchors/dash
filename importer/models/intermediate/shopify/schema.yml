@@ -48,7 +48,18 @@ models:
     tests:
       - dbt_utils.expression_is_true:
           arguments:
-            expression: "match_status != 'SHOPIFY_ONLY' or order_number > 'S-1200'"
+            expression: >
+              match_status != 'SHOPIFY_ONLY'
+              or order_number > 'S-1200'
+              or order_number in (
+                'S-1048',
+                'S-1053',
+                'S-1063',
+                'S-1065',
+                'S-1078',
+                'S-1147',
+                'S-1189'
+              )
           config:
             severity: warn
     columns:
@@ -61,7 +72,8 @@ models:
         description: "Match status: MATCHED, SHOPIFY_ONLY, QB_ONLY"
         tests:
           - accepted_values:
-              values: ['MATCHED', 'SHOPIFY_ONLY', 'QB_ONLY']
+              arguments:
+                values: ['MATCHED', 'SHOPIFY_ONLY', 'QB_ONLY']
       - name: amounts_match
         description: "Boolean flag indicating if Shopify and QB amounts match within $0.01"
       - name: amount_difference

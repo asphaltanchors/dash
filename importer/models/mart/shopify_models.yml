@@ -28,7 +28,8 @@ models:
         tests:
           - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0
       - name: discount_amount
         description: "Total discount applied to order"
       - name: has_discount
@@ -54,17 +55,20 @@ models:
         description: "Total customer lifetime value"
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0
       - name: customer_segment
         description: "Customer value segment (High Value, Medium Value, Low Value)"
         tests:
           - accepted_values:
-              values: ['High Value', 'Medium Value', 'Low Value']
+              arguments:
+                values: ['High Value', 'Medium Value', 'Low Value']
       - name: customer_status
         description: "Customer activity status (Active, At Risk, Churned)"
         tests:
           - accepted_values:
-              values: ['Active', 'At Risk', 'Churned']
+              arguments:
+                values: ['Active', 'At Risk', 'Churned']
       - name: days_since_last_order
         description: "Days since customer's last order"
 
