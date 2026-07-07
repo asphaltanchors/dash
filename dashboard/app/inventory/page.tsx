@@ -7,11 +7,11 @@ import {
   Boxes,
   CalendarDays,
   ClipboardList,
+  DollarSign,
   Filter,
   MoreHorizontal,
   PackageCheck,
   Share2,
-  ShipWheel,
   Warehouse,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
@@ -339,8 +339,6 @@ export default async function InventoryPage() {
   const accessoryItems = items.filter((item) => !isWwd(item) && !isFba(item) && !isAdhesive(item) && isAccessory(item))
   const otherItems = items.filter((item) => !isWwd(item) && !isFba(item) && !isAdhesive(item) && !isAccessory(item))
   const reviewItems = items.filter((item) => item.requiresManualReview || item.action === 'REVIEW')
-  const outItems = items.filter((item) => item.action === 'OUT_OF_STOCK')
-  const onHandValues = items.slice(0, 30).map((item) => toNumber(item.onHandQty) * toNumber(item.purchaseCost))
 
   return (
     <>
@@ -371,12 +369,12 @@ export default async function InventoryPage() {
 
       <main className="min-h-[calc(100svh-3.5rem)] space-y-2 bg-[#08111f] p-2 text-slate-100 sm:p-3">
         <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
-          <MetricTile className="min-h-0" label="WWD Planning" value={formatNumber(summary.wwdBuyCount, 0)} detail={`${formatNumber(summary.wwdSuggestedBuyQty, 0)} units | ${compactCurrency(summary.wwdSuggestedBuyCost, 0)}`} icon={ShipWheel} tone="blue" />
+          <MetricTile className="min-h-0" label="Inventory Cost" value={compactCurrency(summary.currentOnHandValueAtCost, 1)} detail="on-hand value at purchase cost" icon={DollarSign} tone="cyan" />
           <MetricTile className="min-h-0" label="WWD Next Order" value={wwdPalletPlan.nextOrderDate ? formatIsoDate(wwdPalletPlan.nextOrderDate) : 'TBD'} detail={`${formatNumber(wwdPalletPlan.cumulativeLayerCount, 0)} of ${wwdPalletPlan.targetLayerCount} layers | ${formatNumber(wwdPalletPlan.rideAlongSkuCount, 0)} ride-alongs`} icon={CalendarDays} tone={wwdPalletPlan.nextOrderDate ? 'blue' : 'amber'} />
           <MetricTile className="min-h-0" label="Suggested Buys" value={formatNumber(summary.buyCount, 0)} detail={`${formatNumber(summary.suggestedBuyQty, 0)} model units recommended`} icon={ClipboardList} tone="green" />
           <MetricTile className="min-h-0" label="Buy Cost" value={compactCurrency(summary.suggestedBuyCost, 0)} detail={`${formatNumber(summary.reviewCount, 0)} SKUs need review`} icon={PackageCheck} tone="amber" />
           <MetricTile className="min-h-0" label="Out Of Stock" value={formatNumber(summary.outOfStockCount, 0)} detail={`${formatNumber(summary.totalSkus, 0)} active planning SKUs`} icon={AlertTriangle} tone={summary.outOfStockCount > 0 ? 'red' : 'green'} />
-          <MetricTile className="min-h-0" label="Inbound PO Qty" value={formatNumber(summary.inboundQty, 0)} detail={`${formatNumber(summary.futureReceiptQty, 0)} future receipt units`} icon={Warehouse} tone="cyan" />
+          <MetricTile className="min-h-0" label="Inbound Docs" value={formatNumber(summary.inboundDocumentCount, 0)} detail={`${formatNumber(summary.openPoDocumentCount, 0)} open POs | ${formatNumber(summary.futureReceiptDocumentCount, 0)} future receipts`} icon={Warehouse} tone="cyan" />
           <MetricTile className="min-h-0" label="Manual Review" value={formatNumber(reviewItems.length, 0)} detail={`${formatNumber((reviewItems.length / Math.max(items.length, 1)) * 100, 1)}% of planning SKUs`} icon={Boxes} tone={reviewItems.length > 0 ? 'purple' : 'green'} />
         </section>
 
@@ -390,16 +388,7 @@ export default async function InventoryPage() {
           />
         </section>
 
-        <section className="grid gap-2 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <Panel>
-            <PanelHeader title="Inventory Exposure" eyebrow="On-hand value and ordering pressure in current planning set" action={<CompactBadge tone="cyan">{formatNumber(items.length, 0)} SKUs</CompactBadge>} />
-            <div className="grid gap-3 p-3 md:grid-cols-2">
-              <MiniStat label="Current on-hand value" value={compactCurrency(onHandValues.reduce((sum, value) => sum + value, 0), 1)} detail="estimated from on-hand quantity and purchase cost" tone="cyan" />
-              <MiniStat label="Open inbound" value={formatNumber(summary.inboundQty, 0)} detail="open PO quantity from planning mart" tone="green" />
-              <MiniStat label="Future receipts" value={formatNumber(summary.futureReceiptQty, 0)} detail="future receipt quantity after anchor" tone="blue" />
-              <MiniStat label="Out-of-stock buy cost" value={compactCurrency(outItems.reduce((sum, item) => sum + toNumber(item.suggestedBuyCost), 0), 0)} detail={`${formatNumber(outItems.length, 0)} SKUs at zero on hand`} tone={outItems.length > 0 ? 'red' : 'green'} />
-            </div>
-          </Panel>
+        <section>
           <Panel>
             <PanelHeader title="Priority Queue" eyebrow="Highest risk items across all buckets" action={<Link href="#all-skus" className="text-xs font-medium text-blue-300 hover:text-blue-200">All SKUs <ArrowUpRight className="inline size-3" /></Link>} />
             <div className="space-y-2 p-3">
@@ -431,15 +420,5 @@ export default async function InventoryPage() {
         </section>
       </main>
     </>
-  )
-}
-
-function MiniStat({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: Tone }) {
-  return (
-    <div className={cn('rounded-md border border-slate-800 p-3', toneStyles[tone].border, toneStyles[tone].bg)}>
-      <p className="text-[11px] uppercase text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-slate-50">{value}</p>
-      <p className="mt-1 truncate text-xs text-slate-400">{detail}</p>
-    </div>
   )
 }

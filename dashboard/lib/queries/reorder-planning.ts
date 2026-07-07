@@ -16,6 +16,7 @@ type InventoryAction = 'OUT_OF_STOCK' | 'BUY' | 'REVIEW' | 'WATCH' | 'OK';
 
 export interface InventoryPlanningSummary {
   inventoryAsOfDate: string;
+  currentOnHandValueAtCost: string;
   totalSkus: number;
   outOfStockCount: number;
   buyCount: number;
@@ -28,6 +29,9 @@ export interface InventoryPlanningSummary {
   suggestedBuyCost: string;
   inboundQty: string;
   futureReceiptQty: string;
+  inboundDocumentCount: number;
+  openPoDocumentCount: number;
+  futureReceiptDocumentCount: number;
 }
 
 export interface WwdPalletPlanItem {
@@ -330,6 +334,17 @@ interface WwdPalletPlanRow {
   order_sequence: number | null;
 }
 
+interface InventoryValueRow {
+  inventory_date: string | Date | null;
+  current_on_hand_value_at_cost: string | number | null;
+}
+
+interface InboundDocumentSummaryRow {
+  inbound_document_count: string | number | null;
+  open_po_document_count: string | number | null;
+  future_receipt_document_count: string | number | null;
+}
+
 function getInventoryAction(row: InventoryPlanningRow): InventoryAction {
   const onHandQty = Number(row.current_on_hand_qty || 0);
 
@@ -448,7 +463,7 @@ export async function getInventoryPlanningPageData(): Promise<{
   families: string[];
   wwdPalletPlan: WwdPalletPlan;
 }> {
-  const [rows, wwdPlanRows] = await Promise.all([
+  const [rows, wwdPlanRows, inventoryValueRows, inboundDocumentRows] = await Promise.all([
     db.execute(sql`
       select *
       from analytics_mart.mart_inventory_reorder_recommendations
@@ -467,9 +482,43 @@ export async function getInventoryPlanningPageData(): Promise<{
       from analytics_mart.mart_wwd_pallet_order_plan
       order by order_sequence
     `) as unknown as Promise<WwdPalletPlanRow[]>,
+    db.execute(sql`
+      select
+        inventory_date,
+        coalesce(sum(inventory_value_at_cost::numeric), 0) as current_on_hand_value_at_cost
+      from analytics_mart.fct_inventory_history
+      where inventory_date = (
+        select max(inventory_date)
+        from analytics_mart.fct_inventory_history
+      )
+      group by inventory_date
+    `) as unknown as Promise<InventoryValueRow[]>,
+    db.execute(sql`
+      with latest as (
+        select max(inventory_as_of_date) as inventory_as_of_date
+        from analytics_mart.mart_inventory_inbound_lines
+      ),
+      inbound_documents as (
+        select distinct
+          inbound_type,
+          coalesce(
+            source_transaction_key,
+            inbound_type || ':' || coalesce(document_number, '') || ':' || coalesce(vendor, '')
+          ) as document_key
+        from analytics_mart.mart_inventory_inbound_lines
+        where inventory_as_of_date = (select inventory_as_of_date from latest)
+      )
+      select
+        count(*) as inbound_document_count,
+        count(*) filter (where inbound_type = 'OPEN_PO') as open_po_document_count,
+        count(*) filter (where inbound_type = 'FUTURE_RECEIPT') as future_receipt_document_count
+      from inbound_documents
+    `) as unknown as Promise<InboundDocumentSummaryRow[]>,
   ]);
 
   const items = rows.map(mapPlanningRow);
+  const inventoryValue = inventoryValueRows[0];
+  const inboundDocuments = inboundDocumentRows[0];
 
   const total = items.length;
   const outOfStock = items.filter((item) => item.action === 'OUT_OF_STOCK');
@@ -482,7 +531,8 @@ export async function getInventoryPlanningPageData(): Promise<{
 
   return {
     summary: {
-      inventoryAsOfDate: formatDate(rows[0]?.inventory_as_of_date) || '',
+      inventoryAsOfDate: formatDate(inventoryValue?.inventory_date || rows[0]?.inventory_as_of_date) || '',
+      currentOnHandValueAtCost: formatNumber(inventoryValue?.current_on_hand_value_at_cost, 2),
       totalSkus: total,
       outOfStockCount: outOfStock.length,
       buyCount: buyItems.length,
@@ -495,6 +545,9 @@ export async function getInventoryPlanningPageData(): Promise<{
       suggestedBuyCost: buyItems.reduce((sum, item) => sum + Number(item.suggestedBuyCost), 0).toFixed(2),
       inboundQty: items.reduce((sum, item) => sum + Number(item.inboundOpenPoQty), 0).toFixed(0),
       futureReceiptQty: items.reduce((sum, item) => sum + Number(item.futureReceiptQty), 0).toFixed(0),
+      inboundDocumentCount: Number(inboundDocuments?.inbound_document_count || 0),
+      openPoDocumentCount: Number(inboundDocuments?.open_po_document_count || 0),
+      futureReceiptDocumentCount: Number(inboundDocuments?.future_receipt_document_count || 0),
     },
     items,
     families,
