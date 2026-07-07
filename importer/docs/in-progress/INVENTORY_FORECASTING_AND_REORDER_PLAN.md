@@ -111,6 +111,7 @@ Final reorder model grain: one row per reorder-relevant SKU per latest inventory
 - [x] Add family/material fallback seasonal indices.
 - [x] Add outlier detection and capped demand contribution.
 - [x] Add conservative growth trend adjustment from recent 12-month demand vs prior 12 months.
+- [x] Add SKU-level rolling lead-time demand percentiles for variability-aware safety stock.
 - [x] Expose forecast model detail, baseline, seasonality, growth, and capped-demand audit fields in the reorder mart and dashboard worklist.
 - [ ] Add new-product/analog-SKU overrides where needed.
 - [ ] Tune seasonality and growth clamps after reviewing SKU-level outputs with the business.
@@ -130,6 +131,7 @@ Final reorder model grain: one row per reorder-relevant SKU per latest inventory
 - [x] Replace hard-coded forecast month with lead-time-aware expected receipt month.
 - [x] Calculate reorder quantity against projected stock at expected receipt date rather than today’s stock position.
 - [x] Surface uncovered lead-time demand / stockout gap for dashboard messaging.
+- [x] Replace the mature seasonal SKU hard-coded 120-day target with an observed SKU/vendor PO-cycle target when enough order history exists.
 - [ ] Add SKU/vendor planning inputs for MOQ, order multiple, case pack, and broader preferred vendor coverage.
 - [x] Add simple WWD layer multiples for key 6-pack anchor SKUs and expose layer-rounded suggested buy quantities.
 - [ ] Replace remaining hard-coded target coverage assumptions with SKU/family/vendor overrides.

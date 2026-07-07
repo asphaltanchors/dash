@@ -284,12 +284,32 @@ models:
         description: Fallback lead time from the SKU policy bucket when no configured or observed lead time is usable.
 
       - name: target_coverage_days
-        description: Target days of coverage used to size the first-pass reorder quantity.
+        description: >
+          Target days of coverage used to size the first-pass reorder quantity. Explicit SKU/vendor
+          planning overrides take precedence; mature seasonal SKUs can use observed SKU/vendor PO
+          cycle history bounded to 60-180 days; otherwise this falls back to the policy default.
         tests:
           - not_null
 
       - name: default_target_coverage_days
-        description: Fallback target coverage days from the SKU policy bucket before any configured planning override.
+        description: Fallback target coverage days from the SKU policy bucket before any configured planning override or observed cycle adjustment.
+
+      - name: target_coverage_source
+        description: Source used to select `target_coverage_days`.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['configured_sku_vendor', 'observed_sku_vendor_po_cycle', 'policy_bucket_default']
+
+      - name: observed_sku_vendor_order_cycle_days
+        description: P75 days between historical purchase order batches for the selected SKU/vendor, used as a dynamic order-cycle target when at least five intervals exist.
+
+      - name: observed_sku_vendor_median_order_cycle_days
+        description: Median days between historical purchase order batches for the selected SKU/vendor, exposed for audit beside the P75 target input.
+
+      - name: observed_sku_vendor_order_cycle_count
+        description: Count of observed intervals between historical purchase order batches for the selected SKU/vendor.
 
       - name: available_position_qty
         description: Current on hand plus total real inbound quantity, using the greater of parsed open PO quantity and QuickBooks quantity on order to avoid double-counting open POs, plus future-dated receipt quantity removed from on hand, minus committed future demand.
@@ -370,7 +390,56 @@ models:
           "we may miss X units before replenishment arrives."
 
       - name: safety_stock_qty
-        description: Initial safety stock buffer calculated from demand and policy confidence.
+        description: >
+          Safety stock buffer used in reorder point and reorder quantity calculations. Uses rolling
+          p90 historical lead-time demand when enough SKU-level windows exist, otherwise falls back
+          to the policy multiplier calculation.
+
+      - name: safety_stock_source
+        description: Source used to select `safety_stock_qty`.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['rolling_lead_time_demand_p90', 'policy_multiplier_fallback']
+
+      - name: demand_variability_source
+        description: Demand event source used for rolling lead-time variability; sales-driven SKUs use capped sales and component SKUs use build component consumption.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['capped_sales', 'component_consumption']
+
+      - name: policy_safety_stock_qty
+        description: Fallback safety stock from the previous policy-multiplier method, retained for audit and for SKUs without enough rolling demand history.
+
+      - name: percentile_safety_stock_qty
+        description: Safety stock implied by p90 historical rolling lead-time demand minus forecast lead-time demand, floored at zero.
+
+      - name: variability_sample_windows
+        description: Count of historical rolling lead-time windows available for the SKU-level variability calculation.
+
+      - name: variability_windows_with_demand
+        description: Count of historical rolling lead-time windows with nonzero demand in the variability calculation.
+
+      - name: avg_historical_lead_time_demand_qty
+        description: Average demand quantity across historical rolling lead-time windows using the SKU's selected variability demand source.
+
+      - name: stddev_historical_lead_time_demand_qty
+        description: Sample standard deviation of demand quantity across historical rolling lead-time windows.
+
+      - name: p50_historical_lead_time_demand_qty
+        description: Median demand quantity across historical rolling lead-time windows.
+
+      - name: p75_historical_lead_time_demand_qty
+        description: P75 demand quantity across historical rolling lead-time windows.
+
+      - name: p90_historical_lead_time_demand_qty
+        description: P90 demand quantity across historical rolling lead-time windows; this is the selected percentile target for SKU-level safety stock when enough history exists.
+
+      - name: p95_historical_lead_time_demand_qty
+        description: P95 demand quantity across historical rolling lead-time windows, exposed for audit and future tuning.
 
       - name: reorder_point_qty
         description: Lead-time demand plus safety stock.

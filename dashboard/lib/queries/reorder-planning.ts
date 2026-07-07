@@ -105,6 +105,17 @@ export interface ProductReorderPlanningDetail extends InventoryPlanningItem {
   uncoveredLeadTimeDemandQty: string;
   stockoutGapQty: string;
   rawReorderQty: string;
+  safetyStockSource: string;
+  demandVariabilitySource: string;
+  policySafetyStockQty: string;
+  percentileSafetyStockQty: string;
+  variabilitySampleWindows: number;
+  variabilityWindowsWithDemand: number;
+  avgHistoricalLeadTimeDemandQty: string;
+  p50HistoricalLeadTimeDemandQty: string;
+  p75HistoricalLeadTimeDemandQty: string;
+  p90HistoricalLeadTimeDemandQty: string;
+  p95HistoricalLeadTimeDemandQty: string;
   stddevDailySales90d: string;
   p80DailySales90d: string;
   totalSalesQty90d: string;
@@ -222,6 +233,17 @@ interface ProductReorderPlanningRow extends InventoryPlanningRow {
   uncovered_lead_time_demand_qty: string | number | null;
   stockout_gap_qty: string | number | null;
   raw_reorder_qty: string | number | null;
+  safety_stock_source: string | null;
+  demand_variability_source: string | null;
+  policy_safety_stock_qty: string | number | null;
+  percentile_safety_stock_qty: string | number | null;
+  variability_sample_windows: number | null;
+  variability_windows_with_demand: number | null;
+  avg_historical_lead_time_demand_qty: string | number | null;
+  p50_historical_lead_time_demand_qty: string | number | null;
+  p75_historical_lead_time_demand_qty: string | number | null;
+  p90_historical_lead_time_demand_qty: string | number | null;
+  p95_historical_lead_time_demand_qty: string | number | null;
   stddev_daily_sales_90d: string | number | null;
   p80_daily_sales_90d: string | number | null;
   total_sales_qty_90d: string | number | null;
@@ -427,6 +449,17 @@ export async function getProductReorderPlanningDetail(sku: string): Promise<Prod
     uncoveredLeadTimeDemandQty: formatNumber(row.uncovered_lead_time_demand_qty),
     stockoutGapQty: formatNumber(row.stockout_gap_qty),
     rawReorderQty: formatNumber(row.raw_reorder_qty),
+    safetyStockSource: row.safety_stock_source || 'unknown',
+    demandVariabilitySource: row.demand_variability_source || 'unknown',
+    policySafetyStockQty: formatNumber(row.policy_safety_stock_qty),
+    percentileSafetyStockQty: formatNumber(row.percentile_safety_stock_qty),
+    variabilitySampleWindows: Number(row.variability_sample_windows || 0),
+    variabilityWindowsWithDemand: Number(row.variability_windows_with_demand || 0),
+    avgHistoricalLeadTimeDemandQty: formatNumber(row.avg_historical_lead_time_demand_qty),
+    p50HistoricalLeadTimeDemandQty: formatNumber(row.p50_historical_lead_time_demand_qty),
+    p75HistoricalLeadTimeDemandQty: formatNumber(row.p75_historical_lead_time_demand_qty),
+    p90HistoricalLeadTimeDemandQty: formatNumber(row.p90_historical_lead_time_demand_qty),
+    p95HistoricalLeadTimeDemandQty: formatNumber(row.p95_historical_lead_time_demand_qty),
     stddevDailySales90d: formatNumber(row.stddev_daily_sales_90d, 1),
     p80DailySales90d: formatNumber(row.p80_daily_sales_90d, 1),
     totalSalesQty90d: formatNumber(row.total_sales_qty_90d),

@@ -325,7 +325,7 @@ function SupplyDemandPanel({
     { label: 'Future receipt', value: toNumber(planning.futureReceiptQty), detail: `${planning.futureReceiptLineCount} receipt lines after anchor`, tone: 'good' as Tone },
     { label: 'Committed demand', value: toNumber(planning.committedDemandQty), detail: `${planning.committedOrderCount} committed orders`, tone: 'warn' as Tone },
     { label: 'Lead-time demand', value: toNumber(planning.forecastLeadTimeQty), detail: `${planning.assumedLeadTimeDays} lead-time days`, tone: 'warn' as Tone },
-    { label: 'Safety stock', value: toNumber(planning.safetyStockQty), detail: `${planning.targetCoverageDays} target coverage days`, tone: 'blue' as Tone },
+    { label: 'Safety stock', value: toNumber(planning.safetyStockQty), detail: readableCode(planning.safetyStockSource), tone: 'blue' as Tone },
     { label: 'Reorder point', value: toNumber(planning.reorderPointQty), detail: `${formatInteger(planning.uncoveredLeadTimeDemandQty)} uncovered lead-time units`, tone: 'blue' as Tone },
     { label: 'Recommended buy', value: operationalBuyQty(planning), detail: operationalBuyDetail(planning), tone: operationalBuyQty(planning) > 0 ? 'warn' as Tone : 'good' as Tone },
   ];
@@ -557,6 +557,7 @@ function ForecastPanel({ planning }: { planning: ProductReorderPlanningDetail | 
     { input: 'Seasonality', value: `${planning.appliedSeasonalityIndex}x`, readout: 'Applied to baseline demand' },
     { input: 'Growth factor', value: `${planning.appliedGrowthFactor}x`, readout: `${formatInteger(planning.cappedReductionQty12m)} capped reduction units` },
     { input: 'Forecast', value: `${formatDecimal(planning.forecastDailyQty)}/day`, readout: `${formatInteger(planning.forecastMonthlyQty)}/mo` },
+    { input: 'Safety stock model', value: `${formatInteger(planning.safetyStockQty)} units`, readout: `${readableCode(planning.safetyStockSource)}; p90 LT ${formatInteger(planning.p90HistoricalLeadTimeDemandQty)} over ${planning.variabilityWindowsWithDemand}/${planning.variabilitySampleWindows} windows` },
     { input: '30D / 90D / 365D velocity', value: `${formatDecimal(planning.avgDailySales30d)} / ${formatDecimal(planning.avgDailySales90d)} / ${formatDecimal(planning.avgDailySales365d)}`, readout: 'Daily unit demand windows' },
     { input: '90D sales density', value: `${formatInteger(planning.totalSalesQty90d)} units`, readout: `${planning.daysWithSales90d} sales days` },
     { input: 'Trailing monthly avg', value: `${formatInteger(planning.trailing3mAvgMonthlySales)} / ${formatInteger(planning.trailing12mAvgMonthlySales)}`, readout: '3M versus 12M' },

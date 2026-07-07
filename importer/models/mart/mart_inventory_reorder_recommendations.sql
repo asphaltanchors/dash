@@ -106,6 +106,20 @@ capped_sales_lines AS (
         ON sl.sku = slc.sku
 ),
 
+component_consumption_lines AS (
+    SELECT
+        p.sku,
+        m.movement_date,
+        m.quantity_out
+    FROM policy p
+    INNER JOIN {{ ref('int_quickbooks__inventory_movements') }} m
+        ON p.sku = m.sku
+    INNER JOIN latest_snapshot ls
+        ON m.movement_date <= ls.inventory_as_of_date
+    WHERE m.movement_type = 'build_component_consumption'
+      AND m.quantity_out > 0
+),
+
 recent_daily_sales AS (
     SELECT
         p.sku,
@@ -314,6 +328,43 @@ purchase_order_lines AS (
     ) ranked
     WHERE load_rank = 1
       AND po_opened_date IS NOT NULL
+),
+
+purchase_order_batches AS (
+    SELECT
+        sku,
+        vendor,
+        po_opened_date,
+        purchase_order_no,
+        SUM(po_qty) AS po_qty
+    FROM purchase_order_lines
+    WHERE po_qty > 0
+    GROUP BY sku, vendor, po_opened_date, purchase_order_no
+),
+
+purchase_order_batches_with_lag AS (
+    SELECT
+        *,
+        LAG(po_opened_date) OVER (
+            PARTITION BY sku, vendor
+            ORDER BY po_opened_date, purchase_order_no
+        ) AS previous_po_opened_date
+    FROM purchase_order_batches
+),
+
+observed_sku_vendor_order_cycles AS (
+    SELECT
+        sku,
+        vendor,
+        COUNT(*) FILTER (WHERE previous_po_opened_date IS NOT NULL) AS observed_sku_vendor_order_cycle_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (
+            ORDER BY po_opened_date - previous_po_opened_date
+        ) FILTER (WHERE previous_po_opened_date IS NOT NULL) AS observed_sku_vendor_median_order_cycle_days,
+        PERCENTILE_CONT(0.75) WITHIN GROUP (
+            ORDER BY po_opened_date - previous_po_opened_date
+        ) FILTER (WHERE previous_po_opened_date IS NOT NULL) AS observed_sku_vendor_order_cycle_days
+    FROM purchase_order_batches_with_lag
+    GROUP BY sku, vendor
 ),
 
 receipt_lines AS (
@@ -536,10 +587,13 @@ future_receipts_before_expected_receipt AS (
     GROUP BY fi.sku
 ),
 
-parameters AS (
+target_coverage_inputs AS (
     SELECT
         fi.*,
         COALESCE(frber.future_receipt_qty_by_expected_receipt_date, 0) AS future_receipt_qty_by_expected_receipt_date,
+        osvoc.observed_sku_vendor_order_cycle_days,
+        osvoc.observed_sku_vendor_median_order_cycle_days,
+        COALESCE(osvoc.observed_sku_vendor_order_cycle_count, 0) AS observed_sku_vendor_order_cycle_count,
         CASE
             WHEN fi.policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
             WHEN fi.policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
@@ -548,23 +602,40 @@ parameters AS (
             WHEN fi.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
             ELSE 0
         END AS default_target_coverage_days,
-        COALESCE(fi.configured_target_coverage_days, CASE
-            WHEN fi.policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
-            WHEN fi.policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
-            WHEN fi.policy_bucket = 'SKU_BASELINE_VARIANT_SEASONAL_MODEL' THEN 90
-            WHEN fi.policy_bucket = 'SPARSE_OR_NEW_SKU_BASELINE_MODEL' THEN 60
-            WHEN fi.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 120
-            ELSE 0
-        END)::INT AS target_coverage_days,
         CASE
-            WHEN fi.policy_bucket = 'SKU_SEASONAL_TREND_MODEL' THEN 0.25
-            WHEN fi.policy_bucket IN ('SKU_BASELINE_VARIANT_SEASONAL_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL', 'FBA_REPLENISHMENT_MODEL') THEN 0.35
-            WHEN fi.policy_bucket IN ('SPARSE_OR_NEW_SKU_BASELINE_MODEL', 'COMPONENT_PACKAGING_MODEL') THEN 0.50
-            ELSE 0.00
-        END AS safety_stock_multiplier
+            WHEN fi.policy_bucket = 'SKU_SEASONAL_TREND_MODEL'
+             AND COALESCE(osvoc.observed_sku_vendor_order_cycle_count, 0) >= 5
+                THEN osvoc.observed_sku_vendor_order_cycle_days
+            ELSE NULL
+        END AS dynamic_target_coverage_candidate_days
     FROM forecast_inputs fi
     LEFT JOIN future_receipts_before_expected_receipt frber
         ON fi.sku = frber.sku
+    LEFT JOIN observed_sku_vendor_order_cycles osvoc
+        ON fi.sku = osvoc.sku
+       AND fi.preferred_vendor = osvoc.vendor
+),
+
+parameters AS (
+    SELECT
+        *,
+        COALESCE(fi.configured_target_coverage_days, CASE
+            WHEN dynamic_target_coverage_candidate_days IS NOT NULL
+                THEN CEIL(GREATEST(60::NUMERIC, LEAST(180::NUMERIC, dynamic_target_coverage_candidate_days)))::INT
+            ELSE default_target_coverage_days
+        END)::INT AS target_coverage_days,
+        CASE
+            WHEN configured_target_coverage_days IS NOT NULL THEN 'configured_sku_vendor'
+            WHEN dynamic_target_coverage_candidate_days IS NOT NULL THEN 'observed_sku_vendor_po_cycle'
+            ELSE 'policy_bucket_default'
+        END AS target_coverage_source,
+        CASE
+            WHEN policy_bucket = 'SKU_SEASONAL_TREND_MODEL' THEN 0.25
+            WHEN policy_bucket IN ('SKU_BASELINE_VARIANT_SEASONAL_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL', 'FBA_REPLENISHMENT_MODEL') THEN 0.35
+            WHEN policy_bucket IN ('SPARSE_OR_NEW_SKU_BASELINE_MODEL', 'COMPONENT_PACKAGING_MODEL') THEN 0.50
+            ELSE 0.00
+        END AS safety_stock_multiplier
+    FROM target_coverage_inputs fi
 ),
 
 forecast_base AS (
@@ -647,6 +718,130 @@ forecast AS (
     FROM forecast_base
 ),
 
+variability_demand_events AS (
+    SELECT
+        f.sku,
+        'capped_sales' AS demand_variability_source,
+        csl.movement_date,
+        csl.capped_quantity_out AS demand_qty
+    FROM forecast f
+    INNER JOIN capped_sales_lines csl
+        ON f.sku = csl.sku
+       AND csl.movement_date <= f.inventory_as_of_date
+       AND csl.movement_date >= f.inventory_as_of_date - INTERVAL '365 days'
+    WHERE f.policy_bucket != 'COMPONENT_PACKAGING_MODEL'
+
+    UNION ALL
+
+    SELECT
+        f.sku,
+        'component_consumption' AS demand_variability_source,
+        ccl.movement_date,
+        ccl.quantity_out AS demand_qty
+    FROM forecast f
+    INNER JOIN component_consumption_lines ccl
+        ON f.sku = ccl.sku
+       AND ccl.movement_date <= f.inventory_as_of_date
+       AND ccl.movement_date >= f.inventory_as_of_date - INTERVAL '365 days'
+    WHERE f.policy_bucket = 'COMPONENT_PACKAGING_MODEL'
+),
+
+variability_window_starts AS (
+    SELECT
+        f.sku,
+        f.policy_bucket,
+        f.assumed_lead_time_days,
+        f.forecast_daily_qty,
+        f.inventory_as_of_date,
+        ds.window_start::DATE AS window_start
+    FROM forecast f
+    CROSS JOIN LATERAL GENERATE_SERIES(
+        f.inventory_as_of_date - INTERVAL '365 days',
+        f.inventory_as_of_date - (f.assumed_lead_time_days * INTERVAL '1 day'),
+        INTERVAL '1 day'
+    ) AS ds(window_start)
+    WHERE f.forecast_daily_qty > 0
+      AND f.assumed_lead_time_days BETWEEN 1 AND 365
+),
+
+rolling_lead_time_demand AS (
+    SELECT
+        vws.sku,
+        vws.window_start,
+        COALESCE(SUM(vde.demand_qty), 0) AS lead_time_demand_qty
+    FROM variability_window_starts vws
+    LEFT JOIN variability_demand_events vde
+        ON vws.sku = vde.sku
+       AND vde.movement_date >= vws.window_start
+       AND vde.movement_date < vws.window_start + (vws.assumed_lead_time_days * INTERVAL '1 day')
+    GROUP BY vws.sku, vws.window_start
+),
+
+lead_time_demand_variability AS (
+    SELECT
+        sku,
+        COUNT(*) AS variability_sample_windows,
+        COUNT(*) FILTER (WHERE lead_time_demand_qty > 0) AS variability_windows_with_demand,
+        AVG(lead_time_demand_qty) AS avg_historical_lead_time_demand_qty,
+        STDDEV_SAMP(lead_time_demand_qty) AS stddev_historical_lead_time_demand_qty,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_demand_qty) AS p50_historical_lead_time_demand_qty,
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY lead_time_demand_qty) AS p75_historical_lead_time_demand_qty,
+        PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY lead_time_demand_qty) AS p90_historical_lead_time_demand_qty,
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY lead_time_demand_qty) AS p95_historical_lead_time_demand_qty
+    FROM rolling_lead_time_demand
+    GROUP BY sku
+),
+
+forecast_with_variability_inputs AS (
+    SELECT
+        f.*,
+        CASE
+            WHEN f.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 'component_consumption'
+            ELSE 'capped_sales'
+        END AS demand_variability_source,
+        COALESCE(ltdv.variability_sample_windows, 0) AS variability_sample_windows,
+        COALESCE(ltdv.variability_windows_with_demand, 0) AS variability_windows_with_demand,
+        ltdv.avg_historical_lead_time_demand_qty,
+        ltdv.stddev_historical_lead_time_demand_qty,
+        ltdv.p50_historical_lead_time_demand_qty,
+        ltdv.p75_historical_lead_time_demand_qty,
+        ltdv.p90_historical_lead_time_demand_qty,
+        ltdv.p95_historical_lead_time_demand_qty,
+        GREATEST(
+            f.forecast_daily_qty * f.assumed_lead_time_days * f.safety_stock_multiplier,
+            f.stddev_daily_sales_90d * SQRT(f.assumed_lead_time_days) * f.safety_stock_multiplier
+        ) AS policy_safety_stock_qty,
+        GREATEST(
+            0,
+            COALESCE(ltdv.p90_historical_lead_time_demand_qty, 0)
+              - (f.forecast_daily_qty * f.assumed_lead_time_days)
+        ) AS percentile_safety_stock_qty
+    FROM forecast f
+    LEFT JOIN lead_time_demand_variability ltdv
+        ON f.sku = ltdv.sku
+),
+
+forecast_with_variability AS (
+    SELECT
+        *,
+        CASE
+            WHEN variability_sample_windows >= 90
+             AND variability_windows_with_demand >= 5
+                THEN 'rolling_lead_time_demand_p90'
+            ELSE 'policy_multiplier_fallback'
+        END AS safety_stock_source,
+        CASE
+            WHEN variability_sample_windows >= 90
+             AND variability_windows_with_demand >= 5
+                THEN GREATEST(
+                    percentile_safety_stock_qty,
+                    stddev_daily_sales_90d * SQRT(assumed_lead_time_days) * safety_stock_multiplier
+                )
+            ELSE policy_safety_stock_qty
+        END AS safety_stock_qty
+    FROM forecast_with_variability_inputs
+),
+
 calculation_inputs AS (
     SELECT
         *,
@@ -658,7 +853,7 @@ calculation_inputs AS (
             ELSE 0
         END AS open_po_qty_by_expected_receipt_date,
         COALESCE(future_receipt_qty_after_anchor, 0) AS future_receipt_position_qty
-    FROM forecast
+    FROM forecast_with_variability
 ),
 
 calculation_position_inputs AS (
@@ -673,10 +868,6 @@ calculated AS (
     SELECT
         *,
         forecast_daily_qty * assumed_lead_time_days AS forecast_lead_time_qty,
-        GREATEST(
-            forecast_daily_qty * assumed_lead_time_days * safety_stock_multiplier,
-            stddev_daily_sales_90d * SQRT(assumed_lead_time_days) * safety_stock_multiplier
-        ) AS safety_stock_qty,
         current_on_hand_qty + open_po_position_qty + future_receipt_position_qty - committed_demand_qty AS available_position_qty,
         inbound_qty_by_expected_receipt_date_calc AS inbound_qty_by_expected_receipt_date,
         current_on_hand_qty
@@ -704,10 +895,7 @@ calculated AS (
         GREATEST(
             0,
             forecast_daily_qty * target_coverage_days
-              + GREATEST(
-                    forecast_daily_qty * assumed_lead_time_days * safety_stock_multiplier,
-                    stddev_daily_sales_90d * SQRT(assumed_lead_time_days) * safety_stock_multiplier
-                )
+              + safety_stock_qty
               - GREATEST(0, (
                     current_on_hand_qty
                     + inbound_qty_by_expected_receipt_date_calc
@@ -715,11 +903,7 @@ calculated AS (
                     - committed_demand_before_expected_receipt_qty
                 ))
         ) AS raw_reorder_qty,
-        forecast_daily_qty * assumed_lead_time_days
-          + GREATEST(
-                forecast_daily_qty * assumed_lead_time_days * safety_stock_multiplier,
-                stddev_daily_sales_90d * SQRT(assumed_lead_time_days) * safety_stock_multiplier
-            ) AS reorder_point_qty
+        forecast_daily_qty * assumed_lead_time_days + safety_stock_qty AS reorder_point_qty
     FROM calculation_position_inputs
 ),
 
@@ -800,6 +984,10 @@ final AS (
         default_policy_lead_time_days,
         target_coverage_days,
         default_target_coverage_days,
+        target_coverage_source,
+        observed_sku_vendor_order_cycle_days,
+        observed_sku_vendor_median_order_cycle_days,
+        observed_sku_vendor_order_cycle_count,
         current_on_hand_qty,
         committed_demand_qty,
         committed_demand_before_expected_receipt_qty,
@@ -821,6 +1009,18 @@ final AS (
         applied_growth_factor,
         forecast_lead_time_qty,
         safety_stock_qty,
+        safety_stock_source,
+        demand_variability_source,
+        policy_safety_stock_qty,
+        percentile_safety_stock_qty,
+        variability_sample_windows,
+        variability_windows_with_demand,
+        avg_historical_lead_time_demand_qty,
+        stddev_historical_lead_time_demand_qty,
+        p50_historical_lead_time_demand_qty,
+        p75_historical_lead_time_demand_qty,
+        p90_historical_lead_time_demand_qty,
+        p95_historical_lead_time_demand_qty,
         reorder_point_qty,
         projected_position_at_expected_receipt_qty,
         uncovered_lead_time_demand_qty,
