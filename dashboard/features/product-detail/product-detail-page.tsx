@@ -19,6 +19,7 @@ import type {
   ProductInboundLine,
   ProductPriceDistribution,
   ProductReorderPlanningDetail,
+  RecentProductOrder,
 } from '@/lib/queries';
 import type { ProductTopCompany } from '@/lib/queries/companies';
 import { PeriodSelector } from '@/components/dashboard/PeriodSelector';
@@ -35,11 +36,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn, formatCurrency, formatNumber } from '@/lib/utils';
+import { cn, formatCurrency, formatNumber, shouldShowCompanyLink } from '@/lib/utils';
 import type { ProductDetailPageData, ProductDetailProduct } from './page-data';
 import {
   actionTone,
-  barToneFromTone,
   clampPercent,
   compactCurrency,
   compactDate,
@@ -288,7 +288,51 @@ function ProductReportHeader({
   );
 }
 
-function SupplyDemandPanel({
+function PlanSummaryStat({
+  label,
+  value,
+  detail,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: ReactNode;
+  detail?: ReactNode;
+  tone?: Tone;
+}) {
+  return (
+    <div className={cn('min-w-0 rounded-md border border-slate-800 bg-[#0b1322] p-3', tone === 'warn' && 'border-amber-500/30 bg-amber-500/10', tone === 'bad' && 'border-red-500/30 bg-red-500/10', tone === 'good' && 'border-emerald-500/30 bg-emerald-500/10')}>
+      <p className="truncate text-[11px] uppercase text-slate-500">{label}</p>
+      <p className={cn('mt-1 truncate text-lg font-semibold tabular-nums text-slate-50', tone === 'warn' && 'text-amber-200', tone === 'bad' && 'text-red-200', tone === 'good' && 'text-emerald-200', tone === 'blue' && 'text-blue-200')}>{value}</p>
+      {detail ? <p className="mt-1 line-clamp-2 text-xs text-slate-400">{detail}</p> : null}
+    </div>
+  );
+}
+
+function EquationTerm({
+  label,
+  value,
+  detail,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: ReactNode;
+  detail?: ReactNode;
+  tone?: Tone;
+}) {
+  return (
+    <div className="min-w-0 rounded-md border border-slate-800 bg-[#07101d] px-3 py-2">
+      <p className="truncate text-[11px] uppercase text-slate-500">{label}</p>
+      <p className={cn('mt-1 truncate font-mono text-sm font-semibold tabular-nums text-slate-100', tone === 'good' && 'text-emerald-300', tone === 'blue' && 'text-blue-300', tone === 'warn' && 'text-amber-300', tone === 'bad' && 'text-red-300')}>{value}</p>
+      {detail ? <p className="mt-0.5 truncate text-[11px] text-slate-400">{detail}</p> : null}
+    </div>
+  );
+}
+
+function EquationSymbol({ children }: { children: ReactNode }) {
+  return <div className="hidden text-center text-sm font-semibold text-slate-500 sm:block">{children}</div>;
+}
+
+function InventoryPlanPanel({
   planning,
   inventory,
 }: {
@@ -299,7 +343,7 @@ function SupplyDemandPanel({
     return (
       <Card className="rounded-md py-0 shadow-none">
         <PanelHeader
-          title="Supply / Demand Position"
+          title="Inventory Plan"
           subtitle="No reorder-planning row exists for this SKU"
           badge={inventory ? <CompactBadge tone={inventoryTone(inventory.inventoryStatus)}>{readableCode(inventory.inventoryStatus)}</CompactBadge> : null}
         />
@@ -319,65 +363,73 @@ function SupplyDemandPanel({
     );
   }
 
-  const rows = [
-    { label: 'On hand', value: toNumber(planning.onHandQty), detail: `Snapshot ${formatDate(planning.inventoryAsOfDate)}`, tone: 'blue' as Tone },
-    { label: 'Open PO inbound', value: toNumber(planning.inboundOpenPoQty), detail: planning.nextOpenPoDate ? `Next ${formatDate(planning.nextOpenPoDate)}` : `${planning.openPoLineCount} PO lines`, tone: 'good' as Tone },
-    { label: 'Future receipt', value: toNumber(planning.futureReceiptQty), detail: `${planning.futureReceiptLineCount} receipt lines after anchor`, tone: 'good' as Tone },
-    { label: 'Committed demand', value: toNumber(planning.committedDemandQty), detail: `${planning.committedOrderCount} committed orders`, tone: 'warn' as Tone },
-    { label: 'Lead-time demand', value: toNumber(planning.forecastLeadTimeQty), detail: `${planning.assumedLeadTimeDays} lead-time days`, tone: 'warn' as Tone },
-    { label: 'Safety stock', value: toNumber(planning.safetyStockQty), detail: readableCode(planning.safetyStockSource), tone: 'blue' as Tone },
-    { label: 'Reorder point', value: toNumber(planning.reorderPointQty), detail: `${formatInteger(planning.uncoveredLeadTimeDemandQty)} uncovered lead-time units`, tone: 'blue' as Tone },
-    { label: 'Recommended buy', value: operationalBuyQty(planning), detail: operationalBuyDetail(planning), tone: operationalBuyQty(planning) > 0 ? 'warn' as Tone : 'good' as Tone },
-  ];
-  const maxValue = Math.max(1, ...rows.map((row) => row.value));
+  const buyQty = operationalBuyQty(planning);
+  const inboundQty = toNumber(planning.inboundOpenPoQty) + toNumber(planning.futureReceiptQty);
+  const availablePosition = toNumber(planning.availablePositionQty);
+  const reorderPoint = toNumber(planning.reorderPointQty);
+  const positionBuffer = availablePosition - reorderPoint;
+  const projectedAtReceipt = toNumber(planning.projectedPositionAtExpectedReceiptQty);
+  const projectedBuffer = projectedAtReceipt - reorderPoint;
+  const hasGap = toNumber(planning.uncoveredLeadTimeDemandQty) > 0 || projectedBuffer < 0;
 
   return (
     <Card className="rounded-md py-0 shadow-none">
       <PanelHeader
-        title="Supply / Demand Position"
-        subtitle={planning.recommendationReason || 'Inventory position, inbound supply, committed demand, and model demand'}
+        title="Inventory Plan"
+        subtitle={planning.recommendationReason || 'Reorder decision from stock position, inbound supply, demand, and safety stock'}
         badge={<ActionBadge action={planning.action} />}
       />
-      <CardContent className="p-0">
-        {rows.map((row) => (
-          <div key={row.label} className="grid grid-cols-[7.5rem_minmax(0,1fr)_5rem] items-center gap-2 border-b border-slate-800 px-3 py-2 last:border-b-0">
-            <div className="min-w-0">
-              <p className="truncate text-xs font-medium">{row.label}</p>
-              <p className="truncate text-[11px] text-slate-400">{row.detail}</p>
+      <CardContent className="space-y-3 p-3">
+        <div className="grid gap-2 md:grid-cols-4">
+          <PlanSummaryStat label="Verdict" value={buyQty > 0 ? operationalBuyLabel(planning) : 'No reorder'} detail={buyQty > 0 ? operationalBuyDetail(planning) : 'Stock position is above threshold'} tone={buyQty > 0 ? 'warn' : 'good'} />
+          <PlanSummaryStat label="Available position" value={formatInteger(planning.availablePositionQty)} detail={`${formatInteger(positionBuffer)} units above reorder point`} tone={positionBuffer >= 0 ? 'good' : 'bad'} />
+          <PlanSummaryStat
+            label="Timing"
+            value={buyQty > 0 && planning.reorderByDate ? compactDate(planning.reorderByDate) : 'Not urgent'}
+            detail={planning.stockoutDate ? `Safety watch ${compactDate(planning.stockoutDate)}${planning.expectedReceiptDate ? `; receipt ${compactDate(planning.expectedReceiptDate)}` : ''}` : planning.expectedReceiptDate ? `Expected receipt ${compactDate(planning.expectedReceiptDate)}` : 'No projected date'}
+            tone={buyQty > 0 ? 'warn' : 'blue'}
+          />
+          <PlanSummaryStat label="Confidence" value={readableCode(planning.confidenceLevel)} detail={readableCode(planning.forecastModelDetail)} tone={planning.confidenceLevel.toLowerCase().includes('low') ? 'warn' : 'blue'} />
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-2">
+          <div className="rounded-md border border-slate-800">
+            <div className="border-b border-slate-800 px-3 py-2">
+              <p className="text-xs font-semibold text-slate-200">Position math</p>
+              <p className="text-[11px] text-slate-400">What stock is available before deciding whether to buy.</p>
             </div>
-            <InlineBar value={(row.value / maxValue) * 100} tone={barToneFromTone(row.tone)} />
-            <p className="text-right font-mono text-xs font-semibold tabular-nums">{formatNumber(row.value, 0)}</p>
+            <div className="grid items-stretch gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <EquationTerm label="On hand" value={formatInteger(planning.onHandQty)} detail={`Snapshot ${formatDate(planning.inventoryAsOfDate)}`} tone="blue" />
+              <EquationSymbol>+</EquationSymbol>
+              <EquationTerm label="Inbound" value={formatInteger(inboundQty)} detail={`${formatInteger(planning.inboundOpenPoQty)} PO + ${formatInteger(planning.futureReceiptQty)} future`} tone="good" />
+              <EquationSymbol>-</EquationSymbol>
+              <EquationTerm label="Committed" value={formatInteger(planning.committedDemandQty)} detail={`${planning.committedOrderCount} committed orders`} tone={toNumber(planning.committedDemandQty) > 0 ? 'warn' : 'neutral'} />
+              <EquationSymbol>=</EquationSymbol>
+              <EquationTerm label="Available" value={formatInteger(planning.availablePositionQty)} detail={`${formatInteger(planning.positionDays)} days coverage`} tone={positionBuffer >= 0 ? 'good' : 'bad'} />
+            </div>
           </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
 
-function PlanningClockPanel({
-  planning,
-  inventory,
-}: {
-  planning: ProductReorderPlanningDetail | null;
-  inventory: InventorySnapshot | null;
-}) {
-  const stockoutDate = planning?.stockoutDate || inventory?.estimatedStockoutDate;
-  const positionDays = planning?.positionDays || inventory?.daysRemaining90DVelocity || '';
+          <div className="rounded-md border border-slate-800">
+            <div className="border-b border-slate-800 px-3 py-2">
+              <p className="text-xs font-semibold text-slate-200">Reorder threshold</p>
+              <p className="text-[11px] text-slate-400">What stock needs to cover before replenishment arrives.</p>
+            </div>
+            <div className="grid items-stretch gap-2 p-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <EquationTerm label="Lead-time demand" value={formatInteger(planning.forecastLeadTimeQty)} detail={`${planning.assumedLeadTimeDays} day lead time`} tone="warn" />
+              <EquationSymbol>+</EquationSymbol>
+              <EquationTerm label="Safety stock" value={formatInteger(planning.safetyStockQty)} detail={readableCode(planning.safetyStockSource)} tone="blue" />
+              <EquationSymbol>=</EquationSymbol>
+              <EquationTerm label="Reorder point" value={formatInteger(planning.reorderPointQty)} detail={`${formatInteger(projectedBuffer)} projected buffer at receipt`} tone={hasGap ? 'bad' : 'good'} />
+            </div>
+          </div>
+        </div>
 
-  return (
-    <Card className="rounded-md py-0 shadow-none">
-      <PanelHeader
-        title="Planning Clock"
-        subtitle="Timing, coverage, policy, and confidence signals"
-        badge={planning ? <CompactBadge tone={actionTone(planning.action)}>{readableCode(planning.policyValidationStatus)}</CompactBadge> : null}
-      />
-      <CardContent className="p-0">
-        <MiniStat label="Position days" value={positionDays ? `${formatInteger(positionDays)}d` : '-'} detail={stockoutDate ? `Stockout or safety ${formatDate(stockoutDate)}` : 'No projected date'} tone={toNumber(positionDays) <= 30 ? 'warn' : 'blue'} />
-        <MiniStat label="Reorder by" value={formatDate(planning?.reorderByDate || null)} detail={planning?.expectedReceiptDate ? `Expected receipt ${formatDate(planning.expectedReceiptDate)}` : 'No receipt date'} tone={planning?.reorderByDate ? 'warn' : 'neutral'} />
-        <MiniStat label="Lead time" value={planning ? `${planning.assumedLeadTimeDays}d` : '-'} detail={planning ? readableCode(planning.leadTimeSource) : 'Unavailable'} />
-        <MiniStat label="Coverage target" value={planning ? `${planning.targetCoverageDays}d` : '-'} detail={planning ? `${formatInteger(planning.safetyStockQty)} safety stock units` : 'Unavailable'} />
-        <MiniStat label="Forecast confidence" value={planning ? readableCode(planning.confidenceLevel) : '-'} detail={planning ? readableCode(planning.forecastModelDetail) : 'Unavailable'} tone={planning?.confidenceLevel?.toLowerCase().includes('low') ? 'warn' : 'blue'} />
-        <MiniStat label="Vendor / policy" value={planning?.preferredVendor || '-'} detail={planning ? readableCode(planning.policyBucket) : 'No policy assignment'} />
+        <div className="grid gap-2 md:grid-cols-4">
+          <MiniStat label="Forecast" value={`${formatDecimal(planning.forecastDailyQty)}/day`} detail={`${formatInteger(planning.forecastMonthlyQty)}/mo modeled demand`} />
+          <MiniStat label="Projected at receipt" value={formatInteger(planning.projectedPositionAtExpectedReceiptQty)} detail={planning.expectedReceiptDate ? `On ${formatDate(planning.expectedReceiptDate)}` : 'No expected receipt date'} tone={projectedAtReceipt >= reorderPoint ? 'good' : 'bad'} />
+          <MiniStat label="Lead-time gap" value={formatInteger(planning.uncoveredLeadTimeDemandQty)} detail={`${formatInteger(planning.stockoutGapQty)} stockout gap units`} tone={hasGap ? 'bad' : 'good'} />
+          <MiniStat label="Vendor / policy" value={planning.preferredVendor || '-'} detail={readableCode(planning.policyBucket)} />
+        </div>
       </CardContent>
     </Card>
   );
@@ -496,6 +548,63 @@ function CustomerMixPanel({
   );
 }
 
+function RecentProductOrdersPanel({ orders }: { orders: RecentProductOrder[] }) {
+  return (
+    <Card className="rounded-md py-0 shadow-none">
+      <PanelHeader
+        title="Recent Orders With This SKU"
+        subtitle="Latest current-safe orders containing this product"
+        badge={<CompactBadge tone={orders.length > 0 ? 'blue' : 'neutral'}>{orders.length} orders</CompactBadge>}
+      />
+      <CardContent className="p-0">
+        {orders.length === 0 ? (
+          <EmptyState>No recent orders found for this SKU.</EmptyState>
+        ) : (
+          <div className="max-w-full overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-950/40">
+                  <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-400">Order</TableHead>
+                  <TableHead className="h-8 min-w-48 text-[11px] uppercase text-slate-400">Customer</TableHead>
+                  <TableHead className="h-8 text-[11px] uppercase text-slate-400">Date</TableHead>
+                  <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">SKU Qty</TableHead>
+                  <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">SKU Amount</TableHead>
+                  <TableHead className="h-8 text-right text-[11px] uppercase text-slate-400">Order Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={`${order.orderNumber}-${order.orderDate}`} className="h-9">
+                    <TableCell className="px-3 py-2">
+                      <Link href={`/orders/${encodeURIComponent(order.orderNumber)}`} className="font-mono text-xs font-semibold text-blue-300 hover:text-blue-200">
+                        {order.orderNumber}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="py-2">
+                      {shouldShowCompanyLink(order.companyDomain, order.isIndividualCustomer) ? (
+                        <Link href={`/companies/${encodeURIComponent(order.companyDomain!)}`} className="block truncate text-xs text-blue-300 hover:text-blue-200">
+                          {order.customer}
+                        </Link>
+                      ) : (
+                        <p className="truncate text-xs text-slate-300">{order.customer}</p>
+                      )}
+                      <p className="truncate text-[11px] text-slate-500">{order.customerSegment || 'Unknown segment'}</p>
+                    </TableCell>
+                    <TableCell className="py-2 text-xs text-slate-400">{formatDate(order.orderDate)}</TableCell>
+                    <TableCell className="py-2 text-right font-mono text-xs">{formatInteger(order.skuQuantity)}</TableCell>
+                    <TableCell className="py-2 text-right font-mono text-xs font-semibold">{compactCurrency(order.skuAmount)}</TableCell>
+                    <TableCell className="py-2 text-right font-mono text-xs text-slate-300">{compactCurrency(order.totalAmount)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function PricingPanel({
   distribution,
   product,
@@ -542,11 +651,11 @@ function PricingPanel({
   );
 }
 
-function ForecastPanel({ planning }: { planning: ProductReorderPlanningDetail | null }) {
+function ForecastAuditPanel({ planning }: { planning: ProductReorderPlanningDetail | null }) {
   if (!planning) {
     return (
       <Card className="rounded-md py-0 shadow-none">
-        <PanelHeader title="Forecast Basis" subtitle="Demand model inputs and calculation audit" />
+        <PanelHeader title="Forecast Audit" subtitle="Demand model inputs and calculation audit" />
         <EmptyState>No planning forecast is available for this SKU.</EmptyState>
       </Card>
     );
@@ -575,7 +684,7 @@ function ForecastPanel({ planning }: { planning: ProductReorderPlanningDetail | 
   return (
     <Card className="rounded-md py-0 shadow-none">
       <PanelHeader
-        title="Forecast Basis"
+        title="Forecast Audit"
         subtitle={readableCode(planning.forecastModelDetail)}
         badge={<CompactBadge tone={planning.confidenceLevel.toLowerCase().includes('low') ? 'warn' : 'blue'}>{readableCode(planning.confidenceLevel)}</CompactBadge>}
       />
@@ -767,6 +876,7 @@ export function ProductDetailPage({ data }: { data: ProductDetailPageData }) {
     planning,
     salesData,
     topCompanies,
+    recentOrders,
     priceDistribution,
     inventoryStatus,
     inboundLines,
@@ -865,12 +975,12 @@ export function ProductDetailPage({ data }: { data: ProductDetailPageData }) {
           />
         </section>
 
-        <section className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
-          <SupplyDemandPanel planning={planning} inventory={inventoryStatus} />
-          <div className="grid gap-3">
-            <PlanningClockPanel planning={planning} inventory={inventoryStatus} />
-            <CatalogSnapshotPanel product={product} inventory={inventoryStatus} />
-          </div>
+        <section>
+          <InventoryPlanPanel planning={planning} inventory={inventoryStatus} />
+        </section>
+
+        <section>
+          <CatalogSnapshotPanel product={product} inventory={inventoryStatus} />
         </section>
 
         <section className="grid gap-3 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
@@ -878,13 +988,17 @@ export function ProductDetailPage({ data }: { data: ProductDetailPageData }) {
           <CustomerMixPanel companies={topCompanies} periodRevenue={periodRevenue} />
         </section>
 
+        <section>
+          <RecentProductOrdersPanel orders={recentOrders} />
+        </section>
+
         <section className="grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <PricingPanel distribution={priceDistribution} product={product} />
           <InventoryTrendPanel trend={inventoryTrend} inventory={inventoryStatus} />
         </section>
 
-        <ForecastPanel planning={planning} />
         <InboundLinesPanel planning={planning} inboundLines={inboundLines} />
+        <ForecastAuditPanel planning={planning} />
 
         <section className="grid gap-3 md:grid-cols-3">
           <Card className="rounded-md py-0 shadow-none">

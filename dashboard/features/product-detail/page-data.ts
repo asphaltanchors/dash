@@ -6,6 +6,7 @@ import {
   getProductMonthlyRevenue,
   getProductPriceDistribution,
   getProductReorderPlanningDetail,
+  getRecentOrdersForProduct,
 } from '@/lib/queries'
 import { getTopCompaniesForProduct } from '@/lib/queries/companies'
 import { getPeriodLabel, parseFilters, type ProductDetailFilters } from '@/lib/filter-utils'
@@ -23,6 +24,7 @@ export interface ProductDetailPageData {
   planning: Awaited<ReturnType<typeof getProductReorderPlanningDetail>>
   salesData: Awaited<ReturnType<typeof getProductMonthlyRevenue>>
   topCompanies: Awaited<ReturnType<typeof getTopCompaniesForProduct>>
+  recentOrders: Awaited<ReturnType<typeof getRecentOrdersForProduct>>
   priceDistribution: Awaited<ReturnType<typeof getProductPriceDistribution>>
   inventoryStatus: Awaited<ReturnType<typeof getProductInventoryStatus>>
   inboundLines: Awaited<ReturnType<typeof getProductInboundLines>>
@@ -61,6 +63,7 @@ export async function getProductDetailPageData(
     planning,
     salesData,
     topCompanies,
+    recentOrders,
     priceDistribution,
     inventoryStatus,
     inboundLines,
@@ -69,6 +72,7 @@ export async function getProductDetailPageData(
     getProductReorderPlanningDetail(productName),
     getProductMonthlyRevenue(productName, filters),
     getTopCompaniesForProduct(productName, 10, filters),
+    getRecentOrdersForProduct(productName, 10),
     getProductPriceDistribution(productName, filters),
     getProductInventoryStatus(productName),
     getProductInboundLines(productName),
@@ -96,6 +100,7 @@ export async function getProductDetailPageData(
     planning,
     salesData,
     topCompanies,
+    recentOrders,
     priceDistribution,
     inventoryStatus,
     inboundLines,

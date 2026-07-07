@@ -48,9 +48,11 @@ export {
   getOrderByNumber,
   getOrderLineItems,
   getAllOrders,
+  getRecentOrdersForProduct,
   type OrderDetail,
   type OrderLineItem,
   type OrderTableItem,
+  type RecentProductOrder,
   type OrdersResponse,
 } from './orders';
 

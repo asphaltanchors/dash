@@ -65,6 +65,22 @@ export interface OrderTableItem {
   isIndividualCustomer: boolean;
 }
 
+export interface RecentProductOrder {
+  orderNumber: string;
+  customer: string;
+  orderDate: string;
+  totalAmount: string;
+  status: string;
+  isPaid: boolean;
+  salesChannel: string | null;
+  customerSegment: string | null;
+  companyDomain: string | null;
+  isIndividualCustomer: boolean;
+  skuQuantity: string;
+  skuAmount: string;
+  skuLineCount: number;
+}
+
 export interface OrdersResponse {
   orders: OrderTableItem[];
   totalCount: number;
@@ -282,4 +298,77 @@ export async function getAllOrders(
     })),
     totalCount,
   };
+}
+
+export async function getRecentOrdersForProduct(productName: string, limit = 10): Promise<RecentProductOrder[]> {
+  const rows = await db.execute(sql`
+    SELECT
+      o.order_number,
+      o.customer,
+      o.order_date,
+      o.total_amount,
+      o.status,
+      o.is_paid,
+      o.sales_channel,
+      o.customer_segment,
+      bc.company_domain_key,
+      bc.is_individual_customer,
+      SUM(COALESCE(li.product_service_quantity::numeric, 0)) AS sku_quantity,
+      SUM(COALESCE(li.product_service_amount::numeric, 0)) AS sku_amount,
+      COUNT(*) AS sku_line_count
+    FROM analytics_mart.fct_order_line_items li
+    INNER JOIN analytics_mart.base_fct_orders_current o
+      ON li.order_key = o.order_key
+    LEFT JOIN analytics_mart.bridge_customer_company bc
+      ON o.customer = bc.customer_name
+    WHERE li.product_service = ${productName}
+      AND li.product_service_amount IS NOT NULL
+      AND li.product_service_amount::numeric > 0
+    GROUP BY
+      o.order_key,
+      o.order_number,
+      o.customer,
+      o.order_date,
+      o.total_amount,
+      o.status,
+      o.is_paid,
+      o.sales_channel,
+      o.customer_segment,
+      bc.company_domain_key,
+      bc.is_individual_customer
+    ORDER BY o.order_date DESC NULLS LAST, o.order_number DESC
+    LIMIT ${limit}
+  `);
+
+  const results = rows as unknown as Array<{
+    order_number: string | null;
+    customer: string | null;
+    order_date: string | Date | null;
+    total_amount: string | number | null;
+    status: string | null;
+    is_paid: boolean | null;
+    sales_channel: string | null;
+    customer_segment: string | null;
+    company_domain_key: string | null;
+    is_individual_customer: boolean | null;
+    sku_quantity: string | number | null;
+    sku_amount: string | number | null;
+    sku_line_count: string | number | null;
+  }>;
+
+  return results.map((order) => ({
+    orderNumber: order.order_number || 'N/A',
+    customer: order.customer || 'Unknown',
+    orderDate: order.order_date == null ? '' : String(order.order_date),
+    totalAmount: Number(order.total_amount || 0).toFixed(2),
+    status: order.status || 'Unknown',
+    isPaid: Boolean(order.is_paid),
+    salesChannel: order.sales_channel,
+    customerSegment: order.customer_segment,
+    companyDomain: order.company_domain_key,
+    isIndividualCustomer: Boolean(order.is_individual_customer),
+    skuQuantity: Number(order.sku_quantity || 0).toFixed(2),
+    skuAmount: Number(order.sku_amount || 0).toFixed(2),
+    skuLineCount: Number(order.sku_line_count || 0),
+  }));
 }
