@@ -293,7 +293,7 @@ function ProductEconomicsPanel({ products }: { products: ProductGrowthQualityIte
                   <span className="shrink-0 text-[11px] text-slate-500">{product.grossMarginPercentage ?? 'n/a'}%</span>
                 </div>
               </div>
-              <div className="text-right font-mono text-slate-100">{formatCompactCurrency(revenue, 0)}</div>
+              <div className="text-right font-mono text-slate-100">{formatCompactCurrency(revenue, 1)}</div>
               <div className={cn('text-right font-mono', growth >= 0 ? 'text-emerald-300' : 'text-red-300')}>
                 {growth >= 0 ? '+' : ''}{formatNumber(growth, 1)}%
               </div>

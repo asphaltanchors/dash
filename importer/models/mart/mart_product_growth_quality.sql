@@ -60,10 +60,14 @@ sku_rollup AS (
         SUM(line_revenue) AS revenue,
         SUM(extended_margin_amount) AS gross_margin_amount,
         SUM(extended_discount_amount) AS discount_leakage_amount,
-        SUM(CASE WHEN order_date >= DATE_TRUNC('year', CURRENT_DATE) THEN line_revenue ELSE 0 END) AS current_year_revenue,
+        SUM(CASE
+            WHEN order_date >= DATE_TRUNC('year', CURRENT_DATE)
+                AND order_date < CURRENT_DATE + INTERVAL '1 day'
+            THEN line_revenue ELSE 0
+        END) AS current_year_revenue,
         SUM(CASE
             WHEN order_date >= DATE_TRUNC('year', CURRENT_DATE) - INTERVAL '1 year'
-                AND order_date < DATE_TRUNC('year', CURRENT_DATE)
+                AND order_date < (CURRENT_DATE - INTERVAL '1 year') + INTERVAL '1 day'
             THEN line_revenue ELSE 0
         END) AS prior_year_same_period_revenue,
         MAX(order_date) AS latest_order_date,
