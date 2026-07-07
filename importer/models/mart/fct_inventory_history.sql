@@ -159,20 +159,12 @@ latest_purchase_order_rows AS (
 
 purchase_order_lines AS (
     SELECT
-        CASE
-            WHEN product = '82-6002 IN' THEN '82-6002'
-            ELSE product
-        END AS sku,
+        sku,
         vendor,
         purchase_order_no,
-        TO_DATE(date, 'MM-DD-YYYY') AS po_date,
-        CASE
-            WHEN expected_date IS NOT NULL
-             AND TRIM(expected_date) != ''
-             AND expected_date ~ '^\d{2}-\d{2}-\d{4}$'
-            THEN TO_DATE(expected_date, 'MM-DD-YYYY')
-            ELSE NULL
-        END AS expected_date_parsed,
+        po_opened_date,
+        po_document_date,
+        expected_date_parsed,
         product_quantity,
         product_rate,
         product_amount,
@@ -180,64 +172,71 @@ purchase_order_lines AS (
         manually_closed,
         transxx,
         quick_books_internal_id
-    FROM latest_purchase_order_rows
-    WHERE product IS NOT NULL
-      AND TRIM(product) != ''
-      AND product_quantity IS NOT NULL
-      AND date IS NOT NULL
-      AND TRIM(date) != ''
-      AND date ~ '^\d{2}-\d{2}-\d{4}$'
-),
-
-receipt_lines AS (
-    SELECT DISTINCT
-        CASE
-            WHEN product_service = '82-6002 IN' THEN '82-6002'
-            ELSE product_service
-        END AS sku,
-        vendor,
-        TO_DATE(date, 'MM-DD-YYYY') AS receipt_date,
-        bill_no,
-        NULLIF(product_service_quantity, '')::NUMERIC AS receipt_qty
-    FROM {{ source('raw_data', 'xlsx_bill') }}
-    WHERE product_service IS NOT NULL
-      AND TRIM(product_service) != ''
-      AND vendor IS NOT NULL
-      AND TRIM(vendor) != ''
-      AND product_service_quantity IS NOT NULL
-      AND TRIM(product_service_quantity) != ''
-      AND product_service_quantity ~ '^-?[0-9]+(\.[0-9]+)?$'
-      AND date IS NOT NULL
-      AND TRIM(date) != ''
-      AND date ~ '^\d{2}-\d{2}-\d{4}$'
-      AND COALESCE(vendor, '') != 'DPC Transfer Inventory'
-),
-
-po_to_next_receipt AS (
-    SELECT
-        sku,
-        vendor,
-        po_date,
-        receipt_date,
-        receipt_date - po_date AS lead_time_days
     FROM (
         SELECT
-            po.sku,
-            po.vendor,
-            po.po_date,
-            rl.receipt_date,
-            ROW_NUMBER() OVER (
-                PARTITION BY po.sku, po.vendor, po.po_date, po.purchase_order_no
-                ORDER BY rl.receipt_date
-            ) AS receipt_rank
-        FROM purchase_order_lines po
-        INNER JOIN receipt_lines rl
-            ON po.sku = rl.sku
-           AND po.vendor = rl.vendor
-           AND rl.receipt_date >= po.po_date
-           AND rl.receipt_date - po.po_date BETWEEN 1 AND 365
-    ) matched
-    WHERE receipt_rank = 1
+            CASE
+                WHEN product = '82-6002 IN' THEN '82-6002'
+                ELSE product
+            END AS sku,
+            vendor,
+            purchase_order_no,
+            LEAST(
+                COALESCE(
+                    CASE
+                        WHEN date IS NOT NULL
+                         AND TRIM(date) != ''
+                         AND date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(date, 'MM-DD-YYYY')
+                    END,
+                    CASE
+                        WHEN created_date IS NOT NULL
+                         AND TRIM(created_date) != ''
+                         AND created_date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(created_date, 'MM-DD-YYYY')
+                    END
+                ),
+                COALESCE(
+                    CASE
+                        WHEN created_date IS NOT NULL
+                         AND TRIM(created_date) != ''
+                         AND created_date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(created_date, 'MM-DD-YYYY')
+                    END,
+                    CASE
+                        WHEN date IS NOT NULL
+                         AND TRIM(date) != ''
+                         AND date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(date, 'MM-DD-YYYY')
+                    END
+                )
+            ) AS po_opened_date,
+            CASE
+                WHEN date IS NOT NULL
+                 AND TRIM(date) != ''
+                 AND date ~ '^\d{2}-\d{2}-\d{4}$'
+                THEN TO_DATE(date, 'MM-DD-YYYY')
+                ELSE NULL
+            END AS po_document_date,
+            CASE
+                WHEN expected_date IS NOT NULL
+                 AND TRIM(expected_date) != ''
+                 AND expected_date ~ '^\d{2}-\d{2}-\d{4}$'
+                THEN TO_DATE(expected_date, 'MM-DD-YYYY')
+                ELSE NULL
+            END AS expected_date_parsed,
+            product_quantity,
+            product_rate,
+            product_amount,
+            fully_received,
+            manually_closed,
+            transxx,
+            quick_books_internal_id
+        FROM latest_purchase_order_rows
+        WHERE product IS NOT NULL
+          AND TRIM(product) != ''
+          AND product_quantity IS NOT NULL
+    ) parsed
+    WHERE po_opened_date IS NOT NULL
 ),
 
 observed_sku_vendor_lead_times AS (
@@ -246,7 +245,7 @@ observed_sku_vendor_lead_times AS (
         vendor,
         COUNT(*) AS observed_sku_vendor_lead_time_count,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_sku_vendor_lead_time_days
-    FROM po_to_next_receipt
+    FROM {{ ref('int_quickbooks__purchase_order_receipt_matches') }}
     GROUP BY sku, vendor
 ),
 
@@ -255,7 +254,7 @@ observed_vendor_lead_times AS (
         vendor,
         COUNT(*) AS observed_vendor_lead_time_count,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_vendor_lead_time_days
-    FROM po_to_next_receipt
+    FROM {{ ref('int_quickbooks__purchase_order_receipt_matches') }}
     GROUP BY vendor
 ),
 
@@ -267,9 +266,9 @@ open_purchase_orders AS (
         MIN(
             CASE
                 WHEN po.expected_date_parsed IS NOT NULL
-                 AND po.expected_date_parsed > po.po_date
+                 AND po.expected_date_parsed > po.po_opened_date
                 THEN po.expected_date_parsed
-                ELSE po.po_date + CEIL(COALESCE(
+                ELSE po.po_opened_date + CEIL(COALESCE(
                     CASE
                         WHEN osvl.observed_sku_vendor_lead_time_count >= 3
                         THEN osvl.observed_sku_vendor_lead_time_days

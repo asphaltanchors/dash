@@ -251,7 +251,7 @@ purchase_order_lines AS (
     SELECT
         sku,
         vendor,
-        po_date,
+        po_opened_date,
         purchase_order_no,
         po_qty
     FROM (
@@ -261,7 +261,36 @@ purchase_order_lines AS (
                 ELSE product
             END AS sku,
             vendor,
-            TO_DATE(date, 'MM-DD-YYYY') AS po_date,
+            LEAST(
+                COALESCE(
+                    CASE
+                        WHEN date IS NOT NULL
+                         AND TRIM(date) != ''
+                         AND date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(date, 'MM-DD-YYYY')
+                    END,
+                    CASE
+                        WHEN created_date IS NOT NULL
+                         AND TRIM(created_date) != ''
+                         AND created_date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(created_date, 'MM-DD-YYYY')
+                    END
+                ),
+                COALESCE(
+                    CASE
+                        WHEN created_date IS NOT NULL
+                         AND TRIM(created_date) != ''
+                         AND created_date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(created_date, 'MM-DD-YYYY')
+                    END,
+                    CASE
+                        WHEN date IS NOT NULL
+                         AND TRIM(date) != ''
+                         AND date ~ '^\d{2}-\d{2}-\d{4}$'
+                        THEN TO_DATE(date, 'MM-DD-YYYY')
+                    END
+                )
+            ) AS po_opened_date,
             purchase_order_no,
             CASE
                 WHEN product_quantity IS NOT NULL
@@ -282,11 +311,9 @@ purchase_order_lines AS (
           AND TRIM(product) != ''
           AND vendor IS NOT NULL
           AND TRIM(vendor) != ''
-          AND date IS NOT NULL
-          AND TRIM(date) != ''
-          AND date ~ '^\d{2}-\d{2}-\d{4}$'
     ) ranked
     WHERE load_rank = 1
+      AND po_opened_date IS NOT NULL
 ),
 
 receipt_lines AS (
@@ -313,40 +340,13 @@ receipt_lines AS (
       AND COALESCE(vendor, '') != 'DPC Transfer Inventory'
 ),
 
-po_to_next_receipt AS (
-    SELECT
-        sku,
-        vendor,
-        po_date,
-        receipt_date,
-        receipt_date - po_date AS lead_time_days
-    FROM (
-        SELECT
-            po.sku,
-            po.vendor,
-            po.po_date,
-            rl.receipt_date,
-            ROW_NUMBER() OVER (
-                PARTITION BY po.sku, po.vendor, po.po_date, po.purchase_order_no
-                ORDER BY rl.receipt_date
-            ) AS receipt_rank
-        FROM purchase_order_lines po
-        INNER JOIN receipt_lines rl
-            ON po.sku = rl.sku
-           AND po.vendor = rl.vendor
-           AND rl.receipt_date >= po.po_date
-           AND rl.receipt_date - po.po_date BETWEEN 1 AND 365
-    ) matched
-    WHERE receipt_rank = 1
-),
-
 observed_sku_vendor_lead_times AS (
     SELECT
         sku,
         vendor,
         COUNT(*) AS observed_sku_vendor_lead_time_count,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_sku_vendor_lead_time_days
-    FROM po_to_next_receipt
+    FROM {{ ref('int_quickbooks__purchase_order_receipt_matches') }}
     GROUP BY sku, vendor
 ),
 
@@ -355,7 +355,7 @@ observed_vendor_lead_times AS (
         vendor,
         COUNT(*) AS observed_vendor_lead_time_count,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_vendor_lead_time_days
-    FROM po_to_next_receipt
+    FROM {{ ref('int_quickbooks__purchase_order_receipt_matches') }}
     GROUP BY vendor
 ),
 
@@ -368,7 +368,7 @@ latest_sku_vendor AS (
             ORDER BY latest_vendor_activity_date DESC, vendor
         ) AS vendor_rank
     FROM (
-        SELECT sku, vendor, MAX(po_date) AS latest_vendor_activity_date
+        SELECT sku, vendor, MAX(po_opened_date) AS latest_vendor_activity_date
         FROM purchase_order_lines
         GROUP BY sku, vendor
 

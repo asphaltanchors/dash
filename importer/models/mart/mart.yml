@@ -269,13 +269,13 @@ models:
         description: SKU/vendor configured lead time in days, when an explicit planning override exists.
 
       - name: observed_sku_vendor_lead_time_days
-        description: Median days from purchase order date to next observed bill receipt for the selected SKU/vendor, when enough history exists.
+        description: Median days from best available PO opened date to matched bill receipt date for the selected SKU/vendor, when enough history exists.
 
       - name: observed_sku_vendor_lead_time_count
         description: Count of SKU/vendor PO-to-receipt observations supporting the observed median lead time.
 
       - name: observed_vendor_lead_time_days
-        description: Median days from purchase order date to next observed bill receipt for the selected vendor across SKUs.
+        description: Median days from best available PO opened date to matched bill receipt date for the selected vendor across SKUs.
 
       - name: observed_vendor_lead_time_count
         description: Count of vendor PO-to-receipt observations supporting the observed vendor median lead time.
@@ -416,10 +416,10 @@ models:
         description: Vendor or source party from the QuickBooks transaction.
 
       - name: document_date
-        description: Purchase order date or bill receipt date.
+        description: PO opened date for open purchase orders, or bill receipt date for future receipts.
 
       - name: expected_or_receipt_date
-        description: Expected purchase order receipt date when available, otherwise PO date; actual future bill receipt date for future receipts.
+        description: Expected purchase order receipt date when available, otherwise PO opened date plus observed lead time; actual future bill receipt date for future receipts.
 
       - name: quantity
         description: Inbound quantity represented by the source line.

@@ -337,6 +337,45 @@ models:
         tests:
           - not_null
 
+  - name: int_quickbooks__purchase_order_receipt_matches
+    description: >
+      Matched QuickBooks purchase order lines to vendor bill receipt lines for observed
+      inventory lead times. Lead time is measured from the best available PO opened date
+      to the bill receipt date. Candidate matches require the same SKU and vendor, reject
+      future receipts, and reject postdated bills created more than seven days before the
+      PO opened.
+    columns:
+      - name: lead_time_match_id
+        description: Stable hash key for the selected PO-line to bill-line receipt match.
+        tests:
+          - not_null
+          - unique
+
+      - name: sku
+        description: QuickBooks item name after SKU normalization for known aliases such as `82-6002 IN`.
+        tests:
+          - not_null
+
+      - name: vendor
+        description: Vendor shared by the purchase order and bill receipt line.
+        tests:
+          - not_null
+
+      - name: po_opened_date
+        description: Best available date the purchase order was opened, using the earlier valid PO document date and QuickBooks created date.
+        tests:
+          - not_null
+
+      - name: receipt_date
+        description: Vendor bill date used as the best available receipt or arrival proxy.
+        tests:
+          - not_null
+
+      - name: lead_time_days
+        description: Days from `po_opened_date` to `receipt_date`.
+        tests:
+          - not_null
+
   - name: int_contact_email_parsing
     description: >
       Intermediate model for parsing and splitting customer contact emails.

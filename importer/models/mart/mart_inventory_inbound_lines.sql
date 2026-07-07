@@ -31,84 +31,13 @@ latest_purchase_order_rows AS (
     WHERE load_rank = 1
 ),
 
-purchase_order_receipt_lines AS (
-    SELECT DISTINCT
-        CASE
-            WHEN product_service = '82-6002 IN' THEN '82-6002'
-            ELSE product_service
-        END AS sku,
-        vendor,
-        TO_DATE(date, 'MM-DD-YYYY') AS receipt_date,
-        bill_no,
-        NULLIF(product_service_quantity, '')::NUMERIC AS receipt_qty
-    FROM {{ source('raw_data', 'xlsx_bill') }}
-    WHERE product_service IS NOT NULL
-      AND TRIM(product_service) != ''
-      AND vendor IS NOT NULL
-      AND TRIM(vendor) != ''
-      AND product_service_quantity IS NOT NULL
-      AND TRIM(product_service_quantity) != ''
-      AND product_service_quantity ~ '^-?[0-9]+(\.[0-9]+)?$'
-      AND date IS NOT NULL
-      AND TRIM(date) != ''
-      AND date ~ '^\d{2}-\d{2}-\d{4}$'
-      AND COALESCE(vendor, '') != 'DPC Transfer Inventory'
-),
-
-purchase_order_history AS (
-    SELECT
-        CASE
-            WHEN product = '82-6002 IN' THEN '82-6002'
-            ELSE product
-        END AS sku,
-        vendor,
-        purchase_order_no,
-        TO_DATE(date, 'MM-DD-YYYY') AS po_date
-    FROM latest_purchase_order_rows
-    WHERE product IS NOT NULL
-      AND TRIM(product) != ''
-      AND product_quantity IS NOT NULL
-      AND vendor IS NOT NULL
-      AND TRIM(vendor) != ''
-      AND date IS NOT NULL
-      AND TRIM(date) != ''
-      AND date ~ '^\d{2}-\d{2}-\d{4}$'
-),
-
-po_to_next_receipt AS (
-    SELECT
-        sku,
-        vendor,
-        po_date,
-        receipt_date,
-        receipt_date - po_date AS lead_time_days
-    FROM (
-        SELECT
-            po.sku,
-            po.vendor,
-            po.po_date,
-            rl.receipt_date,
-            ROW_NUMBER() OVER (
-                PARTITION BY po.sku, po.vendor, po.po_date, po.purchase_order_no
-                ORDER BY rl.receipt_date
-            ) AS receipt_rank
-        FROM purchase_order_history po
-        INNER JOIN purchase_order_receipt_lines rl
-            ON po.sku = rl.sku
-           AND po.vendor = rl.vendor
-           AND rl.receipt_date >= po.po_date
-           AND rl.receipt_date - po.po_date BETWEEN 1 AND 365
-    ) matched
-    WHERE receipt_rank = 1
-),
-
 observed_sku_vendor_lead_times AS (
     SELECT
         sku,
         vendor,
         COUNT(*) AS observed_sku_vendor_lead_time_count,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_sku_vendor_lead_time_days
-    FROM po_to_next_receipt
+    FROM {{ ref('int_quickbooks__purchase_order_receipt_matches') }}
     GROUP BY sku, vendor
 ),
 
@@ -117,8 +46,51 @@ observed_vendor_lead_times AS (
         vendor,
         COUNT(*) AS observed_vendor_lead_time_count,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY lead_time_days) AS observed_vendor_lead_time_days
-    FROM po_to_next_receipt
+    FROM {{ ref('int_quickbooks__purchase_order_receipt_matches') }}
     GROUP BY vendor
+),
+
+open_purchase_order_source AS (
+    SELECT
+        *,
+        LEAST(
+            COALESCE(
+                CASE
+                    WHEN date IS NOT NULL
+                     AND TRIM(date) != ''
+                     AND date ~ '^\d{2}-\d{2}-\d{4}$'
+                    THEN TO_DATE(date, 'MM-DD-YYYY')
+                END,
+                CASE
+                    WHEN created_date IS NOT NULL
+                     AND TRIM(created_date) != ''
+                     AND created_date ~ '^\d{2}-\d{2}-\d{4}$'
+                    THEN TO_DATE(created_date, 'MM-DD-YYYY')
+                END
+            ),
+            COALESCE(
+                CASE
+                    WHEN created_date IS NOT NULL
+                     AND TRIM(created_date) != ''
+                     AND created_date ~ '^\d{2}-\d{2}-\d{4}$'
+                    THEN TO_DATE(created_date, 'MM-DD-YYYY')
+                END,
+                CASE
+                    WHEN date IS NOT NULL
+                     AND TRIM(date) != ''
+                     AND date ~ '^\d{2}-\d{2}-\d{4}$'
+                    THEN TO_DATE(date, 'MM-DD-YYYY')
+                END
+            )
+        ) AS po_opened_date,
+        CASE
+            WHEN expected_date IS NOT NULL
+             AND TRIM(expected_date) != ''
+             AND expected_date ~ '^\d{2}-\d{2}-\d{4}$'
+            THEN TO_DATE(expected_date, 'MM-DD-YYYY')
+            ELSE NULL
+        END AS expected_date_parsed
+    FROM latest_purchase_order_rows
 ),
 
 open_po_lines AS (
@@ -130,14 +102,12 @@ open_po_lines AS (
         'OPEN_PO'::TEXT AS inbound_type,
         purchase_order_no::TEXT AS document_number,
         po.vendor::TEXT AS vendor,
-        TO_DATE(date, 'MM-DD-YYYY') AS document_date,
+        po_opened_date AS document_date,
         CASE
-            WHEN expected_date IS NOT NULL
-             AND TRIM(expected_date) != ''
-             AND expected_date ~ '^\d{2}-\d{2}-\d{4}$'
-             AND TO_DATE(expected_date, 'MM-DD-YYYY') > TO_DATE(date, 'MM-DD-YYYY')
-            THEN TO_DATE(expected_date, 'MM-DD-YYYY')
-            ELSE TO_DATE(date, 'MM-DD-YYYY') + CEIL(COALESCE(
+            WHEN expected_date_parsed IS NOT NULL
+             AND expected_date_parsed > po_opened_date
+            THEN expected_date_parsed
+            ELSE po_opened_date + CEIL(COALESCE(
                 CASE
                     WHEN osvl.observed_sku_vendor_lead_time_count >= 3
                     THEN osvl.observed_sku_vendor_lead_time_days
@@ -173,7 +143,7 @@ open_po_lines AS (
         quick_books_internal_id::TEXT AS quickbooks_internal_id,
         transxx::TEXT AS source_transaction_id,
         'Open, unreceived purchase order line.' AS inbound_note
-    FROM latest_purchase_order_rows po
+    FROM open_purchase_order_source po
     LEFT JOIN observed_sku_vendor_lead_times osvl
         ON CASE
                 WHEN po.product = '82-6002 IN' THEN '82-6002'
@@ -185,9 +155,7 @@ open_po_lines AS (
     WHERE po.product IS NOT NULL
       AND TRIM(po.product) != ''
       AND po.product_quantity IS NOT NULL
-      AND po.date IS NOT NULL
-      AND TRIM(po.date) != ''
-      AND po.date ~ '^\d{2}-\d{2}-\d{4}$'
+      AND po.po_opened_date IS NOT NULL
       AND COALESCE(po.fully_received, FALSE) = FALSE
       AND COALESCE(po.manually_closed, FALSE) = FALSE
 ),
