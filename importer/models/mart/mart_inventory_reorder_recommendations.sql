@@ -1,6 +1,6 @@
 /*
-ABOUTME: First-pass reorder recommendations from latest trusted stock, SKU policy, demand, inbound, and committed demand.
-ABOUTME: Produces auditable reorder quantities and reasons before a more advanced seasonal forecast is introduced.
+ABOUTME: Auditable reorder recommendations from trusted stock, policy, seasonally integrated demand, inbound, and committed demand.
+ABOUTME: Separates orders due now from future thresholds and exposes growth, conservative, and spike-adjusted planning paths.
 */
 
 {{ config(
@@ -122,9 +122,32 @@ sales_line_caps AS (
     SELECT
         sku,
         PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY quantity_out) AS sales_line_cap_qty,
+        PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY quantity_out) AS recurring_sales_line_cap_qty,
         COUNT(*) AS sales_line_count_all_time
     FROM sales_lines
     GROUP BY sku
+),
+
+sales_customer_history AS (
+    SELECT
+        sl.sku,
+        COALESCE(NULLIF(TRIM(sl.source_party), ''), 'Unknown') AS source_party,
+        COUNT(DISTINCT sl.source_transaction_key) FILTER (
+            WHERE sl.movement_date > ls.inventory_as_of_date - INTERVAL '36 months'
+        ) AS customer_order_count_36m,
+        COUNT(DISTINCT sl.month_start) FILTER (
+            WHERE sl.movement_date > ls.inventory_as_of_date - INTERVAL '36 months'
+        ) AS customer_sales_month_count_36m,
+        COALESCE(NULLIF(TRIM(sl.source_party), ''), 'Unknown') != 'Unknown'
+          AND COUNT(DISTINCT sl.source_transaction_key) FILTER (
+                WHERE sl.movement_date > ls.inventory_as_of_date - INTERVAL '36 months'
+              ) >= 3
+          AND COUNT(DISTINCT sl.month_start) FILTER (
+                WHERE sl.movement_date > ls.inventory_as_of_date - INTERVAL '36 months'
+              ) >= 2 AS is_recurring_customer
+    FROM sales_lines sl
+    CROSS JOIN latest_snapshot ls
+    GROUP BY sl.sku, COALESCE(NULLIF(TRIM(sl.source_party), ''), 'Unknown')
 ),
 
 capped_sales_lines AS (
@@ -141,18 +164,38 @@ capped_sales_lines AS (
         sl.demand_source,
         CASE
             WHEN slc.sales_line_count_all_time >= 20
-            THEN LEAST(sl.quantity_out, slc.sales_line_cap_qty)
+            THEN LEAST(
+                sl.quantity_out,
+                CASE
+                    WHEN COALESCE(sch.is_recurring_customer, FALSE)
+                        THEN slc.recurring_sales_line_cap_qty
+                    ELSE slc.sales_line_cap_qty
+                END
+            )
             ELSE sl.quantity_out
         END AS capped_quantity_out,
         CASE
             WHEN slc.sales_line_count_all_time >= 20
-             AND sl.quantity_out > slc.sales_line_cap_qty THEN TRUE
+             AND sl.quantity_out > CASE
+                    WHEN COALESCE(sch.is_recurring_customer, FALSE)
+                        THEN slc.recurring_sales_line_cap_qty
+                    ELSE slc.sales_line_cap_qty
+                 END THEN TRUE
             ELSE FALSE
         END AS was_capped,
-        slc.sales_line_cap_qty
+        slc.sales_line_cap_qty,
+        CASE
+            WHEN COALESCE(sch.is_recurring_customer, FALSE)
+                THEN slc.recurring_sales_line_cap_qty
+            ELSE slc.sales_line_cap_qty
+        END AS applied_sales_line_cap_qty,
+        COALESCE(sch.is_recurring_customer, FALSE) AS is_recurring_customer
     FROM sales_lines sl
     LEFT JOIN sales_line_caps slc
         ON sl.sku = slc.sku
+    LEFT JOIN sales_customer_history sch
+        ON sl.sku = sch.sku
+       AND COALESCE(NULLIF(TRIM(sl.source_party), ''), 'Unknown') = sch.source_party
 ),
 
 component_consumption_lines AS (
@@ -446,6 +489,39 @@ purchase_order_batches_with_lag AS (
     FROM purchase_order_batches
 ),
 
+purchase_order_documents AS (
+    SELECT
+        vendor,
+        po_opened_date,
+        purchase_order_no
+    FROM purchase_order_batches
+    GROUP BY vendor, po_opened_date, purchase_order_no
+),
+
+purchase_order_documents_with_lag AS (
+    SELECT
+        *,
+        LAG(po_opened_date) OVER (
+            PARTITION BY vendor
+            ORDER BY po_opened_date, purchase_order_no
+        ) AS previous_po_opened_date
+    FROM purchase_order_documents
+),
+
+observed_vendor_order_cycles AS (
+    SELECT
+        vendor,
+        COUNT(*) FILTER (WHERE previous_po_opened_date IS NOT NULL) AS observed_vendor_order_cycle_count,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (
+            ORDER BY po_opened_date - previous_po_opened_date
+        ) FILTER (WHERE previous_po_opened_date IS NOT NULL) AS observed_vendor_median_order_cycle_days,
+        PERCENTILE_CONT(0.75) WITHIN GROUP (
+            ORDER BY po_opened_date - previous_po_opened_date
+        ) FILTER (WHERE previous_po_opened_date IS NOT NULL) AS observed_vendor_order_cycle_days
+    FROM purchase_order_documents_with_lag
+    GROUP BY vendor
+),
+
 observed_sku_vendor_order_cycles AS (
     SELECT
         sku,
@@ -704,6 +780,9 @@ target_coverage_inputs AS (
         osvoc.observed_sku_vendor_order_cycle_days,
         osvoc.observed_sku_vendor_median_order_cycle_days,
         COALESCE(osvoc.observed_sku_vendor_order_cycle_count, 0) AS observed_sku_vendor_order_cycle_count,
+        ovoc.observed_vendor_order_cycle_days,
+        ovoc.observed_vendor_median_order_cycle_days,
+        COALESCE(ovoc.observed_vendor_order_cycle_count, 0) AS observed_vendor_order_cycle_count,
         CASE
             WHEN fi.policy_bucket = 'FBA_REPLENISHMENT_MODEL' THEN 45
             WHEN fi.policy_bucket IN ('SKU_SEASONAL_TREND_MODEL', 'ASSEMBLY_FINISHED_GOOD_MODEL') THEN 120
@@ -713,17 +792,31 @@ target_coverage_inputs AS (
             ELSE 0
         END AS default_target_coverage_days,
         CASE
+            WHEN fi.preferred_vendor = 'WWD'
+             AND COALESCE(ovoc.observed_vendor_order_cycle_count, 0) >= 5
+                THEN ovoc.observed_vendor_order_cycle_days
             WHEN fi.policy_bucket = 'SKU_SEASONAL_TREND_MODEL'
              AND COALESCE(osvoc.observed_sku_vendor_order_cycle_count, 0) >= 5
                 THEN osvoc.observed_sku_vendor_order_cycle_days
             ELSE NULL
-        END AS dynamic_target_coverage_candidate_days
+        END AS dynamic_target_coverage_candidate_days,
+        CASE
+            WHEN fi.preferred_vendor = 'WWD'
+             AND COALESCE(ovoc.observed_vendor_order_cycle_count, 0) >= 5
+                THEN 'observed_vendor_po_cycle'
+            WHEN fi.policy_bucket = 'SKU_SEASONAL_TREND_MODEL'
+             AND COALESCE(osvoc.observed_sku_vendor_order_cycle_count, 0) >= 5
+                THEN 'observed_sku_vendor_po_cycle'
+            ELSE NULL
+        END AS dynamic_target_coverage_source
     FROM forecast_inputs fi
     LEFT JOIN future_receipts_before_expected_receipt frber
         ON fi.sku = frber.sku
     LEFT JOIN observed_sku_vendor_order_cycles osvoc
         ON fi.sku = osvoc.sku
        AND fi.preferred_vendor = osvoc.vendor
+    LEFT JOIN observed_vendor_order_cycles ovoc
+        ON fi.preferred_vendor = ovoc.vendor
 ),
 
 parameters AS (
@@ -731,12 +824,18 @@ parameters AS (
         *,
         COALESCE(fi.configured_target_coverage_days, CASE
             WHEN dynamic_target_coverage_candidate_days IS NOT NULL
-                THEN CEIL(GREATEST(60::NUMERIC, LEAST(180::NUMERIC, dynamic_target_coverage_candidate_days)))::INT
+                THEN CEIL(GREATEST(
+                    60::NUMERIC,
+                    LEAST(
+                        CASE WHEN dynamic_target_coverage_source = 'observed_vendor_po_cycle' THEN 120::NUMERIC ELSE 180::NUMERIC END,
+                        dynamic_target_coverage_candidate_days
+                    )
+                ))::INT
             ELSE default_target_coverage_days
         END)::INT AS target_coverage_days,
         CASE
             WHEN configured_target_coverage_days IS NOT NULL THEN 'configured_sku_vendor'
-            WHEN dynamic_target_coverage_candidate_days IS NOT NULL THEN 'observed_sku_vendor_po_cycle'
+            WHEN dynamic_target_coverage_candidate_days IS NOT NULL THEN dynamic_target_coverage_source
             ELSE 'policy_bucket_default'
         END AS target_coverage_source,
         CASE
@@ -935,6 +1034,112 @@ forecast_with_spike_risk AS (
     FROM forecast
 ),
 
+forecast_monthly_profile_base AS (
+    SELECT
+        f.sku,
+        months.month_number,
+        CASE
+            WHEN f.forecast_model_detail = 'sku_seasonality_with_growth' THEN
+                (
+                    f.sku_baseline_monthly_qty
+                    * LEAST(1.75, GREATEST(0.50, COALESCE(sse.sku_seasonality_index, 1)))
+                    * f.applied_growth_factor
+                ) / 30.4375
+            WHEN f.forecast_model_detail = 'family_material_seasonality_with_growth' THEN
+                (
+                    f.sku_baseline_monthly_qty
+                    * LEAST(1.60, GREATEST(0.60, COALESCE(fms.family_material_seasonality_index, 1)))
+                    * f.applied_growth_factor
+                ) / 30.4375
+            ELSE f.forecast_daily_qty
+        END AS growth_forecast_daily_qty,
+        f.baseline_forecast_daily_qty
+    FROM forecast_with_spike_risk f
+    CROSS JOIN GENERATE_SERIES(1, 12) AS months(month_number)
+    LEFT JOIN sku_seasonality sse
+        ON f.sku = sse.sku
+       AND months.month_number = sse.month_number
+    LEFT JOIN family_material_seasonality fms
+        ON f.product_family = fms.product_family
+       AND f.material_type = fms.material_type
+       AND months.month_number = fms.month_number
+),
+
+forecast_monthly_profiles AS (
+    SELECT
+        fpb.sku,
+        fpb.month_number,
+        fpb.growth_forecast_daily_qty,
+        fpb.baseline_forecast_daily_qty,
+        CASE
+            WHEN f.demand_spike_risk_level = 'high'
+                THEN fpb.baseline_forecast_daily_qty
+            WHEN f.demand_spike_risk_level = 'medium'
+                THEN LEAST(
+                    fpb.growth_forecast_daily_qty,
+                    fpb.baseline_forecast_daily_qty
+                      + ((fpb.growth_forecast_daily_qty - fpb.baseline_forecast_daily_qty) * 0.50)
+                )
+            ELSE fpb.growth_forecast_daily_qty
+        END AS actionable_forecast_daily_qty
+    FROM forecast_monthly_profile_base fpb
+    INNER JOIN forecast_with_spike_risk f
+        ON fpb.sku = f.sku
+),
+
+forecast_profile_json AS (
+    SELECT
+        sku,
+        JSONB_OBJECT_AGG(month_number::TEXT, actionable_forecast_daily_qty ORDER BY month_number) AS actionable_forecast_daily_profile
+    FROM forecast_monthly_profiles
+    GROUP BY sku
+),
+
+current_forecast_horizon_days AS (
+    SELECT
+        f.sku,
+        demand_date::DATE AS demand_date,
+        f.expected_receipt_date,
+        f.target_coverage_days,
+        p.growth_forecast_daily_qty,
+        p.baseline_forecast_daily_qty,
+        p.actionable_forecast_daily_qty
+    FROM forecast_with_spike_risk f
+    CROSS JOIN LATERAL GENERATE_SERIES(
+        f.inventory_as_of_date + 1,
+        f.expected_receipt_date + f.target_coverage_days,
+        INTERVAL '1 day'
+    ) AS dates(demand_date)
+    INNER JOIN forecast_monthly_profiles p
+        ON f.sku = p.sku
+       AND EXTRACT(MONTH FROM dates.demand_date)::INT = p.month_number
+),
+
+current_forecast_horizons AS (
+    SELECT
+        sku,
+        SUM(growth_forecast_daily_qty) FILTER (
+            WHERE demand_date <= expected_receipt_date
+        ) AS forecast_lead_time_qty,
+        SUM(baseline_forecast_daily_qty) FILTER (
+            WHERE demand_date <= expected_receipt_date
+        ) AS baseline_forecast_lead_time_qty,
+        SUM(actionable_forecast_daily_qty) FILTER (
+            WHERE demand_date <= expected_receipt_date
+        ) AS actionable_forecast_lead_time_qty,
+        SUM(growth_forecast_daily_qty) FILTER (
+            WHERE demand_date > expected_receipt_date
+        ) AS forecast_target_coverage_qty,
+        SUM(baseline_forecast_daily_qty) FILTER (
+            WHERE demand_date > expected_receipt_date
+        ) AS baseline_forecast_target_coverage_qty,
+        SUM(actionable_forecast_daily_qty) FILTER (
+            WHERE demand_date > expected_receipt_date
+        ) AS actionable_forecast_target_coverage_qty
+    FROM current_forecast_horizon_days
+    GROUP BY sku
+),
+
 variability_demand_events AS (
     SELECT
         f.sku,
@@ -1014,6 +1219,14 @@ lead_time_demand_variability AS (
 forecast_with_variability_inputs AS (
     SELECT
         f.*,
+        ap.actionable_forecast_daily_qty,
+        fpj.actionable_forecast_daily_profile,
+        cfh.forecast_lead_time_qty,
+        cfh.baseline_forecast_lead_time_qty,
+        cfh.actionable_forecast_lead_time_qty,
+        cfh.forecast_target_coverage_qty,
+        cfh.baseline_forecast_target_coverage_qty,
+        cfh.actionable_forecast_target_coverage_qty,
         CASE
             WHEN f.policy_bucket = 'COMPONENT_PACKAGING_MODEL'
              AND f.forecast_model_detail != 'direct_and_kit_sales_component_equivalent' THEN 'component_consumption'
@@ -1028,15 +1241,22 @@ forecast_with_variability_inputs AS (
         ltdv.p90_historical_lead_time_demand_qty,
         ltdv.p95_historical_lead_time_demand_qty,
         GREATEST(
-            f.forecast_daily_qty * f.assumed_lead_time_days * f.safety_stock_multiplier,
+            cfh.actionable_forecast_lead_time_qty * f.safety_stock_multiplier,
             f.stddev_daily_sales_90d * SQRT(f.assumed_lead_time_days) * f.safety_stock_multiplier
         ) AS policy_safety_stock_qty,
         GREATEST(
             0,
             COALESCE(ltdv.p90_historical_lead_time_demand_qty, 0)
-              - (f.forecast_daily_qty * f.assumed_lead_time_days)
+              - cfh.actionable_forecast_lead_time_qty
         ) AS percentile_safety_stock_qty
     FROM forecast_with_spike_risk f
+    INNER JOIN current_forecast_horizons cfh
+        ON f.sku = cfh.sku
+    INNER JOIN forecast_monthly_profiles ap
+        ON f.sku = ap.sku
+       AND f.forecast_month_number = ap.month_number
+    INNER JOIN forecast_profile_json fpj
+        ON f.sku = fpj.sku
     LEFT JOIN lead_time_demand_variability ltdv
         ON f.sku = ltdv.sku
 ),
@@ -1087,17 +1307,23 @@ calculation_position_inputs AS (
 calculated AS (
     SELECT
         *,
-        forecast_daily_qty * assumed_lead_time_days AS forecast_lead_time_qty,
-        baseline_forecast_daily_qty * assumed_lead_time_days AS baseline_forecast_lead_time_qty,
         current_on_hand_qty + open_po_position_qty + future_receipt_position_qty - committed_demand_qty AS available_position_qty,
         inbound_qty_by_expected_receipt_date_calc AS inbound_qty_by_expected_receipt_date,
         current_on_hand_qty
           + inbound_qty_by_expected_receipt_date_calc
-          - (forecast_daily_qty * assumed_lead_time_days)
+          - actionable_forecast_lead_time_qty
           - committed_demand_before_expected_receipt_qty AS projected_position_at_expected_receipt_qty,
+        current_on_hand_qty
+          + inbound_qty_by_expected_receipt_date_calc
+          - forecast_lead_time_qty
+          - committed_demand_before_expected_receipt_qty AS growth_projected_position_at_expected_receipt_qty,
+        current_on_hand_qty
+          + inbound_qty_by_expected_receipt_date_calc
+          - baseline_forecast_lead_time_qty
+          - committed_demand_before_expected_receipt_qty AS baseline_projected_position_at_expected_receipt_qty,
         GREATEST(
             0,
-            (forecast_daily_qty * assumed_lead_time_days)
+            actionable_forecast_lead_time_qty
               + committed_demand_before_expected_receipt_qty
               - (
                     current_on_hand_qty
@@ -1106,7 +1332,7 @@ calculated AS (
         ) AS uncovered_lead_time_demand_qty,
         GREATEST(
             0,
-            (forecast_daily_qty * assumed_lead_time_days)
+            actionable_forecast_lead_time_qty
               + committed_demand_before_expected_receipt_qty
               - (
                     current_on_hand_qty
@@ -1115,64 +1341,147 @@ calculated AS (
         ) AS stockout_gap_qty,
         GREATEST(
             0,
-            forecast_daily_qty * target_coverage_days
+            forecast_target_coverage_qty
               + safety_stock_qty
               - GREATEST(0, (
                     current_on_hand_qty
                     + inbound_qty_by_expected_receipt_date_calc
-                    - (forecast_daily_qty * assumed_lead_time_days)
+                    - forecast_lead_time_qty
                     - committed_demand_before_expected_receipt_qty
                 ))
         ) AS raw_reorder_qty,
         GREATEST(
             0,
-            baseline_forecast_daily_qty * target_coverage_days
+            baseline_forecast_target_coverage_qty
               + safety_stock_qty
               - GREATEST(0, (
                     current_on_hand_qty
                     + inbound_qty_by_expected_receipt_date_calc
-                    - (baseline_forecast_daily_qty * assumed_lead_time_days)
+                    - baseline_forecast_lead_time_qty
                     - committed_demand_before_expected_receipt_qty
                 ))
         ) AS conservative_raw_reorder_qty,
-        forecast_daily_qty * assumed_lead_time_days + safety_stock_qty AS reorder_point_qty
+        GREATEST(
+            0,
+            actionable_forecast_target_coverage_qty
+              + safety_stock_qty
+              - GREATEST(0, (
+                    current_on_hand_qty
+                    + inbound_qty_by_expected_receipt_date_calc
+                    - actionable_forecast_lead_time_qty
+                    - committed_demand_before_expected_receipt_qty
+                ))
+        ) AS actionable_raw_reorder_qty,
+        actionable_forecast_lead_time_qty + safety_stock_qty AS reorder_point_qty
     FROM calculation_position_inputs
+),
+
+planning_schedule_parameters AS (
+    SELECT
+        sku,
+        GREATEST(
+            3650,
+            LEAST(
+                7300,
+                CEIL(
+                    (GREATEST(available_position_qty, current_on_hand_qty, 0) + safety_stock_qty)
+                    / NULLIF(actionable_forecast_daily_qty, 0)
+                )::INT + assumed_lead_time_days
+            )
+        ) AS planning_horizon_days
+    FROM calculated
+),
+
+planning_daily_forecast AS (
+    SELECT
+        c.sku,
+        c.inventory_as_of_date,
+        c.assumed_lead_time_days,
+        forecast_date::DATE AS forecast_date,
+        CASE
+            WHEN forecast_date::DATE = c.inventory_as_of_date THEN 0
+            ELSE p.actionable_forecast_daily_qty
+        END AS actionable_forecast_daily_qty
+    FROM calculated c
+    INNER JOIN planning_schedule_parameters psp
+        ON c.sku = psp.sku
+    CROSS JOIN LATERAL GENERATE_SERIES(
+        c.inventory_as_of_date,
+        c.inventory_as_of_date + psp.planning_horizon_days + c.assumed_lead_time_days,
+        INTERVAL '1 day'
+    ) AS dates(forecast_date)
+    INNER JOIN forecast_monthly_profiles p
+        ON c.sku = p.sku
+       AND EXTRACT(MONTH FROM dates.forecast_date)::INT = p.month_number
+),
+
+planning_cumulative_forecast AS (
+    SELECT
+        *,
+        SUM(actionable_forecast_daily_qty) OVER (
+            PARTITION BY sku
+            ORDER BY forecast_date
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS cumulative_actionable_forecast_qty
+    FROM planning_daily_forecast
+),
+
+reorder_schedule AS (
+    SELECT
+        c.sku,
+        MIN(candidate.forecast_date) FILTER (
+            WHERE c.available_position_qty - candidate.cumulative_actionable_forecast_qty
+                <= (
+                    lead_end.cumulative_actionable_forecast_qty
+                    - candidate.cumulative_actionable_forecast_qty
+                    + c.safety_stock_qty
+                )
+        ) AS reorder_by_date,
+        MIN(candidate.forecast_date) FILTER (
+            WHERE c.current_on_hand_qty - candidate.cumulative_actionable_forecast_qty
+                <= c.safety_stock_qty
+        ) AS projected_stockout_or_safety_date
+    FROM calculated c
+    INNER JOIN planning_schedule_parameters psp
+        ON c.sku = psp.sku
+    INNER JOIN planning_cumulative_forecast candidate
+        ON c.sku = candidate.sku
+       AND candidate.forecast_date <= c.inventory_as_of_date + psp.planning_horizon_days
+    INNER JOIN planning_cumulative_forecast lead_end
+        ON c.sku = lead_end.sku
+       AND lead_end.forecast_date = candidate.forecast_date + c.assumed_lead_time_days
+    WHERE c.actionable_forecast_daily_qty > 0
+    GROUP BY c.sku
+),
+
+recommendation_candidates AS (
+    SELECT
+        c.*,
+        rs.reorder_by_date,
+        rs.projected_stockout_or_safety_date,
+        c.actionable_raw_reorder_qty AS spike_adjusted_raw_reorder_qty,
+        CEIL(c.raw_reorder_qty) AS growth_case_reorder_qty,
+        CEIL(c.conservative_raw_reorder_qty) AS conservative_reorder_qty,
+        CASE
+            WHEN c.policy_bucket IN ('NO_ACTION_OR_ARCHIVE', 'STOCKED_NO_RECENT_DEMAND_REVIEW') THEN 0
+            WHEN c.requires_manual_review AND c.policy_bucket != 'COMPONENT_PACKAGING_MODEL' THEN 0
+            ELSE CEIL(c.actionable_raw_reorder_qty)
+        END AS candidate_reorder_qty
+    FROM calculated c
+    LEFT JOIN reorder_schedule rs
+        ON c.sku = rs.sku
 ),
 
 recommendations AS (
     SELECT
         *,
         CASE
-            WHEN demand_spike_risk_level = 'high' THEN conservative_raw_reorder_qty
-            WHEN demand_spike_risk_level = 'medium' THEN LEAST(
-                raw_reorder_qty,
-                conservative_raw_reorder_qty + ((raw_reorder_qty - conservative_raw_reorder_qty) * 0.50)
-            )
-            ELSE raw_reorder_qty
-        END AS spike_adjusted_raw_reorder_qty,
-        CEIL(raw_reorder_qty) AS growth_case_reorder_qty,
-        CEIL(conservative_raw_reorder_qty) AS conservative_reorder_qty,
-        CASE
-            WHEN policy_bucket IN ('NO_ACTION_OR_ARCHIVE', 'STOCKED_NO_RECENT_DEMAND_REVIEW') THEN 0
-            WHEN requires_manual_review AND policy_bucket != 'COMPONENT_PACKAGING_MODEL' THEN 0
-            WHEN demand_spike_risk_level = 'high' THEN CEIL(conservative_raw_reorder_qty)
-            WHEN demand_spike_risk_level = 'medium' THEN CEIL(LEAST(
-                raw_reorder_qty,
-                conservative_raw_reorder_qty + ((raw_reorder_qty - conservative_raw_reorder_qty) * 0.50)
-            ))
-            ELSE CEIL(raw_reorder_qty)
-        END AS reorder_qty,
-        CASE
-            WHEN forecast_daily_qty > 0
-            THEN inventory_as_of_date + CEIL(GREATEST(0, current_on_hand_qty - safety_stock_qty) / forecast_daily_qty)::INT
-            ELSE NULL
-        END AS projected_stockout_or_safety_date,
-        CASE
-            WHEN forecast_daily_qty > 0
-            THEN inventory_as_of_date + CEIL(GREATEST(0, available_position_qty - reorder_point_qty) / forecast_daily_qty)::INT
-            ELSE NULL
-        END AS reorder_by_date
-    FROM calculated
+            WHEN candidate_reorder_qty > 0
+             AND reorder_by_date <= inventory_as_of_date
+                THEN candidate_reorder_qty
+            ELSE 0
+        END AS reorder_qty
+    FROM recommendation_candidates
 ),
 
 final AS (
@@ -1193,6 +1502,7 @@ final AS (
             ELSE reorder_qty > 0
         END AS should_reorder,
         reorder_qty,
+        candidate_reorder_qty AS potential_reorder_qty_today,
         six_pack_units_per_layer,
         CASE
             WHEN six_pack_units_per_layer IS NOT NULL
@@ -1235,6 +1545,9 @@ final AS (
         observed_sku_vendor_order_cycle_days,
         observed_sku_vendor_median_order_cycle_days,
         observed_sku_vendor_order_cycle_count,
+        observed_vendor_order_cycle_days,
+        observed_vendor_median_order_cycle_days,
+        observed_vendor_order_cycle_count,
         current_on_hand_qty,
         committed_demand_qty,
         committed_demand_before_expected_receipt_qty,
@@ -1251,6 +1564,9 @@ final AS (
         available_position_qty,
         forecast_daily_qty,
         forecast_daily_qty * 30 AS forecast_monthly_qty,
+        actionable_forecast_daily_qty,
+        actionable_forecast_daily_qty * 30 AS actionable_forecast_monthly_qty,
+        actionable_forecast_daily_profile,
         baseline_forecast_daily_qty,
         baseline_forecast_daily_qty * 30 AS baseline_forecast_monthly_qty,
         recent_velocity_forecast_daily_qty,
@@ -1272,6 +1588,10 @@ final AS (
         applied_growth_factor,
         forecast_lead_time_qty,
         baseline_forecast_lead_time_qty,
+        actionable_forecast_lead_time_qty,
+        forecast_target_coverage_qty,
+        baseline_forecast_target_coverage_qty,
+        actionable_forecast_target_coverage_qty,
         safety_stock_qty,
         safety_stock_source,
         demand_variability_source,
@@ -1287,10 +1607,13 @@ final AS (
         p95_historical_lead_time_demand_qty,
         reorder_point_qty,
         projected_position_at_expected_receipt_qty,
+        growth_projected_position_at_expected_receipt_qty,
+        baseline_projected_position_at_expected_receipt_qty,
         uncovered_lead_time_demand_qty,
         stockout_gap_qty,
         raw_reorder_qty,
         conservative_raw_reorder_qty,
+        actionable_raw_reorder_qty,
         spike_adjusted_raw_reorder_qty,
         growth_case_reorder_qty,
         conservative_reorder_qty,
@@ -1342,6 +1665,9 @@ final AS (
             WHEN policy_bucket = 'NO_ACTION_OR_ARCHIVE' THEN 'Excluded: no stock and no usable demand signal.'
             WHEN policy_bucket = 'STOCKED_NO_RECENT_DEMAND_REVIEW' THEN 'Manual review: stocked SKU with no recent demand.'
             WHEN requires_manual_review AND policy_bucket != 'COMPONENT_PACKAGING_MODEL' THEN 'Manual review required before automatic reorder.'
+            WHEN reorder_qty <= 0 AND reorder_by_date > inventory_as_of_date AND demand_spike_risk_level = 'high' THEN 'No order today; high recent-demand spike risk uses the conservative baseline profile, with the next projected threshold on ' || TO_CHAR(reorder_by_date, 'YYYY-MM-DD') || '.'
+            WHEN reorder_qty <= 0 AND reorder_by_date > inventory_as_of_date AND demand_spike_risk_level = 'medium' THEN 'No order today; recent-demand spike risk uses a dampened profile, with the next projected threshold on ' || TO_CHAR(reorder_by_date, 'YYYY-MM-DD') || '.'
+            WHEN reorder_qty <= 0 AND reorder_by_date > inventory_as_of_date THEN 'No order today; projected reorder threshold is ' || TO_CHAR(reorder_by_date, 'YYYY-MM-DD') || ' using the spike-adjusted seasonal demand profile.'
             WHEN demand_spike_risk_level = 'high' AND reorder_qty <= 0 AND growth_case_reorder_qty > 0 THEN 'No conservative reorder: full growth case is ' || growth_case_reorder_qty::TEXT || ' units, but recent demand spike risk is high (' || REPLACE(COALESCE(demand_spike_reason, 'spike risk'), '_', ' ') || ') and baseline demand is covered by current stock and inbound.'
             WHEN demand_spike_risk_level = 'medium' AND reorder_qty <= 0 AND growth_case_reorder_qty > 0 THEN 'No spike-adjusted reorder: full growth case is ' || growth_case_reorder_qty::TEXT || ' units, but recent demand is above baseline (' || REPLACE(COALESCE(demand_spike_reason, 'spike risk'), '_', ' ') || ') and adjusted demand is covered.'
             WHEN stockout_gap_qty > 0 THEN 'Reorder suggested; projected demand before replenishment may exceed available stock by ' || CEIL(stockout_gap_qty)::TEXT || ' units.'

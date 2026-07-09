@@ -36,6 +36,11 @@ logs/
 !importer/models/**/*.sql
 !importer/macros/**/*.sql
 !importer/tests/test_inventory_in_skus_map_to_catalog_sku.sql
+!importer/tests/test_reorder_actions_are_due_now.sql
+!importer/tests/test_wwd_next_order_matches_earliest_threshold.sql
+!importer/tests/test_wwd_planned_buys_respect_net_need.sql
+!importer/tests/test_wwd_planned_receipt_uses_order_date.sql
+!importer/tests/test_wwd_uses_shared_vendor_coverage.sql
 *.dump
 
 # Python cache (if running scripts locally)

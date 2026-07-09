@@ -233,7 +233,7 @@ function ProposedWwdOrderPanel({
     <Panel id="wwd-next-order" className="border-blue-500/30">
       <PanelHeader
         title="Next Proposed WWD Order"
-        eyebrow={nextOrderDate ? `Trigger date ${formatIsoDate(nextOrderDate)}; fill to two full pallets` : 'No regular WWD layer order is currently proposed'}
+        eyebrow={nextOrderDate ? `Trigger date ${formatIsoDate(nextOrderDate)}; plan up to two pallets without exceeding projected need` : 'No regular WWD layer order is currently proposed'}
         action={<CompactBadge tone="blue">{formatNumber(cumulativeLayerCount, 0)} / {targetLayerCount} layers | {compactCurrency(plannedBuyCost, 0)}</CompactBadge>}
       />
       <Table className="table-fixed [&_td]:overflow-hidden [&_th]:overflow-hidden">
@@ -266,7 +266,7 @@ function ProposedWwdOrderPanel({
                 </TableCell>
                 <TableCell className="py-1.5">
                   <p className="truncate text-xs font-medium text-slate-200">{item.salesDescription || item.productFamily}</p>
-                  <p className="truncate text-[11px] text-slate-500">{item.isRideAlong ? 'Pallet filler based on demand signal' : 'Earliest regular WWD reorder trigger'}</p>
+                  <p className="truncate text-[11px] text-slate-500">{item.isRideAlong ? 'Additional projected need at the shared order date' : 'Earliest regular WWD reorder trigger'}</p>
                 </TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{formatIsoDate(item.reorderByDate)}</TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-blue-300">{formatNumber(item.plannedLayerCount, 0)}</TableCell>

@@ -14,7 +14,7 @@ The first useful version should be auditable rather than mathematically fancy. I
 - Dashboard-facing inventory planning uses the latest available inventory snapshot date rather than assuming `CURRENT_DATE`, because imports run roughly every two weeks.
 - FBA inventory is a separate replenishment problem. FBA SKUs are represented as separate items and FBA transfers are visible in inventory adjustments as positive FBA SKU adjustments and negative source SKU adjustments.
 - Broad family-level seasonality is too blunt. The first forecast refinement now falls back from SKU seasonality to family/material seasonality when SKU-level history is not strong enough.
-- Outlier orders are real and should be marked separately so one-off enterprise/custom orders do not automatically become recurring forecast. The reorder mart now caps demand contribution at the sales-line level and exposes capped-vs-uncapped demand.
+- Outlier orders are real and should be marked separately so one-off enterprise/custom orders do not automatically become recurring forecast. The reorder mart uses a SKU P95 cap for one-off customers and a wider SKU P99 cap for demonstrated recurring customers, preserving normal distributor volume without allowing exceptional repeat projects to dominate safety stock.
 - SKU policy classification is now explicit and audited. Policy rows include assignment reasons, validation status, and review flags for suppressed active SKUs, outlier-driven SKUs, FBA transfer signals outside FBA buckets, and component/assembly mismatches.
 
 ## Modeling Principles
@@ -132,6 +132,9 @@ Final reorder model grain: one row per reorder-relevant SKU per latest inventory
 - [x] Calculate reorder quantity against projected stock at expected receipt date rather than today’s stock position.
 - [x] Surface uncovered lead-time demand / stockout gap for dashboard messaging.
 - [x] Replace the mature seasonal SKU hard-coded 120-day target with an observed SKU/vendor PO-cycle target when enough order history exists.
+- [x] Use a shared vendor-level PO cadence for regular WWD layer planning instead of treating sparse SKU inclusion intervals as order cadence.
+- [x] Integrate month-specific seasonality across lead-time and target-coverage horizons.
+- [x] Separate current `should_reorder` actions from forward-scheduled reorder threshold dates.
 - [ ] Add SKU/vendor planning inputs for MOQ, order multiple, case pack, and broader preferred vendor coverage.
 - [x] Add simple WWD layer multiples for key 6-pack anchor SKUs and expose layer-rounded suggested buy quantities.
 - [ ] Replace remaining hard-coded target coverage assumptions with SKU/family/vendor overrides.
@@ -149,7 +152,7 @@ Final reorder model grain: one row per reorder-relevant SKU per latest inventory
   - moderate SKUs, assemblies, and FBA SKUs should use family/material fallback when available,
   - component SKUs should use component consumption,
   - sparse and suppressed SKUs should not silently become automatic buys.
-- Outlier capping should be audited with `capped_reduction_qty_12m` to make sure large real recurring customers are not under-forecast.
+- Outlier capping should be audited with `capped_reduction_qty_12m`; recurring customers receive a wider cap, but exceptional project-sized orders remain bounded.
 
 ## Current Status
 
@@ -159,6 +162,6 @@ Phase 2 is mostly complete. The reconstruction layer now uses normalized movemen
 
 Phase 3 is complete as an auditable first reorder mart and dashboard worklist.
 
-Phase 4 has its first real implementation: capped demand, SKU seasonality, family/material fallback, and growth trend are now in the reorder mart. The next work is review and tuning, not more hidden math.
+Phase 4 now includes recurring-customer-aware capped demand plus month-by-month seasonal integration across planning horizons. The next work is measured backtesting and tuning, not more hidden math.
 
-Phase 6 has started. The reorder mart now selects lead time from configured SKU/vendor overrides, observed SKU/vendor medians, observed vendor medians, or policy defaults. Forecast month and reorder sizing use the expected receipt date. Remaining Phase 6 work is MOQ, order multiple, case pack, fuller preferred-vendor coverage, and target coverage overrides.
+Phase 6 has started. The reorder mart selects lead time from configured SKU/vendor overrides, observed SKU/vendor medians, observed vendor medians, or policy defaults. WWD planning now uses a shared vendor cadence, forward-projects net need to the proposed order and receipt dates, and limits pallet fillers to real demand headroom. Remaining Phase 6 work is MOQ, order multiple, case pack, fuller preferred-vendor coverage, and explicit business-owned target coverage overrides.

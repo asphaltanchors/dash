@@ -1,6 +1,6 @@
 /*
-ABOUTME: Proposed regular WWD pallet order from the SKU reorder mart.
-ABOUTME: Includes all non-review WWD layer buys, then fills remaining pallet space with demand-weighted ride-alongs.
+ABOUTME: Forward-scheduled regular WWD pallet order from the SKU reorder mart.
+ABOUTME: Recalculates net SKU need at the shared trigger date, then fills only within real projected demand headroom.
 */
 
 {{ config(
@@ -15,45 +15,20 @@ WITH parameters AS (
         14::INT AS target_layer_count
 ),
 
-sku_recommendations AS (
-    SELECT *
-    FROM {{ ref('mart_inventory_reorder_recommendations') }}
-    WHERE policy_bucket != 'NO_ACTION_OR_ARCHIVE'
-),
-
 eligible AS (
     SELECT
         r.*,
         p.layers_per_pallet,
         p.target_pallets,
-        p.target_layer_count,
-        CASE
-            WHEN r.should_reorder
-             AND COALESCE(r.reorder_layer_count, 0) > 0
-                THEN r.reorder_layer_count
-            WHEN COALESCE(r.six_pack_units_per_layer, 0) > 0
-             AND COALESCE(r.forecast_daily_qty, 0) > 0
-             AND COALESCE(r.target_coverage_days, 0) > 0
-                THEN CEIL((r.forecast_daily_qty * r.target_coverage_days) / r.six_pack_units_per_layer)
-            ELSE 0
-        END AS max_candidate_layer_count,
-        CASE
-            WHEN COALESCE(r.six_pack_units_per_layer, 0) > 0
-                THEN COALESCE(r.forecast_daily_qty, 0) / r.six_pack_units_per_layer
-            ELSE 0
-        END AS ride_along_demand_score
-    FROM sku_recommendations r
+        p.target_layer_count
+    FROM {{ ref('mart_inventory_reorder_recommendations') }} r
     CROSS JOIN parameters p
-    WHERE r.preferred_vendor = 'WWD'
+    WHERE r.policy_bucket != 'NO_ACTION_OR_ARCHIVE'
+      AND r.preferred_vendor = 'WWD'
       AND r.requires_manual_review = FALSE
       AND COALESCE(r.six_pack_units_per_layer, 0) > 0
       AND r.reorder_by_date IS NOT NULL
-),
-
-candidates AS (
-    SELECT *
-    FROM eligible
-    WHERE max_candidate_layer_count > 0
+      AND r.actionable_forecast_daily_profile IS NOT NULL
 ),
 
 next_trigger AS (
@@ -61,23 +36,103 @@ next_trigger AS (
         reorder_by_date AS next_order_date,
         inventory_as_of_date,
         sku AS trigger_sku
-    FROM candidates
-    WHERE should_reorder
+    FROM eligible
     ORDER BY reorder_by_date, sku
     LIMIT 1
+),
+
+planning_horizon_days AS (
+    SELECT
+        e.sku,
+        nt.next_order_date,
+        planning_date::DATE AS planning_date,
+        COALESCE(
+            NULLIF(
+                e.actionable_forecast_daily_profile
+                  ->> EXTRACT(MONTH FROM planning_date)::INT::TEXT,
+                ''
+            )::NUMERIC,
+            e.actionable_forecast_daily_qty,
+            0
+        ) AS actionable_forecast_qty
+    FROM eligible e
+    CROSS JOIN next_trigger nt
+    CROSS JOIN LATERAL GENERATE_SERIES(
+        e.inventory_as_of_date + 1,
+        nt.next_order_date + e.assumed_lead_time_days + e.target_coverage_days,
+        INTERVAL '1 day'
+    ) AS dates(planning_date)
+),
+
+planned_horizons AS (
+    SELECT
+        e.sku,
+        nt.next_order_date,
+        nt.next_order_date + e.assumed_lead_time_days AS planned_expected_receipt_date,
+        COALESCE(SUM(phd.actionable_forecast_qty) FILTER (
+            WHERE phd.planning_date <= nt.next_order_date
+        ), 0) AS forecast_qty_before_planned_order,
+        COALESCE(SUM(phd.actionable_forecast_qty) FILTER (
+            WHERE phd.planning_date > nt.next_order_date
+              AND phd.planning_date <= nt.next_order_date + e.assumed_lead_time_days
+        ), 0) AS forecast_qty_during_planned_lead_time,
+        COALESCE(SUM(phd.actionable_forecast_qty) FILTER (
+            WHERE phd.planning_date > nt.next_order_date + e.assumed_lead_time_days
+        ), 0) AS forecast_qty_during_target_coverage
+    FROM eligible e
+    CROSS JOIN next_trigger nt
+    LEFT JOIN planning_horizon_days phd
+        ON e.sku = phd.sku
+    GROUP BY e.sku, nt.next_order_date, e.assumed_lead_time_days
+),
+
+planned_positions AS (
+    SELECT
+        e.*,
+        ph.next_order_date,
+        ph.planned_expected_receipt_date,
+        ph.forecast_qty_before_planned_order,
+        ph.forecast_qty_during_planned_lead_time,
+        ph.forecast_qty_during_target_coverage,
+        e.available_position_qty
+          - ph.forecast_qty_before_planned_order AS projected_position_at_planned_order_qty,
+        e.available_position_qty
+          - ph.forecast_qty_before_planned_order
+          - ph.forecast_qty_during_planned_lead_time AS projected_position_at_planned_receipt_qty,
+        GREATEST(
+            0,
+            ph.forecast_qty_during_target_coverage
+              + e.safety_stock_qty
+              - GREATEST(
+                    0,
+                    e.available_position_qty
+                      - ph.forecast_qty_before_planned_order
+                      - ph.forecast_qty_during_planned_lead_time
+                )
+        ) AS planned_net_need_qty
+    FROM eligible e
+    INNER JOIN planned_horizons ph
+        ON e.sku = ph.sku
+),
+
+candidates AS (
+    SELECT
+        pp.*,
+        CEIL(pp.planned_net_need_qty / pp.six_pack_units_per_layer) AS max_candidate_layer_count,
+        pp.forecast_qty_during_target_coverage / pp.six_pack_units_per_layer AS ride_along_demand_score
+    FROM planned_positions pp
+    WHERE pp.planned_net_need_qty > 0
 ),
 
 trigger_items AS (
     SELECT
         c.*,
-        nt.next_order_date,
         0 AS role_sort,
         'TRIGGER'::TEXT AS order_role,
         FALSE AS is_ride_along,
         c.max_candidate_layer_count AS planned_layer_count
     FROM candidates c
-    INNER JOIN next_trigger nt
-        ON c.should_reorder
+    WHERE c.reorder_by_date <= c.next_order_date
 ),
 
 trigger_summary AS (
@@ -96,13 +151,11 @@ remaining_need AS (
 ride_along_candidates AS (
     SELECT
         c.*,
-        nt.next_order_date,
         SUM(c.max_candidate_layer_count) OVER (
             ORDER BY c.ride_along_demand_score DESC, c.reorder_by_date, c.sku
             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ) AS running_layer_capacity
     FROM candidates c
-    CROSS JOIN next_trigger nt
     WHERE NOT EXISTS (
         SELECT 1
         FROM trigger_items ti
@@ -175,7 +228,6 @@ ride_along_allocations AS (
 ride_along_items AS (
     SELECT
         c.*,
-        nt.next_order_date,
         1 AS role_sort,
         'RIDE_ALONG'::TEXT AS order_role,
         TRUE AS is_ride_along,
@@ -184,7 +236,6 @@ ride_along_items AS (
     INNER JOIN ride_along_allocations ra
         ON c.sku = ra.sku
        AND ra.planned_layer_count > 0
-    CROSS JOIN next_trigger nt
 ),
 
 order_items AS (
@@ -198,6 +249,7 @@ final AS (
         MD5(next_order_date::TEXT || '|' || sku) AS wwd_pallet_order_plan_id,
         inventory_as_of_date,
         next_order_date,
+        planned_expected_receipt_date,
         target_pallets,
         layers_per_pallet,
         target_layer_count,
@@ -217,6 +269,13 @@ final AS (
         inbound_open_po_qty,
         future_receipt_qty_after_anchor,
         forecast_daily_qty,
+        actionable_forecast_daily_qty,
+        forecast_qty_before_planned_order,
+        forecast_qty_during_planned_lead_time,
+        forecast_qty_during_target_coverage,
+        projected_position_at_planned_order_qty,
+        projected_position_at_planned_receipt_qty,
+        planned_net_need_qty,
         ride_along_demand_score,
         six_pack_units_per_layer,
         max_candidate_layer_count,

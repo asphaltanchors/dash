@@ -235,12 +235,12 @@ models:
           - not_null
 
       - name: should_reorder
-        description: Conservative boolean recommendation after applying policy, stock position, demand, and manual-review gates.
+        description: Action flag meaning an order should be placed from the current inventory snapshot; future reorder thresholds remain false until due.
         tests:
           - not_null
 
       - name: reorder_qty
-        description: Spike-adjusted suggested quantity to order or replenish for target coverage after receipt. High spike-risk SKUs use conservative baseline demand, medium spike-risk SKUs are dampened below the full growth case, and this excludes uncovered lead-time demand that replenishment cannot arrive in time to satisfy.
+        description: Quantity to order now when `should_reorder` is true, using the spike-adjusted month-by-month demand profile through lead time and target coverage. Future scheduled rows remain zero until their threshold is reached.
         tests:
           - not_null
 
@@ -266,7 +266,7 @@ models:
         description: Suggested reorder quantity multiplied by current QuickBooks purchase cost.
 
       - name: reorder_by_date
-        description: Estimated latest date to trigger replenishment before available position reaches the reorder point.
+        description: Earliest projected date inventory position reaches the seasonally integrated, spike-adjusted lead-time reorder point.
 
       - name: projected_stockout_or_safety_date
         description: Estimated date current on-hand reaches safety stock or zero under the current demand rate.
@@ -316,8 +316,9 @@ models:
       - name: target_coverage_days
         description: >
           Target days of coverage used to size the first-pass reorder quantity. Explicit SKU/vendor
-          planning overrides take precedence; mature seasonal SKUs can use observed SKU/vendor PO
-          cycle history bounded to 60-180 days; otherwise this falls back to the policy default.
+          planning overrides take precedence; WWD uses a shared observed vendor PO cadence with a
+          60-day planning floor, while other mature seasonal SKUs can use observed SKU/vendor PO
+          cycle history bounded to 60-180 days. Otherwise this falls back to the policy default.
         tests:
           - not_null
 
@@ -330,7 +331,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['configured_sku_vendor', 'observed_sku_vendor_po_cycle', 'policy_bucket_default']
+                values: ['configured_sku_vendor', 'observed_vendor_po_cycle', 'observed_sku_vendor_po_cycle', 'policy_bucket_default']
 
       - name: observed_sku_vendor_order_cycle_days
         description: P75 days between historical purchase order batches for the selected SKU/vendor, used as a dynamic order-cycle target when at least five intervals exist.
@@ -574,10 +575,10 @@ models:
 
   - name: mart_wwd_pallet_order_plan
     description: >
-      Proposed regular WWD pallet order at SKU-line grain. The plan includes every non-review
-      WWD layer SKU currently flagged for reorder, then fills any remaining two-pallet target
-      with ride-along SKUs allocated by forecasted layer demand. Manual-review and special-order
-      candidates are deliberately excluded from this regular order path.
+      Forward-scheduled regular WWD pallet order at SKU-line grain. The plan starts at the earliest
+      eligible WWD layer SKU threshold, projects each candidate through the proposed order and
+      receipt dates, and includes only layers supported by net demand after stock and inbound.
+      Manual-review and special-order candidates are excluded from this regular order path.
     columns:
       - name: wwd_pallet_order_plan_id
         description: Stable key for the proposed order line, built from the proposal trigger date and SKU.
@@ -591,7 +592,12 @@ models:
           - not_null
 
       - name: next_order_date
-        description: Proposed regular WWD order trigger date from the earliest non-review WWD layer SKU with `should_reorder = true`; all currently flagged WWD layer buys are included in that proposed order.
+        description: Proposed regular WWD order date from the earliest eligible non-review WWD layer SKU reorder threshold, whether or not that threshold is due today.
+        tests:
+          - not_null
+
+      - name: planned_expected_receipt_date
+        description: Expected receipt date for this SKU when ordered on `next_order_date` using its selected lead time.
         tests:
           - not_null
 
@@ -630,6 +636,11 @@ models:
 
       - name: planned_buy_qty
         description: Planned buy quantity in the SKU's native inventory units, equal to planned layers times configured units per layer.
+        tests:
+          - not_null
+
+      - name: planned_net_need_qty
+        description: Projected target-coverage and safety-stock shortfall at the planned receipt date before layer rounding.
         tests:
           - not_null
 
