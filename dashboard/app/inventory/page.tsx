@@ -242,7 +242,7 @@ function ProposedWwdOrderPanel({
             <TableHead className="h-8 w-[10%] px-3 text-[11px] uppercase text-slate-500">Role</TableHead>
             <TableHead className="h-8 w-[14%] px-3 text-[11px] uppercase text-slate-500">SKU</TableHead>
             <TableHead className="h-8 w-[38%] text-[11px] uppercase text-slate-500">Item</TableHead>
-            <TableHead className="h-8 w-[12%] text-right text-[11px] uppercase text-slate-500">Due</TableHead>
+            <TableHead className="h-8 w-[12%] text-right text-[11px] uppercase text-slate-500">Order By</TableHead>
             <TableHead className="h-8 w-[9%] text-right text-[11px] uppercase text-slate-500">Layers</TableHead>
             <TableHead className="h-8 w-[9%] text-right text-[11px] uppercase text-slate-500">Buy Qty</TableHead>
             <TableHead className="h-8 w-[8%] text-right text-[11px] uppercase text-slate-500">Cost</TableHead>
