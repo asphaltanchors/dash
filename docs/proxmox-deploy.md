@@ -49,7 +49,7 @@ Create a remote named `dropbox`. The compose sidecar syncs
 Run from `/srv/aac-bi/app`:
 
 ```bash
-ops/deploy.sh deploy       # rebuild and start
+ops/deploy.sh deploy       # git pull, rebuild/start, dbt run, dashboard health check
 ops/deploy.sh status       # containers, importer logs, order freshness
 ops/deploy.sh seed         # one-time historical load
 ops/deploy.sh incremental  # manual daily load
@@ -57,5 +57,10 @@ ops/deploy.sh test         # dbt tests
 ops/deploy.sh backup-db    # pg_dump to /srv/aac-bi/backups
 ops/deploy.sh logs importer
 ```
+
+`deploy` stops immediately if the pull, container rebuild, dbt run, or dashboard
+check fails. The dashboard check probes `http://${DASHBOARD_BIND}:3000/` from the
+VM (using `127.0.0.1` when the bind address is unset or listens on all interfaces).
+Set `DASHBOARD_HEALTH_URL` in `.env` to override the probe URL.
 
 After a VM reboot, Docker restart policies should bring the stack back.
