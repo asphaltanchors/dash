@@ -367,11 +367,12 @@ models:
                   - family_material_seasonality_with_growth
                   - capped_trailing_sku_baseline
                   - sparse_or_new_observed_velocity
+                  - direct_and_kit_sales_component_equivalent
                   - component_consumption_since_2024
                   - no_automatic_forecast
 
       - name: forecast_daily_qty
-        description: Daily demand forecast chosen from capped SKU demand, SKU seasonality, family/material seasonality fallback, growth trend, sparse/new SKU recent velocity, or component consumption.
+        description: Daily demand forecast chosen from capped SKU demand, SKU seasonality, family/material seasonality fallback, growth trend, sparse/new SKU recent velocity, kit-equivalent component demand, or component consumption.
 
       - name: sku_baseline_monthly_qty
         description: Capped monthly SKU demand baseline before seasonality and growth are applied.

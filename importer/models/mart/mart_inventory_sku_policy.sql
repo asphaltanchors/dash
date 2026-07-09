@@ -58,6 +58,7 @@ suppression_rules AS (
             WHEN li.sku ILIKE 'HILLMAN PRICING%' THEN 'pricing_artifact_not_inventory'
             WHEN li.sku LIKE '%(W)' THEN 'china_ordering_artifact_not_inventory'
             WHEN li.sku = '01-7010.MCC' THEN 'customer_special_order_not_inventory'
+            WHEN li.sku = '01-7014' THEN 'deprecated_sell_through_do_not_reorder'
             WHEN li.sku = '01-7014.wwd' THEN 'unused_wwd_artifact_not_inventory'
             WHEN li.sku = '01-7625.K' THEN 'deprecated_sell_through_do_not_reorder'
             WHEN li.sku = '01-6315.3SK-2' THEN 'customer_special_order_not_inventory'

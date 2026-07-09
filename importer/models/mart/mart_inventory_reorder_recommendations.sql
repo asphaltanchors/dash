@@ -55,7 +55,7 @@ future_receipt_lines AS (
     GROUP BY m.sku, m.movement_date
 ),
 
-sales_lines AS (
+raw_sales_lines AS (
     SELECT
         p.sku,
         p.product_family,
@@ -71,6 +71,43 @@ sales_lines AS (
     WHERE m.movement_type = 'sale'
       AND m.is_future_committed_demand = FALSE
       AND m.quantity_out > 0
+),
+
+kit_component_demand_rules AS (
+    SELECT *
+    FROM (
+        VALUES
+            ('01-7010', '01-6310.72L', 4::NUMERIC, 72::NUMERIC, 'ak4_kit_anchor_component'),
+            ('01-7010-FBA', '01-6310.72L', 4::NUMERIC, 72::NUMERIC, 'ak4_fba_kit_anchor_component'),
+            ('01-7013', '01-6310.72L', 4::NUMERIC, 72::NUMERIC, 'eak4_kit_anchor_component'),
+            ('01-7013.FBA', '01-6310.72L', 4::NUMERIC, 72::NUMERIC, 'eak4_fba_kit_anchor_component')
+    ) AS rules(kit_sku, component_sku, component_units_per_kit, component_units_per_sku, component_demand_rule)
+),
+
+component_equivalent_sales_lines AS (
+    SELECT
+        p.sku,
+        p.product_family,
+        p.material_type,
+        m.movement_date,
+        DATE_TRUNC('month', m.movement_date)::DATE AS month_start,
+        (m.quantity_out * rules.component_units_per_kit / rules.component_units_per_sku) AS quantity_out
+    FROM kit_component_demand_rules rules
+    INNER JOIN policy p
+        ON rules.component_sku = p.sku
+    INNER JOIN {{ ref('int_quickbooks__inventory_movements') }} m
+        ON rules.kit_sku = m.sku
+    INNER JOIN latest_snapshot ls
+        ON m.movement_date <= ls.inventory_as_of_date
+    WHERE m.movement_type = 'sale'
+      AND m.is_future_committed_demand = FALSE
+      AND m.quantity_out > 0
+),
+
+sales_lines AS (
+    SELECT * FROM raw_sales_lines
+    UNION ALL
+    SELECT * FROM component_equivalent_sales_lines
 ),
 
 sales_line_caps AS (
@@ -647,6 +684,8 @@ forecast_base AS (
                 THEN 'capped_trailing_sku_baseline'
             WHEN policy_bucket = 'SPARSE_OR_NEW_SKU_BASELINE_MODEL'
                 THEN 'sparse_or_new_observed_velocity'
+            WHEN sku = '01-6310.72L'
+                THEN 'direct_and_kit_sales_component_equivalent'
             WHEN policy_bucket = 'COMPONENT_PACKAGING_MODEL'
                 THEN 'component_consumption_since_2024'
             ELSE 'no_automatic_forecast'
@@ -703,6 +742,11 @@ forecast AS (
                 calc_avg_daily_sales_90d,
                 COALESCE(avg_daily_sales_since_first_sale_365d, 0)
             )
+            WHEN forecast_model_detail = 'direct_and_kit_sales_component_equivalent' THEN GREATEST(
+                sku_baseline_monthly_qty / 30.4375,
+                calc_avg_daily_sales_90d,
+                COALESCE(avg_daily_sales_since_first_sale_365d, 0)
+            )
             WHEN policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN GREATEST(
                 component_consumed_qty_since_2024 / NULLIF((inventory_as_of_date - DATE '2024-01-01')::NUMERIC, 0),
                 0
@@ -724,6 +768,7 @@ variability_demand_events AS (
        AND csl.movement_date <= f.inventory_as_of_date
        AND csl.movement_date >= f.inventory_as_of_date - INTERVAL '365 days'
     WHERE f.policy_bucket != 'COMPONENT_PACKAGING_MODEL'
+       OR f.forecast_model_detail = 'direct_and_kit_sales_component_equivalent'
 
     UNION ALL
 
@@ -738,6 +783,7 @@ variability_demand_events AS (
        AND ccl.movement_date <= f.inventory_as_of_date
        AND ccl.movement_date >= f.inventory_as_of_date - INTERVAL '365 days'
     WHERE f.policy_bucket = 'COMPONENT_PACKAGING_MODEL'
+      AND f.forecast_model_detail != 'direct_and_kit_sales_component_equivalent'
 ),
 
 variability_window_starts AS (
@@ -790,7 +836,8 @@ forecast_with_variability_inputs AS (
     SELECT
         f.*,
         CASE
-            WHEN f.policy_bucket = 'COMPONENT_PACKAGING_MODEL' THEN 'component_consumption'
+            WHEN f.policy_bucket = 'COMPONENT_PACKAGING_MODEL'
+             AND f.forecast_model_detail != 'direct_and_kit_sales_component_equivalent' THEN 'component_consumption'
             ELSE 'capped_sales'
         END AS demand_variability_source,
         COALESCE(ltdv.variability_sample_windows, 0) AS variability_sample_windows,
