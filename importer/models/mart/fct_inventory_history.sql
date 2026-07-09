@@ -34,43 +34,21 @@ future_dated_receipts AS (
     GROUP BY sku, movement_date
 ),
 
-raw_anchors AS (
+raw_anchor_rows AS (
     SELECT
-        CASE
-            WHEN item_name = '82-6002 IN' THEN '82-6002'
-            ELSE item_name
-        END AS sku,
+        {{ normalize_inventory_sku('item_name') }} AS sku,
+        item_name,
         CAST(load_date AS DATE) AS anchor_date,
         quantity_on_hand AS quickbooks_quantity_on_hand,
-        GREATEST(
-            quantity_on_hand - COALESCE(future_receipts.future_receipt_qty_after_anchor, 0),
-            0
-        ) AS anchor_quantity_on_hand,
-        COALESCE(future_receipts.future_receipt_qty_after_anchor, 0) AS future_receipt_qty_after_anchor,
-        COALESCE(future_receipts.future_receipt_line_count_after_anchor, 0) AS future_receipt_line_count_after_anchor,
         COALESCE(quantity_on_order, 0) AS quantity_on_order,
         COALESCE(quantity_on_sales_order, 0) AS quantity_on_sales_order,
         ROW_NUMBER() OVER (
             PARTITION BY
-                CASE
-                    WHEN item_name = '82-6002 IN' THEN '82-6002'
-                    ELSE item_name
-                END,
+                item_name,
                 CAST(load_date AS DATE)
             ORDER BY load_date DESC
         ) AS anchor_rank
     FROM {{ ref('stg_quickbooks__items') }}
-    LEFT JOIN LATERAL (
-        SELECT
-            SUM(fdr.receipt_qty) AS future_receipt_qty_after_anchor,
-            SUM(fdr.receipt_line_count) AS future_receipt_line_count_after_anchor
-        FROM future_dated_receipts fdr
-        WHERE fdr.sku = CASE
-                WHEN item_name = '82-6002 IN' THEN '82-6002'
-                ELSE item_name
-            END
-          AND fdr.receipt_date > CAST(load_date AS DATE)
-    ) future_receipts ON TRUE
     WHERE item_name IS NOT NULL
       AND TRIM(item_name) != ''
       AND quantity_on_hand IS NOT NULL
@@ -79,18 +57,39 @@ raw_anchors AS (
       AND load_date ~ '^\d{4}-\d{2}-\d{2}$'
 ),
 
-anchors AS (
+raw_anchors AS (
     SELECT
-        sku,
-        anchor_date,
-        quickbooks_quantity_on_hand,
-        anchor_quantity_on_hand,
-        future_receipt_qty_after_anchor,
-        future_receipt_line_count_after_anchor,
-        quantity_on_order,
-        quantity_on_sales_order
-    FROM raw_anchors
+        rar.sku,
+        rar.anchor_date,
+        SUM(rar.quickbooks_quantity_on_hand) AS quickbooks_quantity_on_hand,
+        GREATEST(
+            SUM(rar.quickbooks_quantity_on_hand) - COALESCE(future_receipts.future_receipt_qty_after_anchor, 0),
+            0
+        ) AS anchor_quantity_on_hand,
+        COALESCE(future_receipts.future_receipt_qty_after_anchor, 0) AS future_receipt_qty_after_anchor,
+        COALESCE(future_receipts.future_receipt_line_count_after_anchor, 0) AS future_receipt_line_count_after_anchor,
+        SUM(rar.quantity_on_order) AS quantity_on_order,
+        SUM(rar.quantity_on_sales_order) AS quantity_on_sales_order
+    FROM raw_anchor_rows rar
+    LEFT JOIN LATERAL (
+        SELECT
+            SUM(fdr.receipt_qty) AS future_receipt_qty_after_anchor,
+            SUM(fdr.receipt_line_count) AS future_receipt_line_count_after_anchor
+        FROM future_dated_receipts fdr
+        WHERE fdr.sku = rar.sku
+          AND fdr.receipt_date > rar.anchor_date
+    ) future_receipts ON TRUE
     WHERE anchor_rank = 1
+    GROUP BY
+        rar.sku,
+        rar.anchor_date,
+        future_receipts.future_receipt_qty_after_anchor,
+        future_receipts.future_receipt_line_count_after_anchor
+),
+
+anchors AS (
+    SELECT *
+    FROM raw_anchors
 ),
 
 inventory_skus AS (
@@ -98,12 +97,9 @@ inventory_skus AS (
     FROM anchors
 ),
 
-product_details AS (
+product_detail_rows AS (
     SELECT
-        CASE
-            WHEN item_name = '82-6002 IN' THEN '82-6002'
-            ELSE item_name
-        END AS sku,
+        {{ normalize_inventory_sku('item_name') }} AS sku,
         sales_description,
         product_family,
         material_type,
@@ -115,9 +111,40 @@ product_details AS (
         unit_of_measure,
         sales_price,
         purchase_cost,
-        status AS item_status
+        status AS item_status,
+        ROW_NUMBER() OVER (
+            PARTITION BY {{ normalize_inventory_sku('item_name') }}
+            ORDER BY
+                CASE
+                    WHEN item_name = {{ normalize_inventory_sku('item_name') }} THEN 0
+                    WHEN UPPER(TRIM(item_name::TEXT)) LIKE '%.IN'
+                      OR UPPER(TRIM(item_name::TEXT)) LIKE '% IN' THEN 2
+                    ELSE 1
+                END,
+                item_name
+        ) AS product_detail_rank
     FROM {{ ref('int_quickbooks__items_enriched') }}
-    WHERE item_name != '82-6002 IN'
+    WHERE item_name IS NOT NULL
+      AND TRIM(item_name) != ''
+),
+
+product_details AS (
+    SELECT
+        sku,
+        sales_description,
+        product_family,
+        material_type,
+        is_kit,
+        item_type,
+        item_subtype,
+        packaging_type,
+        units_per_sku,
+        unit_of_measure,
+        sales_price,
+        purchase_cost,
+        item_status
+    FROM product_detail_rows
+    WHERE product_detail_rank = 1
 ),
 
 daily_movements AS (
@@ -174,10 +201,7 @@ purchase_order_lines AS (
         quick_books_internal_id
     FROM (
         SELECT
-            CASE
-                WHEN product = '82-6002 IN' THEN '82-6002'
-                ELSE product
-            END AS sku,
+            {{ normalize_inventory_sku('product') }} AS sku,
             vendor,
             purchase_order_no,
             LEAST(

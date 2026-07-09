@@ -270,10 +270,7 @@ purchase_order_lines AS (
         po_qty
     FROM (
         SELECT
-            CASE
-                WHEN product = '82-6002 IN' THEN '82-6002'
-                ELSE product
-            END AS sku,
+            {{ normalize_inventory_sku('product') }} AS sku,
             vendor,
             LEAST(
                 COALESCE(
@@ -369,10 +366,7 @@ observed_sku_vendor_order_cycles AS (
 
 receipt_lines AS (
     SELECT DISTINCT
-        CASE
-            WHEN product_service = '82-6002 IN' THEN '82-6002'
-            ELSE product_service
-        END AS sku,
+        {{ normalize_inventory_sku('product_service') }} AS sku,
         vendor,
         TO_DATE(date, 'MM-DD-YYYY') AS receipt_date,
         bill_no,

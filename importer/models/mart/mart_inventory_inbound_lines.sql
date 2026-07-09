@@ -95,10 +95,7 @@ open_purchase_order_source AS (
 
 open_po_lines AS (
     SELECT DISTINCT
-        CASE
-            WHEN product = '82-6002 IN' THEN '82-6002'
-            ELSE product
-        END AS sku,
+        {{ normalize_inventory_sku('product') }} AS sku,
         'OPEN_PO'::TEXT AS inbound_type,
         purchase_order_no::TEXT AS document_number,
         po.vendor::TEXT AS vendor,
@@ -145,10 +142,7 @@ open_po_lines AS (
         'Open, unreceived purchase order line.' AS inbound_note
     FROM open_purchase_order_source po
     LEFT JOIN observed_sku_vendor_lead_times osvl
-        ON CASE
-                WHEN po.product = '82-6002 IN' THEN '82-6002'
-                ELSE po.product
-            END = osvl.sku
+        ON {{ normalize_inventory_sku('po.product') }} = osvl.sku
        AND po.vendor = osvl.vendor
     LEFT JOIN observed_vendor_lead_times ovl
         ON po.vendor = ovl.vendor

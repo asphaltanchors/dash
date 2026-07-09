@@ -492,7 +492,7 @@ models:
           - not_null
 
       - name: sku
-        description: QuickBooks item name after SKU normalization for known aliases such as `82-6002 IN`.
+        description: QuickBooks item name after SKU normalization. Vendor/inbound aliases ending in `.IN` or ` IN`, such as `ADH-EPX2-TUB10LB.IN` and `82-6002 IN`, are pooled into the base sellable SKU for inventory planning.
         tests:
           - not_null
 

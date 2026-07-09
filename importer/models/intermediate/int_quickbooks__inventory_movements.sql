@@ -23,10 +23,7 @@ WITH typed_order_items AS (
 
 inventory_items AS (
     SELECT DISTINCT
-        CASE
-            WHEN item_name = '82-6002 IN' THEN '82-6002'
-            ELSE item_name
-        END AS sku
+        {{ normalize_inventory_sku('item_name') }} AS sku
     FROM {{ ref('int_quickbooks__items_enriched') }}
     WHERE item_name IS NOT NULL
       AND TRIM(item_name) != ''
@@ -56,10 +53,7 @@ sales_movements AS (
     SELECT
         'sales_order_line' AS movement_source,
         'sale' AS movement_type,
-        CASE
-            WHEN product_service = '82-6002 IN' THEN '82-6002'
-            ELSE product_service
-        END AS sku,
+        {{ normalize_inventory_sku('product_service') }} AS sku,
         CAST(order_date AS DATE) AS movement_date,
         -1 * product_service_quantity AS movement_quantity,
         GREATEST(-1 * product_service_quantity, 0) AS quantity_in,
@@ -110,10 +104,7 @@ receipt_movements AS (
         SELECT DISTINCT
             bill_no,
             vendor,
-            CASE
-                WHEN product_service = '82-6002 IN' THEN '82-6002'
-                ELSE product_service
-            END AS product_service,
+            {{ normalize_inventory_sku('product_service') }} AS product_service,
             TO_DATE(date, 'MM-DD-YYYY') AS movement_date,
             NULLIF(product_service_quantity, '')::NUMERIC AS qty,
             CASE
@@ -170,10 +161,7 @@ adjustment_movements AS (
     FROM (
         SELECT DISTINCT
             reference_no,
-            CASE
-                WHEN item = '82-6002 IN' THEN '82-6002'
-                ELSE item
-            END AS item,
+            {{ normalize_inventory_sku('item') }} AS item,
             TO_DATE(adjustment_date, 'MM-DD-YYYY') AS movement_date,
             quantity_difference::NUMERIC AS qty,
             value_difference::NUMERIC AS value_difference,
@@ -217,10 +205,7 @@ build_production_movements AS (
         SELECT DISTINCT
             build_assembly_no,
             TO_DATE(date, 'MM-DD-YYYY') AS movement_date,
-            CASE
-                WHEN inventory_assembly_item = '82-6002 IN' THEN '82-6002'
-                ELSE inventory_assembly_item
-            END AS assembly_sku,
+            {{ normalize_inventory_sku('inventory_assembly_item') }} AS assembly_sku,
             quantity_to_build,
             transxx,
             quick_books_internal_id
@@ -260,14 +245,8 @@ build_component_movements AS (
         SELECT DISTINCT
             build_assembly_no,
             TO_DATE(date, 'MM-DD-YYYY') AS movement_date,
-            CASE
-                WHEN inventory_assembly_item = '82-6002 IN' THEN '82-6002'
-                ELSE inventory_assembly_item
-            END AS assembly_sku,
-            CASE
-                WHEN assembly_line_item = '82-6002 IN' THEN '82-6002'
-                ELSE assembly_line_item
-            END AS component_sku,
+            {{ normalize_inventory_sku('inventory_assembly_item') }} AS assembly_sku,
+            {{ normalize_inventory_sku('assembly_line_item') }} AS component_sku,
             line_item_quantity_needed,
             transxx,
             quick_books_internal_id

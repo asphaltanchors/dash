@@ -40,10 +40,7 @@ purchase_order_lines_parsed AS (
             COALESCE(product_quantity::TEXT, ''),
             COALESCE(product_amount::TEXT, '')
         )) AS po_line_key,
-        CASE
-            WHEN product = '82-6002 IN' THEN '82-6002'
-            ELSE product
-        END AS sku,
+        {{ normalize_inventory_sku('product') }} AS sku,
         vendor,
         purchase_order_no,
         CASE
@@ -106,10 +103,7 @@ receipt_lines AS (
             COALESCE(product_service_quantity, ''),
             COALESCE(product_service_amount, '')
         )) AS receipt_line_key,
-        CASE
-            WHEN product_service = '82-6002 IN' THEN '82-6002'
-            ELSE product_service
-        END AS sku,
+        {{ normalize_inventory_sku('product_service') }} AS sku,
         vendor,
         TO_DATE(date, 'MM-DD-YYYY') AS receipt_date,
         CASE

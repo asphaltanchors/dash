@@ -34,6 +34,8 @@ logs/
 # Database dumps
 *.sql
 !importer/models/**/*.sql
+!importer/macros/**/*.sql
+!importer/tests/test_inventory_in_skus_map_to_catalog_sku.sql
 *.dump
 
 # Python cache (if running scripts locally)
