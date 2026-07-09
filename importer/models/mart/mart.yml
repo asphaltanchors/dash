@@ -539,9 +539,9 @@ models:
 
   - name: mart_wwd_pallet_order_plan
     description: >
-      Proposed regular WWD pallet order at SKU-line grain. The plan triggers on the earliest
-      non-review WWD layer SKU that should be reordered, then fills the two-pallet target with
-      ride-along SKUs allocated by forecasted layer demand. Manual-review and special-order
+      Proposed regular WWD pallet order at SKU-line grain. The plan includes every non-review
+      WWD layer SKU currently flagged for reorder, then fills any remaining two-pallet target
+      with ride-along SKUs allocated by forecasted layer demand. Manual-review and special-order
       candidates are deliberately excluded from this regular order path.
     columns:
       - name: wwd_pallet_order_plan_id
@@ -556,7 +556,7 @@ models:
           - not_null
 
       - name: next_order_date
-        description: Proposed regular WWD order trigger date from the earliest non-review WWD layer SKU with `should_reorder = true`.
+        description: Proposed regular WWD order trigger date from the earliest non-review WWD layer SKU with `should_reorder = true`; all currently flagged WWD layer buys are included in that proposed order.
         tests:
           - not_null
 

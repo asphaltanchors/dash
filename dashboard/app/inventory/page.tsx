@@ -111,6 +111,27 @@ function sortPlanningItems(items: InventoryPlanningItem[]) {
   })
 }
 
+function urgencyDateValue(item: InventoryPlanningItem) {
+  const date = item.reorderByDate || item.stockoutDate
+  return date ? Date.parse(`${date}T00:00:00Z`) : Number.POSITIVE_INFINITY
+}
+
+function sortBuyItemsByUrgency(items: InventoryPlanningItem[]) {
+  return [...items].sort((a, b) => {
+    const actionOrder: Record<InventoryPlanningItem['action'], number> = { OUT_OF_STOCK: 0, BUY: 1, REVIEW: 2, WATCH: 3, OK: 4 }
+    const actionCompare = actionOrder[a.action] - actionOrder[b.action]
+    if (actionCompare !== 0) return actionCompare
+
+    const urgencyCompare = urgencyDateValue(a) - urgencyDateValue(b)
+    if (urgencyCompare !== 0) return urgencyCompare
+
+    const costCompare = toNumber(b.suggestedBuyCost) - toNumber(a.suggestedBuyCost)
+    if (costCompare !== 0) return costCompare
+
+    return a.sku.localeCompare(b.sku)
+  })
+}
+
 function isWwd(item: InventoryPlanningItem) {
   return item.preferredVendor === 'WWD'
 }
@@ -281,9 +302,9 @@ function SectionTable({
       <Table>
         <TableHeader>
           <TableRow className="border-slate-800 bg-slate-950/30 hover:bg-slate-950/30">
+            <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-500">Action</TableHead>
             <TableHead className="h-8 px-3 text-[11px] uppercase text-slate-500">SKU</TableHead>
             <TableHead className="h-8 text-[11px] uppercase text-slate-500">Item</TableHead>
-            <TableHead className="h-8 text-[11px] uppercase text-slate-500">Action</TableHead>
             <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">On Hand</TableHead>
             <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Position</TableHead>
             <TableHead className="h-8 text-right text-[11px] uppercase text-slate-500">Inbound</TableHead>
@@ -298,6 +319,7 @@ function SectionTable({
             const cost = toNumber(item.suggestedBuyCost)
             return (
               <TableRow key={item.sku} className="h-10 border-slate-800 hover:bg-slate-900/50">
+                <TableCell className="px-3 py-1.5"><CompactBadge tone={rowTone}>{actionLabels[item.action]}</CompactBadge></TableCell>
                 <TableCell className="max-w-[8rem] px-3 py-1.5">
                   <Link href={`/products/${encodeURIComponent(item.sku)}`} className="block truncate font-mono text-xs font-semibold text-blue-300 hover:text-blue-200">{item.sku}</Link>
                   <p className="truncate text-[11px] text-slate-500">{item.preferredVendor}</p>
@@ -306,7 +328,6 @@ function SectionTable({
                   <p className="truncate text-xs font-medium text-slate-200">{item.salesDescription || item.productFamily}</p>
                   <p className="truncate text-[11px] text-slate-500">{item.productFamily} | {item.materialType} | {item.confidenceLevel}</p>
                 </TableCell>
-                <TableCell className="py-1.5"><CompactBadge tone={rowTone}>{actionLabels[item.action]}</CompactBadge></TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">{formatNumber(item.onHandQty, 0)}</TableCell>
                 <TableCell className="py-1.5 text-right font-mono text-xs text-slate-300">
                   <p>{item.positionDays || '-'}</p>
@@ -339,6 +360,7 @@ export default async function InventoryPage() {
   const accessoryItems = items.filter((item) => !isWwd(item) && !isFba(item) && !isAdhesive(item) && isAccessory(item))
   const otherItems = items.filter((item) => !isWwd(item) && !isFba(item) && !isAdhesive(item) && !isAccessory(item))
   const reviewItems = items.filter((item) => item.requiresManualReview || item.action === 'REVIEW')
+  const buyItems = sortBuyItemsByUrgency(items.filter((item) => item.shouldReorder))
 
   return (
     <>
@@ -390,9 +412,15 @@ export default async function InventoryPage() {
 
         <section>
           <Panel>
-            <PanelHeader title="Priority Queue" eyebrow="Highest risk items across all buckets" action={<Link href="#all-skus" className="text-xs font-medium text-blue-300 hover:text-blue-200">All SKUs <ArrowUpRight className="inline size-3" /></Link>} />
+            <PanelHeader
+              title="Buy List"
+              eyebrow="All SKUs currently flagged for reorder, earliest reorder dates first"
+              action={<Link href="#all-skus" className="text-xs font-medium text-blue-300 hover:text-blue-200">All SKUs <ArrowUpRight className="inline size-3" /></Link>}
+            />
             <div className="space-y-2 p-3">
-              {sortPlanningItems(items).slice(0, 10).map((item) => {
+              {buyItems.length === 0 ? (
+                <p className="text-xs text-slate-500">No SKUs are currently flagged for reorder.</p>
+              ) : buyItems.map((item) => {
                 const tone = actionTone(item.action)
                 return (
                   <div key={item.sku} className="grid grid-cols-[auto_7rem_minmax(0,1fr)_4rem_5rem] items-center gap-2 text-xs">

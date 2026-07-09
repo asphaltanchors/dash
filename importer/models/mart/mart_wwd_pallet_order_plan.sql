@@ -1,6 +1,6 @@
 /*
 ABOUTME: Proposed regular WWD pallet order from the SKU reorder mart.
-ABOUTME: Triggers on the earliest non-review WWD layer SKU, then fills two pallets with demand-weighted ride-alongs.
+ABOUTME: Includes all non-review WWD layer buys, then fills remaining pallet space with demand-weighted ride-alongs.
 */
 
 {{ config(
@@ -78,7 +78,6 @@ trigger_items AS (
     FROM candidates c
     INNER JOIN next_trigger nt
         ON c.should_reorder
-       AND c.reorder_by_date <= nt.next_order_date
 ),
 
 trigger_summary AS (
