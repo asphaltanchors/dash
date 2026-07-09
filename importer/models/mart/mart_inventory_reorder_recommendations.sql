@@ -62,7 +62,11 @@ raw_sales_lines AS (
         p.material_type,
         m.movement_date,
         DATE_TRUNC('month', m.movement_date)::DATE AS month_start,
-        m.quantity_out
+        m.quantity_out,
+        m.source_transaction_key,
+        m.source_document_number,
+        m.source_party,
+        'direct_sale'::TEXT AS demand_source
     FROM policy p
     INNER JOIN {{ ref('int_quickbooks__inventory_movements') }} m
         ON p.sku = m.sku
@@ -91,7 +95,11 @@ component_equivalent_sales_lines AS (
         p.material_type,
         m.movement_date,
         DATE_TRUNC('month', m.movement_date)::DATE AS month_start,
-        (m.quantity_out * rules.component_units_per_kit / rules.component_units_per_sku) AS quantity_out
+        (m.quantity_out * rules.component_units_per_kit / rules.component_units_per_sku) AS quantity_out,
+        m.source_transaction_key,
+        m.source_document_number,
+        m.source_party,
+        rules.component_demand_rule AS demand_source
     FROM kit_component_demand_rules rules
     INNER JOIN policy p
         ON rules.component_sku = p.sku
@@ -127,6 +135,10 @@ capped_sales_lines AS (
         sl.movement_date,
         sl.month_start,
         sl.quantity_out,
+        sl.source_transaction_key,
+        sl.source_document_number,
+        sl.source_party,
+        sl.demand_source,
         CASE
             WHEN slc.sales_line_count_all_time >= 20
             THEN LEAST(sl.quantity_out, slc.sales_line_cap_qty)
@@ -155,6 +167,54 @@ component_consumption_lines AS (
         ON m.movement_date <= ls.inventory_as_of_date
     WHERE m.movement_type = 'build_component_consumption'
       AND m.quantity_out > 0
+),
+
+recent_spike_sales_lines AS (
+    SELECT
+        csl.*
+    FROM capped_sales_lines csl
+    CROSS JOIN latest_snapshot ls
+    WHERE csl.movement_date > ls.inventory_as_of_date - INTERVAL '90 days'
+      AND csl.movement_date <= ls.inventory_as_of_date
+),
+
+recent_customer_sales AS (
+    SELECT
+        sku,
+        COALESCE(NULLIF(TRIM(source_party), ''), 'Unknown') AS source_party,
+        SUM(quantity_out) AS recent_customer_sales_qty
+    FROM recent_spike_sales_lines
+    GROUP BY sku, COALESCE(NULLIF(TRIM(source_party), ''), 'Unknown')
+),
+
+recent_spike_line_stats AS (
+    SELECT
+        rsl.sku,
+        SUM(rsl.quantity_out) AS recent_sales_qty_90d_actual,
+        MAX(rsl.quantity_out) AS largest_recent_sales_line_qty_90d,
+        COUNT(*) AS recent_sales_line_count_90d,
+        COUNT(DISTINCT rsl.source_transaction_key) AS recent_order_count_90d,
+        COUNT(DISTINCT COALESCE(NULLIF(TRIM(rsl.source_party), ''), 'Unknown')) AS recent_customer_count_90d,
+        COUNT(DISTINCT rsl.month_start) AS recent_sales_month_count_90d
+    FROM recent_spike_sales_lines rsl
+    GROUP BY rsl.sku
+),
+
+recent_spike_customer_stats AS (
+    SELECT
+        sku,
+        MAX(recent_customer_sales_qty) AS largest_recent_customer_sales_qty_90d
+    FROM recent_customer_sales
+    GROUP BY sku
+),
+
+recent_spike_stats AS (
+    SELECT
+        rsls.*,
+        COALESCE(rscs.largest_recent_customer_sales_qty_90d, 0) AS largest_recent_customer_sales_qty_90d
+    FROM recent_spike_line_stats rsls
+    LEFT JOIN recent_spike_customer_stats rscs
+        ON rsls.sku = rscs.sku
 ),
 
 recent_daily_sales AS (
@@ -577,6 +637,23 @@ forecast_inputs AS (
         COALESCE(fms.family_material_demand_months, 0) AS family_material_demand_months,
         COALESCE(fmst.family_material_trailing_12m_avg_monthly_sales, 0) AS family_material_trailing_12m_avg_monthly_sales,
         COALESCE(fmst.family_material_prior_12m_avg_monthly_sales, 0) AS family_material_prior_12m_avg_monthly_sales,
+        COALESCE(rss.recent_sales_qty_90d_actual, 0) AS recent_sales_qty_90d_actual,
+        COALESCE(rss.largest_recent_sales_line_qty_90d, 0) AS largest_recent_sales_line_qty_90d,
+        COALESCE(rss.recent_sales_line_count_90d, 0) AS recent_sales_line_count_90d,
+        COALESCE(rss.recent_order_count_90d, 0) AS recent_order_count_90d,
+        COALESCE(rss.recent_customer_count_90d, 0) AS recent_customer_count_90d,
+        COALESCE(rss.recent_sales_month_count_90d, 0) AS recent_sales_month_count_90d,
+        COALESCE(rss.largest_recent_customer_sales_qty_90d, 0) AS largest_recent_customer_sales_qty_90d,
+        CASE
+            WHEN COALESCE(rss.recent_sales_qty_90d_actual, 0) > 0
+            THEN rss.largest_recent_sales_line_qty_90d / rss.recent_sales_qty_90d_actual
+            ELSE NULL
+        END AS largest_recent_sales_line_share_90d,
+        CASE
+            WHEN COALESCE(rss.recent_sales_qty_90d_actual, 0) > 0
+            THEN rss.largest_recent_customer_sales_qty_90d / rss.recent_sales_qty_90d_actual
+            ELSE NULL
+        END AS largest_recent_customer_sales_share_90d,
         CASE
             WHEN COALESCE(sms.prior_12m_avg_monthly_sales, 0) > 0
             THEN LEAST(1.75, GREATEST(0.60, sms.trailing_12m_avg_monthly_sales / sms.prior_12m_avg_monthly_sales))
@@ -605,6 +682,8 @@ forecast_inputs AS (
     LEFT JOIN family_material_stats fmst
         ON pi.product_family = fmst.product_family
        AND pi.material_type = fmst.material_type
+    LEFT JOIN recent_spike_stats rss
+        ON pi.sku = rss.sku
 ),
 
 future_receipts_before_expected_receipt AS (
@@ -756,13 +835,113 @@ forecast AS (
     FROM forecast_base
 ),
 
+forecast_with_spike_risk AS (
+    SELECT
+        *,
+        GREATEST(
+            COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+            COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+            COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+        ) AS baseline_forecast_daily_qty,
+        GREATEST(
+            COALESCE(calc_avg_daily_sales_30d, 0),
+            COALESCE(calc_avg_daily_sales_90d, 0)
+        ) AS recent_velocity_forecast_daily_qty,
+        CASE
+            WHEN GREATEST(
+                COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+                COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+                COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+            ) > 0
+            THEN GREATEST(
+                COALESCE(calc_avg_daily_sales_30d, 0),
+                COALESCE(calc_avg_daily_sales_90d, 0)
+            ) / GREATEST(
+                COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+                COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+                COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+            )
+            ELSE NULL
+        END AS recent_to_baseline_velocity_ratio,
+        CASE
+            WHEN policy_bucket IN ('NO_ACTION_OR_ARCHIVE', 'STOCKED_NO_RECENT_DEMAND_REVIEW', 'COMPONENT_PACKAGING_MODEL')
+                THEN 'none'
+            WHEN COALESCE(recent_sales_qty_90d_actual, 0) < 12
+                THEN 'none'
+            WHEN GREATEST(
+                    COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+                    COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+                    COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+                ) <= 0
+                THEN 'none'
+            WHEN GREATEST(
+                    COALESCE(calc_avg_daily_sales_30d, 0),
+                    COALESCE(calc_avg_daily_sales_90d, 0)
+                ) >= GREATEST(
+                    COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+                    COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+                    COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+                ) * 2.50
+             AND (
+                    COALESCE(largest_recent_customer_sales_share_90d, 0) >= 0.45
+                 OR COALESCE(largest_recent_sales_line_share_90d, 0) >= 0.35
+                 OR COALESCE(recent_sales_month_count_90d, 0) <= 1
+                )
+                THEN 'high'
+            WHEN GREATEST(
+                    COALESCE(calc_avg_daily_sales_30d, 0),
+                    COALESCE(calc_avg_daily_sales_90d, 0)
+                ) >= GREATEST(
+                    COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+                    COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+                    COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+                ) * 1.75
+                THEN 'medium'
+            ELSE 'none'
+        END AS demand_spike_risk_level,
+        NULLIF(CONCAT_WS(
+            '; ',
+            CASE
+                WHEN COALESCE(recent_sales_qty_90d_actual, 0) >= 12
+                 AND GREATEST(
+                        COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+                        COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+                        COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+                    ) > 0
+                 AND GREATEST(
+                        COALESCE(calc_avg_daily_sales_30d, 0),
+                        COALESCE(calc_avg_daily_sales_90d, 0)
+                    ) >= GREATEST(
+                        COALESCE(trailing_12m_avg_monthly_sales, 0) / 30.4375,
+                        COALESCE(avg_monthly_sales_36m, 0) * 0.80 / 30.4375,
+                        COALESCE(prior_12m_avg_monthly_sales, 0) * 1.25 / 30.4375
+                    ) * 1.75
+                THEN 'recent_velocity_above_baseline'
+            END,
+            CASE
+                WHEN COALESCE(largest_recent_customer_sales_share_90d, 0) >= 0.45
+                THEN 'customer_concentration'
+            END,
+            CASE
+                WHEN COALESCE(largest_recent_sales_line_share_90d, 0) >= 0.35
+                THEN 'large_recent_line'
+            END,
+            CASE
+                WHEN COALESCE(recent_sales_month_count_90d, 0) <= 1
+                 AND COALESCE(recent_sales_qty_90d_actual, 0) >= 12
+                THEN 'single_month_spike'
+            END
+        ), '') AS demand_spike_reason
+    FROM forecast
+),
+
 variability_demand_events AS (
     SELECT
         f.sku,
         'capped_sales' AS demand_variability_source,
         csl.movement_date,
         csl.capped_quantity_out AS demand_qty
-    FROM forecast f
+    FROM forecast_with_spike_risk f
     INNER JOIN capped_sales_lines csl
         ON f.sku = csl.sku
        AND csl.movement_date <= f.inventory_as_of_date
@@ -777,7 +956,7 @@ variability_demand_events AS (
         'component_consumption' AS demand_variability_source,
         ccl.movement_date,
         ccl.quantity_out AS demand_qty
-    FROM forecast f
+    FROM forecast_with_spike_risk f
     INNER JOIN component_consumption_lines ccl
         ON f.sku = ccl.sku
        AND ccl.movement_date <= f.inventory_as_of_date
@@ -794,7 +973,7 @@ variability_window_starts AS (
         f.forecast_daily_qty,
         f.inventory_as_of_date,
         ds.window_start::DATE AS window_start
-    FROM forecast f
+    FROM forecast_with_spike_risk f
     CROSS JOIN LATERAL GENERATE_SERIES(
         f.inventory_as_of_date - INTERVAL '365 days',
         f.inventory_as_of_date - (f.assumed_lead_time_days * INTERVAL '1 day'),
@@ -857,7 +1036,7 @@ forecast_with_variability_inputs AS (
             COALESCE(ltdv.p90_historical_lead_time_demand_qty, 0)
               - (f.forecast_daily_qty * f.assumed_lead_time_days)
         ) AS percentile_safety_stock_qty
-    FROM forecast f
+    FROM forecast_with_spike_risk f
     LEFT JOIN lead_time_demand_variability ltdv
         ON f.sku = ltdv.sku
 ),
@@ -909,6 +1088,7 @@ calculated AS (
     SELECT
         *,
         forecast_daily_qty * assumed_lead_time_days AS forecast_lead_time_qty,
+        baseline_forecast_daily_qty * assumed_lead_time_days AS baseline_forecast_lead_time_qty,
         current_on_hand_qty + open_po_position_qty + future_receipt_position_qty - committed_demand_qty AS available_position_qty,
         inbound_qty_by_expected_receipt_date_calc AS inbound_qty_by_expected_receipt_date,
         current_on_hand_qty
@@ -944,6 +1124,17 @@ calculated AS (
                     - committed_demand_before_expected_receipt_qty
                 ))
         ) AS raw_reorder_qty,
+        GREATEST(
+            0,
+            baseline_forecast_daily_qty * target_coverage_days
+              + safety_stock_qty
+              - GREATEST(0, (
+                    current_on_hand_qty
+                    + inbound_qty_by_expected_receipt_date_calc
+                    - (baseline_forecast_daily_qty * assumed_lead_time_days)
+                    - committed_demand_before_expected_receipt_qty
+                ))
+        ) AS conservative_raw_reorder_qty,
         forecast_daily_qty * assumed_lead_time_days + safety_stock_qty AS reorder_point_qty
     FROM calculation_position_inputs
 ),
@@ -952,8 +1143,23 @@ recommendations AS (
     SELECT
         *,
         CASE
+            WHEN demand_spike_risk_level = 'high' THEN conservative_raw_reorder_qty
+            WHEN demand_spike_risk_level = 'medium' THEN LEAST(
+                raw_reorder_qty,
+                conservative_raw_reorder_qty + ((raw_reorder_qty - conservative_raw_reorder_qty) * 0.50)
+            )
+            ELSE raw_reorder_qty
+        END AS spike_adjusted_raw_reorder_qty,
+        CEIL(raw_reorder_qty) AS growth_case_reorder_qty,
+        CEIL(conservative_raw_reorder_qty) AS conservative_reorder_qty,
+        CASE
             WHEN policy_bucket IN ('NO_ACTION_OR_ARCHIVE', 'STOCKED_NO_RECENT_DEMAND_REVIEW') THEN 0
             WHEN requires_manual_review AND policy_bucket != 'COMPONENT_PACKAGING_MODEL' THEN 0
+            WHEN demand_spike_risk_level = 'high' THEN CEIL(conservative_raw_reorder_qty)
+            WHEN demand_spike_risk_level = 'medium' THEN CEIL(LEAST(
+                raw_reorder_qty,
+                conservative_raw_reorder_qty + ((raw_reorder_qty - conservative_raw_reorder_qty) * 0.50)
+            ))
             ELSE CEIL(raw_reorder_qty)
         END AS reorder_qty,
         CASE
@@ -1045,10 +1251,27 @@ final AS (
         available_position_qty,
         forecast_daily_qty,
         forecast_daily_qty * 30 AS forecast_monthly_qty,
+        baseline_forecast_daily_qty,
+        baseline_forecast_daily_qty * 30 AS baseline_forecast_monthly_qty,
+        recent_velocity_forecast_daily_qty,
+        recent_velocity_forecast_daily_qty * 30 AS recent_velocity_forecast_monthly_qty,
+        recent_to_baseline_velocity_ratio,
+        demand_spike_risk_level,
+        demand_spike_reason,
+        recent_sales_qty_90d_actual,
+        largest_recent_sales_line_qty_90d,
+        recent_sales_line_count_90d,
+        recent_order_count_90d,
+        recent_customer_count_90d,
+        recent_sales_month_count_90d,
+        largest_recent_customer_sales_qty_90d,
+        largest_recent_sales_line_share_90d,
+        largest_recent_customer_sales_share_90d,
         sku_baseline_monthly_qty,
         applied_seasonality_index,
         applied_growth_factor,
         forecast_lead_time_qty,
+        baseline_forecast_lead_time_qty,
         safety_stock_qty,
         safety_stock_source,
         demand_variability_source,
@@ -1067,6 +1290,10 @@ final AS (
         uncovered_lead_time_demand_qty,
         stockout_gap_qty,
         raw_reorder_qty,
+        conservative_raw_reorder_qty,
+        spike_adjusted_raw_reorder_qty,
+        growth_case_reorder_qty,
+        conservative_reorder_qty,
         calc_avg_daily_sales_30d AS avg_daily_sales_30d,
         calc_avg_daily_sales_90d AS avg_daily_sales_90d,
         calc_avg_daily_sales_365d AS avg_daily_sales_365d,
@@ -1115,9 +1342,13 @@ final AS (
             WHEN policy_bucket = 'NO_ACTION_OR_ARCHIVE' THEN 'Excluded: no stock and no usable demand signal.'
             WHEN policy_bucket = 'STOCKED_NO_RECENT_DEMAND_REVIEW' THEN 'Manual review: stocked SKU with no recent demand.'
             WHEN requires_manual_review AND policy_bucket != 'COMPONENT_PACKAGING_MODEL' THEN 'Manual review required before automatic reorder.'
+            WHEN demand_spike_risk_level = 'high' AND reorder_qty <= 0 AND growth_case_reorder_qty > 0 THEN 'No conservative reorder: full growth case is ' || growth_case_reorder_qty::TEXT || ' units, but recent demand spike risk is high (' || REPLACE(COALESCE(demand_spike_reason, 'spike risk'), '_', ' ') || ') and baseline demand is covered by current stock and inbound.'
+            WHEN demand_spike_risk_level = 'medium' AND reorder_qty <= 0 AND growth_case_reorder_qty > 0 THEN 'No spike-adjusted reorder: full growth case is ' || growth_case_reorder_qty::TEXT || ' units, but recent demand is above baseline (' || REPLACE(COALESCE(demand_spike_reason, 'spike risk'), '_', ' ') || ') and adjusted demand is covered.'
             WHEN stockout_gap_qty > 0 THEN 'Reorder suggested; projected demand before replenishment may exceed available stock by ' || CEIL(stockout_gap_qty)::TEXT || ' units.'
             WHEN reorder_qty <= 0 AND available_position_qty >= reorder_point_qty THEN 'No reorder: available position covers lead-time demand and safety stock.'
             WHEN reorder_qty <= 0 THEN 'No reorder from current rule set.'
+            WHEN demand_spike_risk_level = 'high' THEN 'Conservative reorder: recent demand spike risk is high (' || REPLACE(COALESCE(demand_spike_reason, 'spike risk'), '_', ' ') || '), so actionable quantity uses baseline demand instead of the full growth case.'
+            WHEN demand_spike_risk_level = 'medium' THEN 'Spike-adjusted reorder: recent demand is above baseline (' || REPLACE(COALESCE(demand_spike_reason, 'spike risk'), '_', ' ') || '), so actionable quantity is dampened below the full growth case.'
             WHEN has_large_order_outlier_2025 THEN 'Reorder suggested, but 2025 demand includes a large outlier order.'
             WHEN committed_demand_qty > 0 THEN 'Reorder suggested after subtracting committed future demand.'
             ELSE 'Reorder suggested by ' || REPLACE(forecast_model_detail, '_', ' ') || ', lead-time demand, safety stock, and target coverage.'

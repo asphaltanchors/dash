@@ -89,6 +89,22 @@ export interface InventoryPlanningItem {
   availablePositionQty: string;
   forecastDailyQty: string;
   forecastMonthlyQty: string;
+  baselineForecastDailyQty: string;
+  baselineForecastMonthlyQty: string;
+  recentVelocityForecastDailyQty: string;
+  recentVelocityForecastMonthlyQty: string;
+  recentToBaselineVelocityRatio: string;
+  demandSpikeRiskLevel: string;
+  demandSpikeReason: string;
+  recentSalesQty90dActual: string;
+  largestRecentSalesLineQty90d: string;
+  recentSalesLineCount90d: number;
+  recentOrderCount90d: number;
+  recentCustomerCount90d: number;
+  recentSalesMonthCount90d: number;
+  largestRecentCustomerSalesQty90d: string;
+  largestRecentSalesLineShare90d: string;
+  largestRecentCustomerSalesShare90d: string;
   skuBaselineMonthlyQty: string;
   appliedSeasonalityIndex: string;
   appliedGrowthFactor: string;
@@ -102,6 +118,8 @@ export interface InventoryPlanningItem {
   reorderByDate: string | null;
   suggestedBuyQty: string;
   layerRoundedBuyQty: string;
+  growthCaseReorderQty: string;
+  conservativeReorderQty: string;
   reorderLayerCount: string;
   layerRoundingExtraQty: string;
   sixPackUnitsPerLayer: number | null;
@@ -138,6 +156,11 @@ export interface ProductReorderPlanningDetail extends InventoryPlanningItem {
   uncoveredLeadTimeDemandQty: string;
   stockoutGapQty: string;
   rawReorderQty: string;
+  conservativeRawReorderQty: string;
+  spikeAdjustedRawReorderQty: string;
+  growthCaseReorderQty: string;
+  conservativeReorderQty: string;
+  baselineForecastLeadTimeQty: string;
   safetyStockSource: string;
   demandVariabilitySource: string;
   policySafetyStockQty: string;
@@ -217,6 +240,22 @@ interface InventoryPlanningRow {
   available_position_qty: string | number | null;
   forecast_daily_qty: string | number | null;
   forecast_monthly_qty: string | number | null;
+  baseline_forecast_daily_qty: string | number | null;
+  baseline_forecast_monthly_qty: string | number | null;
+  recent_velocity_forecast_daily_qty: string | number | null;
+  recent_velocity_forecast_monthly_qty: string | number | null;
+  recent_to_baseline_velocity_ratio: string | number | null;
+  demand_spike_risk_level: string | null;
+  demand_spike_reason: string | null;
+  recent_sales_qty_90d_actual: string | number | null;
+  largest_recent_sales_line_qty_90d: string | number | null;
+  recent_sales_line_count_90d: number | null;
+  recent_order_count_90d: number | null;
+  recent_customer_count_90d: number | null;
+  recent_sales_month_count_90d: number | null;
+  largest_recent_customer_sales_qty_90d: string | number | null;
+  largest_recent_sales_line_share_90d: string | number | null;
+  largest_recent_customer_sales_share_90d: string | number | null;
   sku_baseline_monthly_qty: string | number | null;
   applied_seasonality_index: string | number | null;
   applied_growth_factor: string | number | null;
@@ -226,6 +265,8 @@ interface InventoryPlanningRow {
   avg_daily_sales_365d: string | number | null;
   reorder_qty: string | number | null;
   layer_rounded_reorder_qty: string | number | null;
+  growth_case_reorder_qty: string | number | null;
+  conservative_reorder_qty: string | number | null;
   reorder_layer_count: string | number | null;
   layer_rounding_extra_qty: string | number | null;
   six_pack_units_per_layer: number | null;
@@ -262,10 +303,13 @@ interface ProductReorderPlanningRow extends InventoryPlanningRow {
   inbound_qty_by_expected_receipt_date: string | number | null;
   quickbooks_quantity_on_order: string | number | null;
   forecast_lead_time_qty: string | number | null;
+  baseline_forecast_lead_time_qty: string | number | null;
   projected_position_at_expected_receipt_qty: string | number | null;
   uncovered_lead_time_demand_qty: string | number | null;
   stockout_gap_qty: string | number | null;
   raw_reorder_qty: string | number | null;
+  conservative_raw_reorder_qty: string | number | null;
+  spike_adjusted_raw_reorder_qty: string | number | null;
   safety_stock_source: string | null;
   demand_variability_source: string | null;
   policy_safety_stock_qty: string | number | null;
@@ -431,6 +475,22 @@ function mapPlanningRow(row: InventoryPlanningRow): InventoryPlanningItem {
     availablePositionQty: formatNumber(row.available_position_qty),
     forecastDailyQty: formatNumber(row.forecast_daily_qty, 1),
     forecastMonthlyQty: formatNumber(row.forecast_monthly_qty),
+    baselineForecastDailyQty: formatNumber(row.baseline_forecast_daily_qty, 1),
+    baselineForecastMonthlyQty: formatNumber(row.baseline_forecast_monthly_qty),
+    recentVelocityForecastDailyQty: formatNumber(row.recent_velocity_forecast_daily_qty, 1),
+    recentVelocityForecastMonthlyQty: formatNumber(row.recent_velocity_forecast_monthly_qty),
+    recentToBaselineVelocityRatio: formatNumber(row.recent_to_baseline_velocity_ratio, 2),
+    demandSpikeRiskLevel: row.demand_spike_risk_level || 'none',
+    demandSpikeReason: row.demand_spike_reason || '',
+    recentSalesQty90dActual: formatNumber(row.recent_sales_qty_90d_actual),
+    largestRecentSalesLineQty90d: formatNumber(row.largest_recent_sales_line_qty_90d),
+    recentSalesLineCount90d: Number(row.recent_sales_line_count_90d || 0),
+    recentOrderCount90d: Number(row.recent_order_count_90d || 0),
+    recentCustomerCount90d: Number(row.recent_customer_count_90d || 0),
+    recentSalesMonthCount90d: Number(row.recent_sales_month_count_90d || 0),
+    largestRecentCustomerSalesQty90d: formatNumber(row.largest_recent_customer_sales_qty_90d),
+    largestRecentSalesLineShare90d: formatNumber(Number(row.largest_recent_sales_line_share_90d || 0) * 100),
+    largestRecentCustomerSalesShare90d: formatNumber(Number(row.largest_recent_customer_sales_share_90d || 0) * 100),
     skuBaselineMonthlyQty: formatNumber(row.sku_baseline_monthly_qty),
     appliedSeasonalityIndex: formatNumber(row.applied_seasonality_index, 2),
     appliedGrowthFactor: formatNumber(row.applied_growth_factor, 2),
@@ -444,6 +504,8 @@ function mapPlanningRow(row: InventoryPlanningRow): InventoryPlanningItem {
     reorderByDate: formatDate(row.reorder_by_date),
     suggestedBuyQty: formatNumber(row.reorder_qty),
     layerRoundedBuyQty: formatNumber(row.layer_rounded_reorder_qty),
+    growthCaseReorderQty: formatNumber(row.growth_case_reorder_qty),
+    conservativeReorderQty: formatNumber(row.conservative_reorder_qty),
     reorderLayerCount: formatNumber(row.reorder_layer_count),
     layerRoundingExtraQty: formatNumber(row.layer_rounding_extra_qty),
     sixPackUnitsPerLayer: row.six_pack_units_per_layer == null ? null : Number(row.six_pack_units_per_layer),
@@ -599,10 +661,15 @@ export async function getProductReorderPlanningDetail(sku: string): Promise<Prod
     inboundQtyByExpectedReceiptDate: formatNumber(row.inbound_qty_by_expected_receipt_date),
     quickbooksQuantityOnOrder: formatNumber(row.quickbooks_quantity_on_order),
     forecastLeadTimeQty: formatNumber(row.forecast_lead_time_qty),
+    baselineForecastLeadTimeQty: formatNumber(row.baseline_forecast_lead_time_qty),
     projectedPositionAtExpectedReceiptQty: formatNumber(row.projected_position_at_expected_receipt_qty),
     uncoveredLeadTimeDemandQty: formatNumber(row.uncovered_lead_time_demand_qty),
     stockoutGapQty: formatNumber(row.stockout_gap_qty),
     rawReorderQty: formatNumber(row.raw_reorder_qty),
+    conservativeRawReorderQty: formatNumber(row.conservative_raw_reorder_qty),
+    spikeAdjustedRawReorderQty: formatNumber(row.spike_adjusted_raw_reorder_qty),
+    growthCaseReorderQty: formatNumber(row.growth_case_reorder_qty),
+    conservativeReorderQty: formatNumber(row.conservative_reorder_qty),
     safetyStockSource: row.safety_stock_source || 'unknown',
     demandVariabilitySource: row.demand_variability_source || 'unknown',
     policySafetyStockQty: formatNumber(row.policy_safety_stock_qty),

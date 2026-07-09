@@ -240,9 +240,15 @@ models:
           - not_null
 
       - name: reorder_qty
-        description: Suggested quantity to order or replenish for target coverage after receipt. This excludes uncovered lead-time demand that replenishment cannot arrive in time to satisfy.
+        description: Spike-adjusted suggested quantity to order or replenish for target coverage after receipt. High spike-risk SKUs use conservative baseline demand, medium spike-risk SKUs are dampened below the full growth case, and this excludes uncovered lead-time demand that replenishment cannot arrive in time to satisfy.
         tests:
           - not_null
+
+      - name: growth_case_reorder_qty
+        description: Full growth-case reorder quantity before demand-spike dampening. Preserved for audit and manual upside decisions.
+
+      - name: conservative_reorder_qty
+        description: Conservative reorder quantity based on baseline demand before recent-spike growth is applied.
 
       - name: six_pack_units_per_layer
         description: Configured WWD layer multiple in the SKU's native inventory unit, when known. The historical column name says six_pack, but bulk-pack SKUs such as 01-6310.72L are counted in their own item units. Null means no layer rounding rule has been configured for the SKU.
@@ -374,6 +380,26 @@ models:
       - name: forecast_daily_qty
         description: Daily demand forecast chosen from capped SKU demand, SKU seasonality, family/material seasonality fallback, growth trend, sparse/new SKU recent velocity, kit-equivalent component demand, or component consumption.
 
+      - name: baseline_forecast_daily_qty
+        description: Conservative daily demand baseline from longer SKU history, used to dampen actionable buys when recent demand appears spike-driven.
+
+      - name: recent_velocity_forecast_daily_qty
+        description: Recent daily demand velocity from the stronger of 30-day and 90-day observed sales rates.
+
+      - name: recent_to_baseline_velocity_ratio
+        description: Ratio of recent velocity to conservative baseline velocity, used as one input to demand spike risk.
+
+      - name: demand_spike_risk_level
+        description: Spike-risk classification for mature SKUs where recent demand materially exceeds baseline demand. Values are none, medium, or high.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['none', 'medium', 'high']
+
+      - name: demand_spike_reason
+        description: Semicolon-delimited reason codes explaining the spike-risk classification, such as recent velocity above baseline or large recent line concentration.
+
       - name: sku_baseline_monthly_qty
         description: Capped monthly SKU demand baseline before seasonality and growth are applied.
 
@@ -404,6 +430,9 @@ models:
       - name: forecast_lead_time_qty
         description: Forecast demand during the selected lead time.
 
+      - name: baseline_forecast_lead_time_qty
+        description: Conservative baseline demand during the selected lead time.
+
       - name: projected_position_at_expected_receipt_qty
         description: Projected stock position at expected receipt date before adding a new reorder, after lead-time forecast demand and committed demand due before receipt. Negative values are exposed as stockout risk but are floored to zero for reorder sizing.
 
@@ -414,6 +443,12 @@ models:
         description: >
           Alias for uncovered lead-time demand quantity, exposed for dashboard language such as
           "we may miss X units before replenishment arrives."
+
+      - name: conservative_raw_reorder_qty
+        description: Raw reorder quantity calculated from baseline demand before ceiling and layer rounding.
+
+      - name: spike_adjusted_raw_reorder_qty
+        description: Raw reorder quantity after demand-spike dampening and before ceiling and layer rounding.
 
       - name: safety_stock_qty
         description: >

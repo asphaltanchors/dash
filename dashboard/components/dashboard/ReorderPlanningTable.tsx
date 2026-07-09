@@ -47,6 +47,11 @@ const actionClasses = {
   OK: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
 };
 
+const spikeRiskClasses: Record<string, string> = {
+  high: 'border-red-500/30 bg-red-500/10 text-red-200',
+  medium: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
+};
+
 function formatInteger(value: string): string {
   return Number(value || 0).toLocaleString();
 }
@@ -181,6 +186,11 @@ function PlanningDetailsTooltip({ item }: { item: InventoryPlanningItem }) {
           </div>
           {Number(item.cappedReductionQty12m) > 0 && (
             <div>{formatInteger(item.cappedReductionQty12m)} units capped from 12m outliers</div>
+          )}
+          {item.demandSpikeRiskLevel !== 'none' && (
+            <div className="text-amber-200">
+              Spike risk {item.demandSpikeRiskLevel}; baseline {formatDaily(item.baselineForecastDailyQty)}/d, recent {formatDaily(item.recentVelocityForecastDailyQty)}/d, growth case {formatInteger(item.growthCaseReorderQty)}
+            </div>
           )}
           <div>{item.policyAssignmentReason.replaceAll('_', ' ')}</div>
           {item.policyReviewFlags && (
@@ -345,6 +355,11 @@ export function ReorderPlanningTable({ data, families }: InventoryPlanningTableP
                       <Badge variant="outline" className="h-5 rounded-sm px-1.5 text-[11px]">
                         {item.confidenceLevel}
                       </Badge>
+                      {item.demandSpikeRiskLevel !== 'none' && (
+                        <Badge variant="outline" className={`h-5 rounded-sm px-1.5 text-[11px] ${spikeRiskClasses[item.demandSpikeRiskLevel] || spikeRiskClasses.medium}`}>
+                          spike {item.demandSpikeRiskLevel}
+                        </Badge>
+                      )}
                       {item.policyValidationStatus === 'review' && (
                         <Badge variant="outline" className="h-5 rounded-sm border-amber-300 bg-amber-500/10 px-1.5 text-[11px] text-amber-200">
                           policy review

@@ -149,7 +149,13 @@ export function operationalBuyLabel(planning: ProductReorderPlanningDetail): str
 }
 
 export function operationalBuyDetail(planning: ProductReorderPlanningDetail): string {
-  if (toNumber(planning.suggestedBuyQty) <= 0) return planning.recommendationReason
+  if (toNumber(planning.suggestedBuyQty) <= 0) {
+    if (planning.demandSpikeRiskLevel !== 'none' && toNumber(planning.growthCaseReorderQty) > 0) {
+      return `Growth case ${formatInteger(planning.growthCaseReorderQty)} units; actionable buy dampened for ${planning.demandSpikeRiskLevel} spike risk`
+    }
+
+    return planning.recommendationReason
+  }
 
   if (!planning.sixPackUnitsPerLayer) {
     return `${formatInteger(planning.suggestedBuyQty)} model units`
