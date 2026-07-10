@@ -1,6 +1,6 @@
 # Run incremental pipeline daily at 4 AM Pacific (latest daily files only)
 PATH=/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
-0 4 * * * root cd /app && /app/entrypoint.sh incremental >> /var/log/cron/pipeline.log 2>&1
+0 4 * * * root /app/run-cron-pipeline.sh >> /var/log/cron/pipeline.log 2>&1
 
 # Note: Seed pipeline is run manually once during initial setup with:
 # /app/entrypoint.sh seed

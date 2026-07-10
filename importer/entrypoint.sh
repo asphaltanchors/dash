@@ -1,5 +1,46 @@
 #!/bin/bash
 
+CRON_ENV_FILE="/run/importer-cron.env"
+
+write_cron_environment() {
+    local temp_file
+    local variable_name
+    local -a missing_variables=()
+    local -a cron_variables=(
+        DATABASE_URL
+        DB_USER
+        DB_PASSWORD
+        DROPBOX_PATH
+        DBT_TARGET
+        SHOPIFY_SHOP_URL
+        SHOPIFY_ACCESS_TOKEN
+        TZ
+    )
+
+    for variable_name in DATABASE_URL DB_USER DB_PASSWORD DROPBOX_PATH DBT_TARGET SHOPIFY_SHOP_URL SHOPIFY_ACCESS_TOKEN; do
+        if [ -z "${!variable_name:-}" ]; then
+            missing_variables+=("$variable_name")
+        fi
+    done
+
+    if [ "${#missing_variables[@]}" -gt 0 ]; then
+        echo "$(date): Cannot start cron; missing required environment variables: ${missing_variables[*]}" >&2
+        return 1
+    fi
+
+    umask 077
+    temp_file="$(mktemp /run/importer-cron.env.XXXXXX)"
+
+    for variable_name in "${cron_variables[@]}"; do
+        if [ -v "$variable_name" ]; then
+            printf 'export %s=%q\n' "$variable_name" "${!variable_name}" >> "$temp_file"
+        fi
+    done
+
+    mv "$temp_file" "$CRON_ENV_FILE"
+    chmod 0600 "$CRON_ENV_FILE"
+}
+
 run_orchestrator() {
     local load_mode="$1"
     local source_name="${2:-}"
@@ -113,6 +154,9 @@ run_data_quality() {
 case "$1" in
     "cron")
         echo "$(date): Starting cron daemon..."
+        if ! write_cron_environment; then
+            exit 1
+        fi
         # Start cron in foreground mode
         exec cron -f
         ;;

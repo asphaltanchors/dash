@@ -36,8 +36,8 @@ COPY cron-schedule /etc/cron.d/pipeline-cron
 RUN chmod 0644 /etc/cron.d/pipeline-cron && \
     crontab /etc/cron.d/pipeline-cron
 
-# Make entrypoint executable
-RUN chmod +x entrypoint.sh
+# Make runtime scripts executable
+RUN chmod +x entrypoint.sh run-cron-pipeline.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
