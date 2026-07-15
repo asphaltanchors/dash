@@ -80,10 +80,10 @@ function dataFreshnessTone(asOfDate: string | null | undefined): Tone {
 
 function dataFreshnessDetail(asOfDate: string | null | undefined) {
   const age = daysSinceIsoDate(asOfDate)
-  if (age == null) return 'No cockpit run date'
-  if (age <= 0) return 'Updated today'
-  if (age === 1) return '1 day behind today'
-  return `${age} days behind today`
+  if (age == null) return 'No QuickBooks CSV import found'
+  if (age <= 0) return 'CSV files imported today'
+  if (age === 1) return 'CSV import is 1 day old'
+  return `CSV import is ${age} days old`
 }
 
 function RevenueTrendPanel({
@@ -484,10 +484,11 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <div className="hidden items-center gap-1 rounded-md border border-slate-800 border-slate-700 bg-slate-950/40 px-2 py-1 text-xs text-slate-200 md:flex">
-              <CalendarDays className="size-3.5 text-slate-400" />
+            <CompactBadge tone={freshnessTone} className="hidden h-6 gap-1 px-2 md:flex">
+              <CalendarDays className={cn('size-3.5', toneStyles[freshnessTone].icon)} />
+              <span>QB CSV</span>
               <span className="font-mono">{formatIsoDate(summary.asOfDate)}</span>
-            </div>
+            </CompactBadge>
             <CompactBadge tone={healthTone}>{criticalFlags}C {warningFlags}W</CompactBadge>
           </div>
         </div>
@@ -526,7 +527,7 @@ export function BusinessCockpitPage({ data }: { data: BusinessCockpitPageData })
             tone="purple"
           />
           <MetricTile
-            label="Data Freshness"
+            label="QuickBooks CSV"
             value={formatIsoDate(summary.asOfDate)}
             detail={dataFreshnessDetail(summary.asOfDate)}
             icon={CalendarDays}

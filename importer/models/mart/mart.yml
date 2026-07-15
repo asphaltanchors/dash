@@ -1905,7 +1905,7 @@ models:
       attribution coverage, future-order visibility, and account concentration metrics.
     columns:
       - name: as_of_date
-        description: Date anchoring the current dashboard snapshot.
+        description: Latest successfully loaded QuickBooks CSV export date shared by both the transactions and lists files.
         tests:
           - not_null
           - unique

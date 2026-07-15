@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm';
 import { getProductGrowthQuality, type ProductGrowthQualityItem } from './growth-quality';
 
 export interface BusinessCockpitSummary {
-  asOfDate: string;
+  asOfDate: string | null;
   ytdRevenue: string;
   ytdOrders: number;
   priorYtdRevenue: string;
@@ -78,7 +78,7 @@ export async function getBusinessCockpitData(): Promise<BusinessCockpitData> {
 
   return {
     summary: summary ? {
-      asOfDate: String(summary.as_of_date),
+      asOfDate: summary.as_of_date == null ? null : String(summary.as_of_date),
       ytdRevenue: Number(summary.ytd_revenue || 0).toFixed(2),
       ytdOrders: Number(summary.ytd_orders || 0),
       priorYtdRevenue: Number(summary.prior_ytd_revenue || 0).toFixed(2),

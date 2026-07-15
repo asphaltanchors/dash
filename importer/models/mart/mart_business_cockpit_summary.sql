@@ -14,6 +14,27 @@ WITH current_orders AS (
     WHERE total_amount IS NOT NULL
 ),
 
+quickbooks_transaction_exports AS (
+    SELECT DISTINCT snapshot_date::DATE AS export_date
+    FROM {{ source('raw_data', 'xlsx_invoice') }}
+    WHERE COALESCE(is_seed, FALSE) = FALSE
+      AND snapshot_date ~ '^\d{4}-\d{2}-\d{2}$'
+),
+
+quickbooks_list_exports AS (
+    SELECT DISTINCT snapshot_date::DATE AS export_date
+    FROM {{ source('raw_data', 'xlsx_item') }}
+    WHERE COALESCE(is_seed, FALSE) = FALSE
+      AND snapshot_date ~ '^\d{4}-\d{2}-\d{2}$'
+),
+
+quickbooks_csv_import AS (
+    -- Only advance freshness when both halves of the daily QuickBooks export loaded.
+    SELECT MAX(transactions.export_date) AS import_date
+    FROM quickbooks_transaction_exports transactions
+    INNER JOIN quickbooks_list_exports lists USING (export_date)
+),
+
 future_orders AS (
     SELECT
         COUNT(*) AS future_order_count,
@@ -97,7 +118,7 @@ account_concentration AS (
 )
 
 SELECT
-    CURRENT_DATE AS as_of_date,
+    qbi.import_date AS as_of_date,
     rs.ytd_revenue,
     rs.ytd_orders,
     rs.prior_ytd_revenue,
@@ -147,6 +168,7 @@ SELECT
     END AS top_50_corporate_revenue_share_pct,
     CURRENT_TIMESTAMP AS created_at
 FROM revenue_summary rs
+CROSS JOIN quickbooks_csv_import qbi
 CROSS JOIN future_orders fo
 CROSS JOIN attribution_summary attr
 CROSS JOIN inventory_summary inv
