@@ -54,6 +54,9 @@ suppression_rules AS (
     SELECT
         li.sku,
         CASE
+            WHEN li.sku LIKE '49-%' THEN 'discontinued_product_line_not_inventory'
+            WHEN li.sku LIKE '71-%' THEN 'automatically_supplied_carton_not_inventory'
+            WHEN li.sku LIKE '94-%' THEN 'automatically_supplied_label_not_inventory'
             WHEN li.sku = '01-6025' THEN 'obsolete_sku_not_sold'
             WHEN li.sku ILIKE 'HILLMAN PRICING%' THEN 'pricing_artifact_not_inventory'
             WHEN li.sku LIKE '%(W)' THEN 'china_ordering_artifact_not_inventory'

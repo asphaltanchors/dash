@@ -158,6 +158,25 @@ models:
 
     tests:
       - dbt_utils.expression_is_true:
+          name: test_inventory_non_ordered_prefixes_suppressed_from_planning
+          arguments:
+            expression: >
+              sku NOT LIKE '49-%'
+              AND sku NOT LIKE '71-%'
+              AND sku NOT LIKE '94-%'
+              OR (
+                is_suppressed_from_inventory_planning = TRUE
+                AND inventory_suppression_reason = CASE
+                  WHEN sku LIKE '49-%' THEN 'discontinued_product_line_not_inventory'
+                  WHEN sku LIKE '71-%' THEN 'automatically_supplied_carton_not_inventory'
+                  WHEN sku LIKE '94-%' THEN 'automatically_supplied_label_not_inventory'
+                END
+                AND policy_bucket = 'NO_ACTION_OR_ARCHIVE'
+                AND forecast_method = 'exclude_until_active'
+                AND confidence_level = 'exclude'
+              )
+
+      - dbt_utils.expression_is_true:
           name: test_inventory_82_6005_suppressed_from_forecast
           arguments:
             expression: >
