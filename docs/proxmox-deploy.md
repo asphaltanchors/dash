@@ -64,3 +64,8 @@ VM (using `127.0.0.1` when the bind address is unset or listens on all interface
 Set `DASHBOARD_HEALTH_URL` in `.env` to override the probe URL.
 
 After a VM reboot, Docker restart policies should bring the stack back.
+
+## Policies
+
+Docker containers should be as small as possible to run only the included code.
+Critical CVE should be remediated within 48 hours.
